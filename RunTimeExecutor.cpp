@@ -1,8 +1,13 @@
 /*
- * GeneratedCodeTerms.cpp
+ * RunTimeExecutor.cpp
  *
  *  Created on: Jan 4, 2024
  *      Author: Mike Volk
+ *
+ * TODO:
+ * Will need to be able to recognize complete, yet contained sub-expressions for the untaken TERNARY
+ * branch, expressions as fxn|system calls, and potentially for short-circuiting (early break) on the [||] or [&&] OPR8Rs
+ * Align comments below with reality
  *
  * Where will fxn calls go: on the operand or opr8r stack? If fxn calls go on the opr8r stack, then
  * the number of arguments the fxn call expects has to be looked up @ run time, OR the # of expected

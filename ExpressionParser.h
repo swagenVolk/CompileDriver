@@ -40,7 +40,7 @@
 
 class ExpressionParser {
 public:
-	ExpressionParser(TokenPtrVector inTknStream, CompileExecTerms & inUsrSrcTerms);
+	ExpressionParser(TokenPtrVector & inTknStream, CompileExecTerms & inUsrSrcTerms);
 	virtual ~ExpressionParser();
 	int parseExpression (InterpretedFileWriter & intrprtrWriter);
 
@@ -48,18 +48,20 @@ private:
   TokenPtrVector tknStream;
   std::vector<NestedScopeExpr *> exprScopeStack;
   std::wstring errorMsg;
+  std::wstring thisSrcFile;
   int errOnOurSrcLineNum;
   CompileExecTerms usrSrcTerms;
   Utilities util;
+  void cleanScopeStack();
   std::wstring makeExpectedTknTypesStr (uint32_t expected_tkn_types);
   bool isExpectedTknType (uint32_t allowed_tkn_types, uint32_t & next_legal_tkn_types, Token * curr_tkn);
   int openSubExprScope ();
-  int closeSubExprScope (bool & isChkPrevScopesFoldable);
+  int closeParenClosesScope (bool & isOpenParenFndYet);
   bool isTernaryOpen();
   int get2ndTernaryCnt ();
   int turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope);
   int getExpectedEndToken (Token * startTkn, uint32_t & _1stTknTypMsk, Token & expectedEndTkn);
-  void printScopeStack();
+  void printScopeStack(std::wstring fileName, int lineNumber);
 
 };
 

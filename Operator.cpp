@@ -17,13 +17,16 @@ Operator::Operator(std::wstring in_symbol, uint8_t in_type_mask, uint8_t in_vali
 	if (in_type_mask & UNARY)
 		assert (0 == (in_type_mask & ~UNARY));
 
-	// BINARY doesn't play well with others
+	// BINARY doesn't play well with MOST others
 	if (in_type_mask & BINARY)
-		assert (0 == (in_type_mask & ~BINARY));
+		assert (0 == (in_type_mask & ~BINARY) || (TERNARY_1ST == (in_type_mask & ~BINARY)) || (TERNARY_2ND == (in_type_mask & ~BINARY)));
 
-	// TERNARY doesn't play well with others
+	// TERNARY doesn't play well with MOST others
 	if (in_type_mask & TERNARY_1ST)
-		assert (0 == (in_type_mask & ~TERNARY_1ST));
+		assert (0 == (in_type_mask & ~TERNARY_1ST) || (BINARY == (in_type_mask & ~TERNARY_1ST)));
+
+	if (in_type_mask & TERNARY_2ND)
+		assert (0 == (in_type_mask & ~TERNARY_2ND) || (BINARY == (in_type_mask & ~TERNARY_2ND)));
 
 	if ((in_type_mask & PREFIX) || (in_type_mask & POSTFIX))
 		assert (0 == (in_type_mask & ~(PREFIX | POSTFIX)));

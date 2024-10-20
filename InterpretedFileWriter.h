@@ -25,16 +25,13 @@ public:
 	int writeExpressionToFile(ExprTreeNode * rootOfExp);
 
 private:
+	std::wstring thisSrcFile;
 	std::wstring outFileName;
 	std::fstream * outputStream;
 	Utilities util;
 	CompileExecTerms * execTerms;
 	int recursiveWriteExpression (ExprTreeNode * currBranch);
-	int writeExpr_Opr8r_123 (ExprTreeNode * currBranch);
-	int writeExpr_123_Opr8r (ExprTreeNode * currBranch);
-	int writeExpr_Depth1st_123_Opr8r (ExprTreeNode * currBranch);
-	int writeExpr_1_Opr8r_23 (ExprTreeNode * currBranch);
-	int writeExpr_321_Opr8r (ExprTreeNode * currBranch);
+	int writeExpr_12_Opr8r (ExprTreeNode * currBranch);
 };
 
 #endif /* INTERPRETEDFILEWRITER_H_ */

@@ -11,6 +11,9 @@
  * Find hex #'s without leading 0x? - Problematic; 1234 decimal != 1234 hex
  * Do I need to worry about goofy dates, like 10/17/2022?  10:32:46 8/13/2023?
  * Test with tons of different files
+ * Problem immediately after Ye Olde Skule comment block that started on line 37 and was 10 lines long
+ *   SPR8R_TKN '(' on line 37 column 1 <-- *should* be line 47!
+ *   KEYWORD_TKN count on line 47 column 2
  *
  * DONE:
  * Store datetime value

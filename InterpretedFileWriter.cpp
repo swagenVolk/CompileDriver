@@ -20,6 +20,9 @@ InterpretedFileWriter::InterpretedFileWriter(std::fstream & interpreted_file, Co
 	// TODO: Are these asserts even necessary when the & operator is used in parameter list?
 	assert (outputStream != NULL);
 	assert (execTerms != NULL);
+
+	thisSrcFile = util.getLastSegment(util.stringToWstring(__FILE__), L"/");
+
 }
 
 InterpretedFileWriter::~InterpretedFileWriter() {
@@ -27,50 +30,114 @@ InterpretedFileWriter::~InterpretedFileWriter() {
 }
 
 /* ****************************************************************************
- * 1[2][3]O
- * Example expression: (1 + 2 * (3 + 4 * (5 + 6 * 7 * (8 + 9))))
- * Gets turned into an expression tree. Expression tree gets flattened and
- * written out to interpreted file as:
- * [1] [2] [3] [4] [5] [6] [7] [*] [8] [9] [+] [*] [+] [*] [+] [*] [+]
+ * writeExpr_12_Opr8r will recursively walk an expression tree in
+ * [1st child][2nd child][current] order to create a flat stream of op_code
+ * Tokens the Interpreter can use to resolve the expression at execution time.
  *
- * Interpreter will work BACKWARDS through this expression list to resolve it
- * [1] [2] [3] [4] [5] [6] [7] [*] [8] [9] [+] [*] [+] [*] [+] [*] [+]
- *                                 ^^^^^^^^^^^
- * [1] [2] [3] [4] [5] [6] [7] [*] [17] [*] [+] [*] [+] [*] [+]
- *                     ^^^^^^^^^^^
- * [1] [2] [3] [4] [5] [42] [17] [*] [+] [*] [+] [*] [+]
- *                     ^^^^^^^^^^^^^
- * [1] [2] [3] [4] [5] [714] [+] [*] [+] [*] [+]
- *                 ^^^^^^^^^^^^^
- * [1] [2] [3] [4] [719] [*] [+] [*] [+]
- *             ^^^^^^^^^^^^^
- * [1] [2] [3] [2876] [+] [*] [+]
- *         ^^^^^^^^^^^^^^
- * [1] [2] [2879] [*] [+]
- *     ^^^^^^^^^^^^^^
- * [1] [5758] [+]
- * [5759]
+ * Example C expression
+ * (1 + 2 * (3 + 4 * (5 + 6 * 7 * (8 + 9))))
+ *
+ * And how it will get written to interpreted file.
+ * NOTE that we'll go R2L through this list until we find an OPR8R followed by the
+ * required # of operands; in this case [8] [9] [+]. Note that in the above C expression,
+ * 8 + 9 is in the most deeply nested parentheses and therefore has the highest precedence
+ * [1]  [2]  [3]  [4]  [5]  [6]  [7]  [*]  [8]  [9]  [+]  [*]  [+]  [*]  [+]  [*]  [+]
+ * [1]  [2]  [3]  [4]  [5]           [42]           [17]  [*]  [+]  [*]  [+]  [*]  [+]
+ * [1]  [2]  [3]  [4]  [5]                              [714]  [+]  [*]  [+]  [*]  [+]
+ * [1]  [2]  [3]  [4]                                        [719]  [*]  [+]  [*]  [+]
+ * [1]  [2]  [3]                                                 [2876]  [+]  [*]  [+]
+ * [1]  [2]                                                           [2879]  [*]  [+]
+ * [1]                                                                     [5758]  [+]
+ *                                                                              [5759]
+ *
+ * Example nested ternary C expression
+ * (count == 1 ? "one" : count == 2 ? "two" : count == 3 ? "three" : count == 4 ? "four" : "MANY")
+ *
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [count]  [1]  [==]  [?]
+ *
+ * **************************************************************************************************************************************************************
+ * count = 1;
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [count]  [1]  [==]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [1]  [?]
+ *
+ * Somehow we've got to skip over all the junk to get to the [one] at the end
+ * We're moving BACKWARDS through the list, so L&R for the [:] OPR8R are in reverse order.
+ *
+ * [one]  [two]  [three]  [four]  [MANY]
+ * [:]  [count]  [4]  [==]  [?]  -> pulls off [four] [MANY] because this branch was never reached
+ * [:]  [count]  [3]  [==]  [?]  -> pulls off [three] because the false branch was already pulled off above
+ * [:]  [count]  [2]  [==]  [?]  -> pulls off [two] because the false branch was already pulled off above
+ * [:]  [1]  [?] -> this is finally resolved as [one]
+ *
+ *
+ * **************************************************************************************************************************************************************
+ * count = 2;
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [count]  [1]  [==]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [0]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [1]  [?]
+ *
+ * [one]  [two]  [three]  [four]  [MANY]
+ * [:]  [count]  [4]  [==]  [?]  -> pulls off [four] [MANY] because this branch was never reached
+ * [:]  [count]  [3]  [==]  [?]  -> pulls off [three] because the false branch was already pulled off above
+ * [:]  [1]  [?]  -> After previous scopes popped, we grab the 1st available -> [two]
+ *
+ *
+ * **************************************************************************************************************************************************************
+ * count = 3;
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [count]  [1]  [==]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [0]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [0]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [1]  [?]
+ *
+ * [one]  [two]  [three]  [four]  [MANY]
+ * [:]  [count]  [4]  [==]  [?]  -> pulls off [four] [MANY] because this branch was never reached
+ * [:]  [1]  [?]  -> After previous scopes popped, we grab the 1st available -> [three]
+ *
+ *
+ * **************************************************************************************************************************************************************
+ * count = 4;
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [count]  [1]  [==]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [0]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [0]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [0]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [1]  [?]
+ *
+ * [one]  [two]  [three]  [four]  [MANY]
+ * [:]  [1]  [?] -> There are 2 possibilities for us to grab; Since it's the TRUE path and we're running in REVERSE, pick the 2nd* resolved token [four]
+ * 2nd going from R2L, which would in turn be 1st in L2R order for that expression 2-tuple
+ *
+ *
+ * **************************************************************************************************************************************************************
+ * count = 5;
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [count]  [1]  [==]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [0]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [0]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [0]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [0]  [?]
+ *
+ * [one]  [two]  [three]  [four]  [MANY]
+ * [:]  [0]  [?] -> There are 2 possibilities for us to grab; Since the FALSE path is valid and we're running in REVERSE, pick the 1st* resolved token [MANY]
+ * 1st going from R2L, which would in turn be 2nd in L2R order for that expression 2-tuple
+ *
+ *
  * ***************************************************************************/
-int InterpretedFileWriter::writeExpr_Depth1st_123_Opr8r (ExprTreeNode * currBranch)	{
+int InterpretedFileWriter::writeExpr_12_Opr8r (ExprTreeNode * currBranch)	{
 	int ret_code = GENERAL_FAILURE;
 	bool isFailed = false;
 
 	if (currBranch != NULL)	{
-
 		if (currBranch->_1stChild != NULL)	{
-			if (OK != writeExpr_Depth1st_123_Opr8r (currBranch->_1stChild))
+			if (OK != writeExpr_12_Opr8r (currBranch->_1stChild))
 				isFailed = true;
 
 			if (!isFailed && currBranch->_2ndChild != NULL)	{
-				if (OK != writeExpr_Depth1st_123_Opr8r (currBranch->_2ndChild))
-					isFailed = true;
-			}
-
-			if (!isFailed && currBranch->_3rdChild != NULL)	{
-				if (currBranch->originalTkn->tkn_type == OPR8R_TKN && (TERNARY_1ST & execTerms->get_type_mask(currBranch->originalTkn->_string)))
-					std::wcout << " [:] ";
-
-				if (OK != writeExpr_Depth1st_123_Opr8r (currBranch->_3rdChild))
+				if (OK != writeExpr_12_Opr8r (currBranch->_2ndChild))
 					isFailed = true;
 			}
 		}
@@ -80,169 +147,6 @@ int InterpretedFileWriter::writeExpr_Depth1st_123_Opr8r (ExprTreeNode * currBran
 			ret_code = OK;
 		}
 	}
-
-	return (ret_code);
-}
-
-/* ****************************************************************************
- * Ways to do it:
- * O1[2][3] - and write the token stream out backwards?
- * 1[2][3]O
- * ***************************************************************************/
-int InterpretedFileWriter::writeExpr_Opr8r_123 (ExprTreeNode * currBranch)	{
-	int ret_code = GENERAL_FAILURE;
-	bool isFailed = false;
-
-	if (currBranch != NULL)	{
-		std::wcout << " [" << currBranch->originalTkn->_string << "] ";
-
-		if (currBranch->_1stChild != NULL)	{
-			if (OK != writeExpr_123_Opr8r (currBranch->_1stChild))
-				isFailed = true;
-
-			if (!isFailed && currBranch->_2ndChild != NULL)	{
-				if (OK != writeExpr_123_Opr8r (currBranch->_2ndChild))
-					isFailed = true;
-			}
-
-			if (!isFailed && currBranch->_3rdChild != NULL)	{
-				if (currBranch->originalTkn->tkn_type == OPR8R_TKN && (TERNARY_1ST & execTerms->get_type_mask(currBranch->originalTkn->_string)))
-					std::wcout << " [:] ";
-
-				if (OK != writeExpr_123_Opr8r (currBranch->_3rdChild))
-					isFailed = true;
-			}
-		}
-
-		if (!isFailed)	{
-			ret_code = OK;
-		}
-	}
-
-	return (ret_code);
-}
-
-/* ****************************************************************************
- * Ways to do it:
- * O1[2][3] - and write the token stream out backwards?
- * 1[2][3]O
- * ***************************************************************************/
-int InterpretedFileWriter::writeExpr_123_Opr8r (ExprTreeNode * currBranch)	{
-	int ret_code = GENERAL_FAILURE;
-	bool isFailed = false;
-
-	if (currBranch != NULL)	{
-		if (currBranch->_1stChild != NULL)	{
-			if (OK != writeExpr_123_Opr8r (currBranch->_1stChild))
-				isFailed = true;
-
-			if (!isFailed && currBranch->_2ndChild != NULL)	{
-				if (OK != writeExpr_123_Opr8r (currBranch->_2ndChild))
-					isFailed = true;
-			}
-
-			if (!isFailed && currBranch->_3rdChild != NULL)	{
-				if (currBranch->originalTkn->tkn_type == OPR8R_TKN && (TERNARY_1ST & execTerms->get_type_mask(currBranch->originalTkn->_string)))
-					std::wcout << " [:] ";
-
-				if (OK != writeExpr_123_Opr8r (currBranch->_3rdChild))
-					isFailed = true;
-			}
-		}
-
-		if (!isFailed)	{
-			std::wcout << " [" << currBranch->originalTkn->_string << "] ";
-			ret_code = OK;
-		}
-	}
-
-	return (ret_code);
-}
-
-
-/* ****************************************************************************
- * Ways to do it:
- * O1[2][3] - and write the token stream out backwards?
- * 1[2][3]O
- * ***************************************************************************/
-int InterpretedFileWriter::writeExpr_321_Opr8r (ExprTreeNode * currBranch)	{
-	int ret_code = GENERAL_FAILURE;
-	bool isFailed = false;
-
-	if (currBranch != NULL)	{
-		if (!isFailed && currBranch->_3rdChild != NULL)	{
-			if (OK != writeExpr_321_Opr8r (currBranch->_3rdChild))
-				isFailed = true;
-			else if (currBranch->originalTkn->tkn_type == OPR8R_TKN && (TERNARY_1ST & execTerms->get_type_mask(currBranch->originalTkn->_string)))
-				std::wcout << " [:] ";
-		}
-
-		if (!isFailed && currBranch->_2ndChild != NULL)	{
-			if (OK != writeExpr_321_Opr8r (currBranch->_2ndChild))
-				isFailed = true;
-		}
-
-		if (currBranch->_1stChild != NULL)	{
-			if (OK != writeExpr_321_Opr8r (currBranch->_1stChild))
-				isFailed = true;
-		}
-
-		if (!isFailed)	{
-			std::wcout << " [" << currBranch->originalTkn->_string << "] ";
-			ret_code = OK;
-		}
-	}
-
-	return (ret_code);
-}
-
-/* ****************************************************************************
- * Ways to do it:
- * O1[2][3] - and write the token stream out backwards?
- * 1[2][3]O
- * ***************************************************************************/
-int InterpretedFileWriter::writeExpr_1_Opr8r_23 (ExprTreeNode * currBranch)	{
-	int ret_code = GENERAL_FAILURE;
-	bool isFailed = false;
-
-	if (currBranch != NULL)	{
-		if (currBranch->_1stChild != NULL)	{
-			if (OK != writeExpr_1_Opr8r_23 (currBranch->_1stChild))
-				isFailed = true;
-		}
-
-		if (!isFailed)	{
-			std::wcout << "[" << currBranch->originalTkn->_string << "] ";
-		}
-
-		if (!isFailed && currBranch->_2ndChild != NULL)	{
-			if (OK != writeExpr_1_Opr8r_23 (currBranch->_2ndChild))
-				isFailed = true;
-		}
-
-		if (!isFailed && currBranch->_3rdChild != NULL)	{
-			if (currBranch->originalTkn->tkn_type == OPR8R_TKN && (TERNARY_1ST & execTerms->get_type_mask(currBranch->originalTkn->_string)))
-				std::wcout << "[:] ";
-
-			if (OK != writeExpr_1_Opr8r_23 (currBranch->_3rdChild))
-				isFailed = true;
-		}
-	}
-
-	if (!isFailed)	{
-		ret_code = OK;
-	}
-
-	return (ret_code);
-}
-
-/* ****************************************************************************
- * Ways to do it:
- * O1[2][3] - and write the token stream out backwards?
- * 1[2][3]O
- * ***************************************************************************/
-int InterpretedFileWriter::recursiveWriteExpression (ExprTreeNode * currBranch)	{
-	int ret_code = GENERAL_FAILURE;
 
 	return (ret_code);
 }
@@ -261,10 +165,10 @@ int InterpretedFileWriter::writeExpressionToFile (ExprTreeNode * rootOfExpr)	{
 	if (rootOfExpr == NULL)	{
 		// TODO: Some kind of error message capture?
 		// Who is responsible for reporting out to the user?
-  	std::wcout << "INTERNAL ERROR encountered on " << util.getLastSegment (util.stringToWstring(__FILE__), L"/") << ":" << __LINE__ << std::endl;
+  	std::wcout << "INTERNAL ERROR encountered on " << thisSrcFile << ":" << __LINE__ << std::endl;
 
 	} else if (outputStream == NULL)	{
-  	std::wcout << "INTERNAL ERROR encountered on " << util.getLastSegment (util.stringToWstring(__FILE__), L"/") << ":" << __LINE__ << std::endl;
+  	std::wcout << "INTERNAL ERROR encountered on " << thisSrcFile << ":" << __LINE__ << std::endl;
 
 	} else	{
 		// Make sure we're at END of our output file
@@ -277,25 +181,9 @@ int InterpretedFileWriter::writeExpressionToFile (ExprTreeNode * rootOfExpr)	{
 		uint32_t length_pos = outputStream->tellp();
 		// TODO: Probably also Busticated! outputStream->write(reinterpret_cast<char*>(0x0), sizeof (uint32_t));
 
-		std::wcout << L"********** writeExpr_123_Opr8r **********" << std::endl;
-		ret_code = writeExpr_123_Opr8r (rootOfExpr);
+		std::wcout << L"********** writeExpr_12_Opr8r **********" << std::endl;
+		ret_code = writeExpr_12_Opr8r (rootOfExpr);
 		std::wcout << std::endl;
-
-		std::wcout << L"********** writeExpr_Opr8r_123 **********" << std::endl;
-		ret_code = writeExpr_Opr8r_123 (rootOfExpr);
-		std::wcout << std::endl;
-
-		std::wcout << L"********** writeExpr_321_Opr8r **********" << std::endl;
-		ret_code = writeExpr_321_Opr8r (rootOfExpr);
-		std::wcout << std::endl;
-
-		std::wcout << L"********** writeExpr_Depth1st_123O **********" << std::endl;
-		ret_code = writeExpr_Depth1st_123_Opr8r (rootOfExpr);
-		std::wcout << std::endl;
-
-//		std::wcout << L"********** writeExpr_1_Opr8r_23 **********" << std::endl;
-//		ret_code = writeExpr_1_Opr8r_23 (rootOfExpr);
-//		std::wcout << std::endl;
 
 	}
 

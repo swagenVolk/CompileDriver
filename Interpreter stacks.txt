@@ -1,119 +1,92 @@
-(1 + 2 * (3 + 4 * (5 + 6 * 7 * (8 + 9))))
+ * Example C expression
+ * (1 + 2 * (3 + 4 * (5 + 6 * 7 * (8 + 9))))
+ * 
+ * And how it will get written to interpreted file.
+ * NOTE that we'll go R2L through this list until we find an OPR8R followed by the
+ * required # of operands; in this case [8] [9] [+]. Note that in the above C expression,
+ * 8 + 9 is in the most deeply nested parentheses and therefore has the highest precedence
+ * [1]  [2]  [3]  [4]  [5]  [6]  [7]  [*]  [8]  [9]  [+]  [*]  [+]  [*]  [+]  [*]  [+] 
+ * [1]  [2]  [3]  [4]  [5]           [42]           [17]  [*]  [+]  [*]  [+]  [*]  [+] 
+ * [1]  [2]  [3]  [4]  [5]                              [714]  [+]  [*]  [+]  [*]  [+] 
+ * [1]  [2]  [3]  [4]                                        [719]  [*]  [+]  [*]  [+] 
+ * [1]  [2]  [3]                                                 [2876]  [+]  [*]  [+] 
+ * [1]  [2]                                                           [2879]  [*]  [+] 
+ * [1]                                                                     [5758]  [+] 
+ *                                                                              [5759]
 
-********** writeExpr_123_Opr8r **********
- [1]  [2]  [3]  [4]  [5]  [6]  [7]  [*]  [8]  [9]  [+]  [*]  [+]  [*]  [+]  [*]  [+] 
- 
- [1]  [2]  [3]  [4]  [5]  [6]  [7]  [*]  [8]  [9]  [+]  [*]  [+]  [*]  [+]  [*]  [+] 
-                                         ^^^^^^^^^^^^^
- [1]  [2]  [3]  [4]  [5]  [6]  [7]  [*]  [17]  [*]  [+]  [*]  [+]  [*]  [+] 
-                          ^^^^^^^^^^^^^  
- [1]  [2]  [3]  [4]  [5]  [42]  [17]  [*]  [+]  [*]  [+]  [*]  [+] 
-                          ^^^^^^^^^^^^^^^
- [1]  [2]  [3]  [4]  [5]  [714]  [+]  [*]  [+]  [*]  [+] 
-                     ^^^^^^^^^^^^^^^
- [1]  [2]  [3]  [4]  [719]  [*]  [+]  [*]  [+] 
-                ^^^^^^^^^^^^^^^
- [1]  [2]  [3]  [2876]  [+]  [*]  [+] 
-           ^^^^^^^^^^^^^^^^
- [1]  [2]  [2879]  [*]  [+] 
-      ^^^^^^^^^^^^^^^^
- [1]  [5758]  [+] 
- ^^^^^^^^^^^^^^^^
- [5759]     
- 
-********** writeExpr_Opr8r_123 **********
-Go R2L in list and do all operations that have the required # of operands. 
-No backtracking; go to BOL before returning to EOL
- [+]  [1]  [2]  [3]  [4]  [5]  [6]  [7]  [*]  [8]  [9]  [+]  [*]  [+]  [*]  [+]  [*] 
- [+]  [1]  [2]  [3]  [4]  [5]           [42]           [17]  [*]  [+]  [*]  [+]  [*] 
- [+]  [1]  [2]  [3]  [4]  [5]                                [714][+]  [*]  [+]  [*] 
- [+]  [1]  [2]  [3]  [4]                                        [719]  [*]  [+]  [*] 
- [+]  [1]  [2]  [3]                                                 [2876]  [+]  [*] 
- [+]  [1]  [2]                                                             [2879][*] 
- [+]  [1]                                                                     [5758] 
-                                                                              [5759]  <-- Why is the last OPR8R to the left?
-                                                                              
-OR 
-Go L2R                                                                              
- [+]  [1]  [2]  [3]  [4]  [5]  [6]  [7]  [*]  [8]  [9]  [+]  [*]  [+]  [*]  [+]  [*] 
- [+]  [1]  [2]  [3]  [4]  [5]            [42]  [8]  [9]  [+]  [*]  [+]  [*]  [+]  [*] 
- [+]  [1]  [2]  [3]  [4]  [5]            [42]           [17]  [*]  [+]  [*]  [+]  [*] 
- [+]  [1]  [2]  [3]  [4]  [5]                               [714]  [+]  [*]  [+]  [*] 
- [+]  [1]  [2]  [3]  [4]                                         [719]  [*]  [+]  [*] 
- [+]  [1]  [2]  [3]                                                  [2876]  [+]  [*] 
- [+]  [1]  [2]                                                            [2879]  [*] 
- [+]  [1]                                                                      [5758]  <-- Why is the last OPR8R to the left?
-                                                                               [5759] 
+ * Example nested ternary C expression
+ * (count == 1 ? "one" : count == 2 ? "two" : count == 3 ? "three" : count == 4 ? "four" : "MANY")
+
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [count]  [1]  [==]  [?] 
+
+ * **************************************************************************************************************************************************************
+ * count = 1;
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [count]  [1]  [==]  [?] 
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [1]  [?] 
+
+ * Somehow we've got to skip over all the junk to get to the [one] at the end
+ * We're moving BACKWARDS through the list, so L&R for the [:] OPR8R are in reverse order.
+
+ * [one]  [two]  [three]  [four]  [MANY]  
+ * [:]  [count]  [4]  [==]  [?]  -> pulls off [four] [MANY] because this branch was never reached
+ * [:]  [count]  [3]  [==]  [?]  -> pulls off [three] because the false branch was already pulled off above
+ * [:]  [count]  [2]  [==]  [?]  -> pulls off [two] because the false branch was already pulled off above
+ * [:]  [1]  [?] -> this is finally resolved as [one]
 
 
-********** writeExpr_321_Opr8r **********
-Go L2R in list and do all operations that have the required # of operands. 
-No backtracking; go to EOL before returning to BOL
- [9]  [8]  [+]  [7]  [6]  [*]  [*]  [5]  [+]  [4]  [*]  [3]  [+]  [2]  [*]  [1]  [+] 
- [17]           [42]      [*]  [*]  [5]  [+]  [4]  [*]  [3]  [+]  [2]  [*]  [1]  [+] 
-                         [714] [5]  [+]  [4]  [*]  [3]  [+]  [2]  [*]  [1]  [+] 
-                                   [719] [4]  [*]  [3]  [+]  [2]  [*]  [1]  [+] 
-                                           [2876]  [3]  [+]  [2]  [*]  [1]  [+] 
-                                                     [2879]  [2]  [*]  [1]  [+] 
-                                                               [5758]  [1]  [+] 
-																		 [5759]													
+ * **************************************************************************************************************************************************************
+ * count = 2;
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [count]  [1]  [==]  [?] 
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [0]  [?] 
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [1]  [?]
+
+ * [one]  [two]  [three]  [four]  [MANY]  
+ * [:]  [count]  [4]  [==]  [?]  -> pulls off [four] [MANY] because this branch was never reached
+ * [:]  [count]  [3]  [==]  [?]  -> pulls off [three] because the false branch was already pulled off above
+ * [:]  [1]  [?]  -> After previous scopes popped, we grab the 1st available -> [two]
+ * 
+
+ * **************************************************************************************************************************************************************
+ * count = 3;
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [count]  [1]  [==]  [?] 
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [0]  [?] 
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [0]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [1]  [?]  
+
+ * [one]  [two]  [three]  [four]  [MANY]  
+ * [:]  [count]  [4]  [==]  [?]  -> pulls off [four] [MANY] because this branch was never reached  
+ * [:]  [1]  [?]  -> After previous scopes popped, we grab the 1st available -> [three]  
 
 
-********** writeExpr_Depth1st_123O **********
-Go L2R in list; if OPR8R is preceded by required # of operands, to the operation
-No backtracking; go to EOL before returning to BOL
- [1]  [2]  [3]  [4]  [5]  [6]  [7]  [*]  [8]  [9]  [+]  [*]  [+]  [*]  [+]  [*]  [+] 
- [1]  [2]  [3]  [4]  [5]           [42]           [17]  [*]  [+]  [*]  [+]  [*]  [+] 
- [1]  [2]  [3]  [4]  [5]                              [714]  [+]  [*]  [+]  [*]  [+] 
- [1]  [2]  [3]  [4]                                        [719]  [*]  [+]  [*]  [+] 
- [1]  [2]  [3]                                                 [2876]  [+]  [*]  [+] 
- [1]  [2]                                                           [2879]  [*]  [+] 
- [1]                                                                     [5758]  [+] 
-                                                                              [5759]
+ * **************************************************************************************************************************************************************
+ * count = 4;
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [count]  [1]  [==]  [?] 
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [0]  [?] 
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [0]  [?] 
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [0]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [1]  [?]
+
+ * [one]  [two]  [three]  [four]  [MANY]  
+ * [:]  [1]  [?] -> There are 2 possibilities for us to grab; Since it's the TRUE path and we're running in REVERSE, pick the 2nd* resolved token [four]
+ * 2nd going from R2L, which would in turn be 1st in L2R order for that expression 2-tuple
+ * 
+ * 
+ * **************************************************************************************************************************************************************
+ * count = 5;
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [count]  [1]  [==]  [?] 
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [0]  [?] 
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [0]  [?] 
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [0]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]
+ * [one]  [two]  [three]  [four]  [MANY]  [:]  [0]  [?]
+ * 
+ * [one]  [two]  [three]  [four]  [MANY]  
+ * [:]  [0]  [?] -> There are 2 possibilities for us to grab; Since the FALSE path is valid and we're running in REVERSE, pick the 1st* resolved token [MANY]
+ * 1st going from R2L, which would in turn be 2nd in L2R order for that expression 2-tuple
 
 
-
-(count == 1 ? "one" : count == 2 ? "two" : count == 3 ? "three" : count == 4 ? "four" : "MANY")
-
-********** writeExpr_123_Opr8r **********
- [count]  [1]  [==]  [one]  [:]  [count]  [2]  [==]  [two]  [:]  [count]  [3]  [==]  [three]  [:]  [count]  [4]  [==]  [four]  [:]  [MANY]  [?]  [?]  [?]  [?] 
-
-********** writeExpr_Opr8r_123 **********
- [?]  [count]  [1]  [==]  [one]  [:]  [count]  [2]  [==]  [two]  [:]  [count]  [3]  [==]  [three]  [:]  [count]  [4]  [==]  [four]  [:]  [MANY]  [?]  [?]  [?] 
-
-********** writeExpr_321_Opr8r **********
- [MANY]  [:]  [four]  [4]  [count]  [==]  [?]  [:]  [three]  [3]  [count]  [==]  [?]  [:]  [two]  [2]  [count]  [==]  [?]  [:]  [one]  [1]  [count]  [==]  [?] 
-
-
-
-********** writeExpr_Depth1st_123O **********
- This doesn't seem straight-forward with the TERNARY
- [count]  [1]  [==]  [one]  [:]  [count]  [2]  [==]  [two]  [:]  [count]  [3]  [==]  [three]  [:]  [count]  [4]  [==]  [four]  [:]  [MANY]  [?]  [?]  [?]  [?] 
-
-count = 1;
- [count]  [1]  [==]  [one]  [:]  [count]  [2]  [==]  [two]  [:]  [count]  [3]  [==]  [three]  [:]  [count]  [4]  [==]  [four]  [:]  [MANY]  [?]  [?]  [?]  [?] 
-                [1]  [one]  [:]  [count]  [2]  [==]  [two]  [:]  [count]  [3]  [==]  [three]  [:]  [count]  [4]  [==]  [four]  [:]  [MANY]  [?]  [?]  [?]  [?] \
-                We get here, and we know to return "one" and somehow we should know to short circuit
-                
-                
-                
-count = 2;
- [count]  [1]  [==]  [one]  [:]  [count]  [2]  [==]  [two]  [:]  [count]  [3]  [==]  [three]  [:]  [count]  [4]  [==]  [four]  [:]  [MANY]  [?]  [?]  [?]  [?] 
-                [0]  [one]  [:]  [count]  [2]  [==]  [two]  [:]  [count]  [3]  [==]  [three]  [:]  [count]  [4]  [==]  [four]  [:]  [MANY]  [?]  [?]  [?]  [?] 
-                We get here, and we know we've got to take the FALSE path after the [:] OPR8R
-                                 [count]  [2]  [==]  [two]  [:]  [count]  [3]  [==]  [three]  [:]  [count]  [4]  [==]  [four]  [:]  [MANY]  [?]  [?]  [?]  [?] 
-                                                [1]  [two]  [:]  [count]  [3]  [==]  [three]  [:]  [count]  [4]  [==]  [four]  [:]  [MANY]  [?]  [?]  [?]  [?] 
-                                                
-                                                
-Maybe it should look like     
-     ?
-[Conditional]             :
-              [TRUE path]   [FALSE path]   
-              
-Also, possibly change ternary conditional result to a TERNARY_TRUE or TERNARY_FALSE OPR8R (just a thought...)
-             
-INSTEAD OF
-?
-[Conditional] [TRUE path] [FALSE path]            
-
-                                                      

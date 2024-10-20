@@ -19,7 +19,6 @@ ExprTreeNode::ExprTreeNode(Token * startOpr8rTkn) {
   myParent = NULL;
   _1stChild = NULL;
   _2ndChild = NULL;
-  _3rdChild = NULL;
 
 }
 
@@ -45,17 +44,12 @@ ExprTreeNode::~ExprTreeNode() {
 		delete (_2ndChild);
 		_2ndChild = NULL;
 	}
-
-	if (_3rdChild != NULL)	{
-		delete (_3rdChild);
-		_3rdChild = NULL;
-	}
 }
 
 /* ****************************************************************************
  * Recursive proc to fill in Token descriptions at corresponding tree levels
  * ***************************************************************************/
-void ExprTreeNode::buildTreeGraph (ExprTreeNode * treeNode, std::vector<std::wstring> & treeGraph, int scopeDepth, int lftRgt3rdChild)	{
+void ExprTreeNode::buildTreeGraph (ExprTreeNode * treeNode, std::vector<std::wstring> & treeGraph, int scopeDepth, int _1stOr2ndChild)	{
 
 	if (treeNode != NULL)	{
 		// If we don't have a string at this depth|level yet, add one
@@ -77,12 +71,10 @@ void ExprTreeNode::buildTreeGraph (ExprTreeNode * treeNode, std::vector<std::wst
 			treeGraph[nxtLvlDown].append (L"     ");
 
 		if (treeNode->_1stChild != NULL)	{
-			if (lftRgt3rdChild == 1)
+			if (_1stOr2ndChild == 1)
 				treeGraph[nxtLvlDown].append(L"(1st)");
-			else if (lftRgt3rdChild == 2)
+			else if (_1stOr2ndChild == 2)
 				treeGraph[nxtLvlDown].append(L"(2nd)");
-			else if (lftRgt3rdChild == 3)
-				treeGraph[nxtLvlDown].append(L"(3rd)");
 
 			treeGraph[nxtLvlDown].append(L"[");
 			treeGraph[nxtLvlDown].append(treeNode->_1stChild->originalTkn->_string);
@@ -93,11 +85,6 @@ void ExprTreeNode::buildTreeGraph (ExprTreeNode * treeNode, std::vector<std::wst
 			treeGraph[nxtLvlDown].append(treeNode->_2ndChild->originalTkn->_string);
 		}
 
-		if (treeNode->_3rdChild != NULL)	{
-			treeGraph[nxtLvlDown].append(L", ");
-			treeGraph[nxtLvlDown].append(treeNode->_3rdChild->originalTkn->_string);
-		}
-
 		if (treeNode->_1stChild != NULL)	{
 			// Close it off
 			treeGraph[nxtLvlDown].append(L"]");
@@ -106,7 +93,6 @@ void ExprTreeNode::buildTreeGraph (ExprTreeNode * treeNode, std::vector<std::wst
 		// Now do the recursive calls
 		buildTreeGraph (treeNode->_1stChild, treeGraph, scopeDepth + 1, 1);
 		buildTreeGraph (treeNode->_2ndChild, treeGraph, scopeDepth + 1, 2);
-		buildTreeGraph (treeNode->_3rdChild, treeGraph, scopeDepth + 1, 3);
 	}
 }
 
@@ -116,11 +102,11 @@ void ExprTreeNode::buildTreeGraph (ExprTreeNode * treeNode, std::vector<std::wst
  * graphical tree representation so I can see if the tree matches what I
  * expected to happen.
  * ***************************************************************************/
-void ExprTreeNode::showTree (ExprTreeNode * treeNode)	{
+void ExprTreeNode::showTree (ExprTreeNode * treeNode, std::wstring fileName, int lineNumber)	{
 
 	std::vector<std::wstring> treeGraph;
 
-	std::wcout << L"********** EXPRESSION TREE **********" << std::endl;
+	std::wcout << L"********** ExprTreeNode::showTree called from "<< fileName << L":" << lineNumber << L" **********" << std::endl;
 
 	buildTreeGraph (treeNode, treeGraph, 0, 0);
 

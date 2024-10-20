@@ -120,12 +120,12 @@ CompileExecTerms::CompileExecTerms() {
   // TODO: Is TERNARY OPR8R the two together, e.g. "?:" ?
 	// TODO: How many operands should the constructor get? 3? Or is this OPR8R a special case since it
 	// opens up a scope and it'll be treated as such anyway?  If so, shouldn't we pass 0?
-	grouped_opr8rs.back().opr8rs.push_back ( Operator (L"?", TERNARY_1ST, (USR_SRC|GNR8D_SRC), 3));
+	grouped_opr8rs.back().opr8rs.push_back ( Operator (L"?", (BINARY|TERNARY_1ST), (USR_SRC|GNR8D_SRC), 2));
 	opr8rOpCodes.emplace (std::pair {L"?", TERNARY_1ST_OPR8R_OPCODE});
   // TODO: Should this be BINARY instead?
 
 	grouped_opr8rs.push_back(Opr8rPrecedenceLvl ());
-  grouped_opr8rs.back().opr8rs.push_back ( Operator (L":", TERNARY_2ND, (USR_SRC|GNR8D_SRC), 2));
+  grouped_opr8rs.back().opr8rs.push_back ( Operator (L":", (BINARY|TERNARY_2ND), (USR_SRC|GNR8D_SRC), 2));
 	opr8rOpCodes.emplace (std::pair {L":", TERNARY_2ND_OPR8R_OPCODE});
 
 	grouped_opr8rs.push_back(Opr8rPrecedenceLvl ());
