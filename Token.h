@@ -37,7 +37,8 @@ enum tkn_type_enum {
 	,INT32_TKN
 	,INT64_TKN
   ,DOUBLE_TKN   
-  ,OPR8R_TKN
+  ,SRC_OPR8R_TKN
+	,EXEC_OPR8R_TKN						// Run-time OPR8R Token stores op_code in _unsigned rather than a string representation
   ,SPR8R_TKN
   ,END_OF_STREAM_TKN        // Expect file_parser producer and compiler consumer threads
                             // Will need a token to indicate EOS since the compiler
@@ -50,6 +51,8 @@ class Token {
   public:
     Token(tkn_type_enum found_type, std::wstring tokenized_str,  int line_num, int col_pos);
     ~Token();
+    Token& operator= (const Token & srcTkn);
+
 
     int tkn_type;
     std::wstring _string;
@@ -66,6 +69,8 @@ class Token {
     std::wstring description ();
     TokenCompareResult compare (Token & otherTkn);
     bool isOperand();
+    bool evalResolvedTokenAsIf ();
+
   private:
 
 

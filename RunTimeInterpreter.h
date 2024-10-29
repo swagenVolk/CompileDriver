@@ -18,7 +18,8 @@ public:
 	RunTimeInterpreter(CompileExecTerms & execTerms);
 	virtual ~RunTimeInterpreter();
 	int execOperation (Token * opr8r, TokenPtrVector & operands, Token & resultTkn);
-  void dumpTokenStream (TokenPtrVector tokenStream);
+  void dumpTokenPtrStream (TokenPtrVector tokenStream, std::wstring callersSrcFile, int lineNum);
+  void dumpTokenList (std::vector<Token> & tokenList, std::wstring callersSrcFile, int lineNum);
   int consumeUnifiedStream (TokenPtrVector & unifiedStream, int startIdx);
   int resolveExpression(std::vector<Token> & exprTknStream);
 
@@ -39,14 +40,16 @@ private:
   bool isShortCircuit (Token * opr8rTkn, int operandIdx, Token * operand);
   int consumeShortCircuit (TokenPtrVector & unifiedStream, int startIdx);
 
-	int execBinaryOp (std::vector<Token> & exprTknStream, int opr8rIdx);
+	int execBinaryOp (std::vector<Token> & exprTknStream, int & callersIdx);
+	int findNextTernary2ndIdx (std::vector<Token> & exprTknStream, int ternary1stOpIdx);
+	int getEndOfSubExprIdx (std::vector<Token> & exprTknStream, int startIdx, int & lastIdxOfExpr);
 	int execTernary1stOp (std::vector<Token> & exprTknStream, int & callersIdx);
 	int takeTernaryTrue (std::vector<Token> & exprTknStream, int & callersIdx);
 	int takeTernaryFalse (std::vector<Token> & exprTknStream, int & callersIdx);
 
 	int execGr8rThan (TokenCompareResult compareRez, Token & resultTkn);
 	int execGr8rThanEqual (TokenCompareResult compareRez, Token & resultTkn);
-	int execEquivalenceOp (TokenCompareResult compareRez, Token & resultTkn);
+	int execEquivalenceOp (Token & operand1, Token & operand2, Token & resultTkn);
 	int execNotEqualsOp (TokenCompareResult compareRez, Token & resultTkn);
 	int execLessThan (TokenCompareResult compareRez, Token & resultTkn);
 	int execLessThanEqual (TokenCompareResult compareRez, Token & resultTkn);

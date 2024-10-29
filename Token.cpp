@@ -16,6 +16,8 @@ using namespace std;
  * ***************************************************************************/
 Token::Token (tkn_type_enum found_type, std::wstring tokenized_str, int line_num, int col_pos) {
 
+  // TODO: Token value not automatically filled in, even though tokenized_str should contain enough info
+
   this->tkn_type = found_type;
   this->_string = tokenized_str;
   this->line_number = line_num;
@@ -31,14 +33,38 @@ Token::Token (tkn_type_enum found_type, std::wstring tokenized_str, int line_num
   // will generated underlying code like so:
   // while (someVal < 37 && otherVal < 43) {someVal += 1; otherVal +=1; ...}
   this->is_rvalue = false;
+
+
 }
 
 Token::~Token()	{
 
 	if (this->_string.length() > 0)	{
-		// TODO: std::wcout << "TODO: ~Token " << this->_string << std::endl;
 		this->_string.erase(0, this->_string.length());
 	}
+}
+
+Token& Token::operator= (const Token & srcTkn)
+{
+	// self-assignment check
+	if (this == &srcTkn)
+		return (*this);
+
+	// if data exists in the current string, delete it
+	_string.clear();
+	_string = srcTkn._string;
+	tkn_type = srcTkn.tkn_type;
+	_unsigned = srcTkn._unsigned;
+	_signed = srcTkn._signed;
+	_double = srcTkn._double;
+	line_number = srcTkn.line_number;
+	column_pos = srcTkn.column_pos;
+	is_rvalue = srcTkn.is_rvalue;
+
+
+	// TODO: I don't understand the comment below
+	// return the existing object so we can chain this operator
+	return (*this);
 }
 
 /* ****************************************************************************
@@ -98,7 +124,7 @@ std::wstring Token::get_type_str()  {
         // TODO: Support DOUBLE_TKN
         ret_string = L"DOUBLE_TKN";
         break;
-    case OPR8R_TKN               :
+    case SRC_OPR8R_TKN               :
       ret_string = L"OPR8R_TKN";
       break;
     case SPR8R_TKN               :
@@ -144,21 +170,17 @@ std::wstring Token::description ()	{
 	return (desc);
 }
 
-void Token::dumpOut ()	{
-	std::wcout << "Token type = " << this->get_type_str() << "; string = " << this->_string << "; _unsigned = " << this->_unsigned << "; _signed = " << this->_signed << "; _double = " << this->_unsigned << "; line_number = " << this->line_number << "; column_pos = " << this->column_pos << std::endl;
-}
-
 /* ****************************************************************************
  *
  * ***************************************************************************/
 TokenCompareResult Token::compare (Token & otherTkn)	{
 	TokenCompareResult compareRez;
 
-	if ((this->tkn_type == UINT16_TKN || this->tkn_type == UINT32_TKN || this->tkn_type == UINT64_TKN
-			|| this->tkn_type == INT16_TKN || this->tkn_type == INT32_TKN || this->tkn_type == INT64_TKN
+	if ((this->tkn_type == UINT8_TKN || this->tkn_type == UINT16_TKN || this->tkn_type == UINT32_TKN || this->tkn_type == UINT64_TKN
+			|| this->tkn_type == INT8_TKN || this->tkn_type == INT16_TKN || this->tkn_type == INT32_TKN || this->tkn_type == INT64_TKN
 			|| this->tkn_type == STRING_TKN || this->tkn_type == DATETIME_TKN || this->tkn_type == DOUBLE_TKN)
-			&& (otherTkn.tkn_type == UINT16_TKN || otherTkn.tkn_type == UINT32_TKN || otherTkn.tkn_type == UINT64_TKN
-					|| otherTkn.tkn_type == INT16_TKN || otherTkn.tkn_type == INT32_TKN || otherTkn.tkn_type == INT64_TKN
+			&& (otherTkn.tkn_type == UINT8_TKN || otherTkn.tkn_type == UINT16_TKN || otherTkn.tkn_type == UINT32_TKN || otherTkn.tkn_type == UINT64_TKN
+					|| otherTkn.tkn_type == INT8_TKN || otherTkn.tkn_type == INT16_TKN || otherTkn.tkn_type == INT32_TKN || otherTkn.tkn_type == INT64_TKN
 					|| otherTkn.tkn_type == STRING_TKN || otherTkn.tkn_type == DATETIME_TKN || otherTkn.tkn_type == DOUBLE_TKN))	{
 		// Both types are valid for comparison. Will check later if these 2 types can be compared against one another
 
@@ -173,6 +195,7 @@ TokenCompareResult Token::compare (Token & otherTkn)	{
 					break;
 
 				case DATETIME_TKN:
+				case UINT8_TKN:
 				case UINT16_TKN:
 				case UINT32_TKN:
 				case UINT64_TKN:
@@ -183,6 +206,7 @@ TokenCompareResult Token::compare (Token & otherTkn)	{
 					this->_unsigned == otherTkn._unsigned ? compareRez.equals = isTrue : compareRez.equals = isFalse;
 					break;
 
+				case INT8_TKN:
 				case INT16_TKN:
 				case INT32_TKN:
 				case INT64_TKN:
@@ -205,8 +229,8 @@ TokenCompareResult Token::compare (Token & otherTkn)	{
 
 			}
 
-		} else if (this->tkn_type == UINT16_TKN || this->tkn_type == UINT32_TKN || this->tkn_type == UINT64_TKN)	{
-			if (otherTkn.tkn_type == INT16_TKN || otherTkn.tkn_type == INT32_TKN || otherTkn.tkn_type == INT64_TKN) {
+		} else if (this->tkn_type == UINT8_TKN || this->tkn_type == UINT16_TKN || this->tkn_type == UINT32_TKN || this->tkn_type == UINT64_TKN)	{
+			if (otherTkn.tkn_type == INT8_TKN || otherTkn.tkn_type == INT16_TKN || otherTkn.tkn_type == INT32_TKN || otherTkn.tkn_type == INT64_TKN) {
 				this->_unsigned > otherTkn._signed ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
 				this->_unsigned >= otherTkn._signed ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
 				this->_unsigned < otherTkn._signed ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
@@ -221,8 +245,8 @@ TokenCompareResult Token::compare (Token & otherTkn)	{
 				this->_unsigned == otherTkn._double ? compareRez.equals = isTrue : compareRez.equals = isFalse;
 			}
 
-		} else if (this->tkn_type == INT16_TKN || this->tkn_type == INT32_TKN || this->tkn_type == INT64_TKN) {
-			if (otherTkn.tkn_type == UINT16_TKN || otherTkn.tkn_type == UINT32_TKN || otherTkn.tkn_type == UINT64_TKN)	{
+		} else if (this->tkn_type == INT8_TKN || this->tkn_type == INT16_TKN || this->tkn_type == INT32_TKN || this->tkn_type == INT64_TKN) {
+			if (otherTkn.tkn_type == UINT8_TKN || otherTkn.tkn_type == UINT16_TKN || otherTkn.tkn_type == UINT32_TKN || otherTkn.tkn_type == UINT64_TKN)	{
 				this->_signed > otherTkn._unsigned ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
 				this->_signed >= otherTkn._unsigned ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
 				this->_signed < otherTkn._unsigned ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
@@ -238,14 +262,14 @@ TokenCompareResult Token::compare (Token & otherTkn)	{
 			}
 
 		} else if (this->tkn_type == DOUBLE_TKN)	{
-			if (otherTkn.tkn_type == UINT16_TKN || otherTkn.tkn_type == UINT32_TKN || otherTkn.tkn_type == UINT64_TKN)	{
+			if (otherTkn.tkn_type == UINT8_TKN || otherTkn.tkn_type == UINT16_TKN || otherTkn.tkn_type == UINT16_TKN || otherTkn.tkn_type == UINT32_TKN || otherTkn.tkn_type == UINT64_TKN)	{
 				this->_double > otherTkn._unsigned ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
 				this->_double >= otherTkn._unsigned ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
 				this->_double < otherTkn._unsigned ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
 				this->_double <= otherTkn._unsigned ? compareRez.lessEquals = isTrue : compareRez.lessEquals = isFalse;
 				this->_double == otherTkn._unsigned ? compareRez.equals = isTrue : compareRez.equals = isFalse;
 
-			} else if (otherTkn.tkn_type == INT16_TKN || otherTkn.tkn_type == INT32_TKN || otherTkn.tkn_type == INT64_TKN) {
+			} else if (otherTkn.tkn_type == INT8_TKN || otherTkn.tkn_type == INT16_TKN || otherTkn.tkn_type == INT32_TKN || otherTkn.tkn_type == INT64_TKN) {
 				this->_double > otherTkn._signed ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
 				this->_double >= otherTkn._signed ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
 				this->_double < otherTkn._signed ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
@@ -269,9 +293,11 @@ bool Token::isOperand ()	{
 			case KEYWORD_TKN :
 			case STRING_TKN :
 			case DATETIME_TKN :
+			case UINT8_TKN :
 			case UINT16_TKN :
 			case UINT32_TKN :
 			case UINT64_TKN :
+			case INT8_TKN :
 			case INT16_TKN :
 			case INT32_TKN :
 			case INT64_TKN :
@@ -284,4 +310,44 @@ bool Token::isOperand ()	{
 
 
 	return isRand;
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+bool Token::evalResolvedTokenAsIf ()	{
+	bool isTrue = false;
+
+	// KEYWORD_TKN probably means a variable name.  If so, then Token hasn't been resolved yet
+	// TODO: Not sure how to handle DATETIME_TKN yet
+	assert (tkn_type != KEYWORD_TKN && tkn_type != DATETIME_TKN);
+
+	switch (tkn_type)	{
+		case STRING_TKN :
+			if (_string.size() > 0)
+				isTrue = true;
+			break;
+		case UINT8_TKN :
+		case UINT16_TKN :
+		case UINT32_TKN :
+		case UINT64_TKN :
+			if (_unsigned > 0)
+				isTrue = true;
+			break;
+		case INT8_TKN :
+		case INT16_TKN :
+		case INT32_TKN :
+		case INT64_TKN :
+			if (_signed > 0)
+				isTrue = true;
+			break;
+		case DOUBLE_TKN :
+			if (_double)
+				isTrue = true;
+			break;
+			break;
+		default:
+			break;
+	}
+	return (isTrue);
 }

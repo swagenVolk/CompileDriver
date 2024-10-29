@@ -23,7 +23,6 @@ BaseLanguageTerms::~BaseLanguageTerms() {
  *
  * ***************************************************************************/
 void BaseLanguageTerms::validityCheck()	{
-  // TODO - Check ordering of base class / derived class constructors.  May need to move the code below out of the constructor
 	// Double check caller for any OPR8Rs in SPR8Rs
   for(std::wstring::iterator o = atomic_1char_opr8rs.begin(); o != atomic_1char_opr8rs.end(); ++o) {
     if (_1char_spr8rs.find(*o) != std::wstring::npos) {
@@ -92,11 +91,20 @@ void BaseLanguageTerms::validityCheck()	{
   			statement_ender = innr8r->symbol;
   			statementEnderCnt++;
   		}
+
+    	// Add to our map of exec time OPR8Rs
+  		if (nxtDefOpr8r.valid_for_mask & GNR8D_SRC)	{
+  			assert (nxtDefOpr8r.op_code != INVALID_OPCODE);
+  			assert (0 == execTimeOpr8rMap.count (nxtDefOpr8r.symbol));
+  			execTimeOpr8rMap.emplace (std::pair {nxtDefOpr8r.symbol, nxtDefOpr8r});
+  		}
   	}
   }
 
 	assert ((ternary1stCnt == 0 && ternary2ndCnt == 0) || (ternary1stCnt == 1 && ternary2ndCnt == 1));
 	assert (statementEnderCnt == 1);
+
+
 
 }
 
@@ -221,7 +229,7 @@ int BaseLanguageTerms::get_operand_cnt (std::wstring pssbl_opr8r)	{
 		for (innr8r = precedenceLvl.opr8rs.begin(); innr8r != precedenceLvl.opr8rs.end(); ++innr8r){
 			Operator nxtOpr8r = *innr8r;
 	  	if (0 == nxtOpr8r.symbol.compare(pssbl_opr8r))	{
-	  		rand_cnt = nxtOpr8r.numOperands;
+	  		rand_cnt = nxtOpr8r.numReqSrcOperands;
 	  		break;
 	  	}
 		}
@@ -254,11 +262,48 @@ std::wstring BaseLanguageTerms::get_statement_ender()	{
 /* ****************************************************************************
  * Return the BYTE sized opCode for this OPR8R
  * ***************************************************************************/
-uint8_t BaseLanguageTerms::getOpr8rOpCode (std::wstring opr8r)	{
-	uint8_t opCode = 	INVALID_OPCODE;
+uint8_t BaseLanguageTerms::getOpCodeFor (std::wstring opr8r)	{
+	uint8_t op_code = INVALID_OPCODE;
 
-	if (auto search = opr8rOpCodes.find(opr8r); search != opr8rOpCodes.end())
-		opCode = search->second;
+	if (auto search = execTimeOpr8rMap.find(opr8r); search != execTimeOpr8rMap.end())	{
+		Operator r8r = search->second;
+		op_code = r8r.op_code;
+	}
 
-	return (opCode);
+
+	return (op_code);
 }
+
+/* ****************************************************************************
+ * Return the OPR8R for the passed in BYTE sized opCode
+ * ***************************************************************************/
+std::wstring BaseLanguageTerms::getOpr8rStrFor (uint8_t op_code)	{
+	std::wstring opr8rStr = L"";
+	Operator opr8r;
+
+	if (OK == getExecOpr8rDetails (op_code, opr8r))	{
+		opr8rStr = opr8r.symbol;
+	}
+
+	return (opr8rStr);
+}
+
+/* ****************************************************************************
+ * Fill in the OPR8R object details, if found
+ * ***************************************************************************/
+int BaseLanguageTerms::getExecOpr8rDetails (uint8_t op_code, Operator & callers_opr8r)	{
+	int ret_code = GENERAL_FAILURE;
+
+	for (auto itr8r = execTimeOpr8rMap.begin(); itr8r != execTimeOpr8rMap.end(); itr8r++)	{
+		Operator r8r = itr8r->second;
+
+		if (r8r.op_code == op_code)	{
+			callers_opr8r = r8r;
+			ret_code = OK;
+			break;
+		}
+	}
+
+	return (ret_code);
+}
+

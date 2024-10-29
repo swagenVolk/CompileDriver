@@ -62,7 +62,7 @@ ExpressionParser::~ExpressionParser() {
 int ExpressionParser::parseExpression (InterpretedFileWriter & intrprtrWriter)  {
   int ret_code = GENERAL_FAILURE;
 
-  NestedScopeExpr * rootScope = new NestedScopeExpr ((ExprTreeNode *)NULL);
+  NestedScopeExpr * rootScope = new NestedScopeExpr (reinterpret_cast<ExprTreeNode *>(NULL));
   exprScopeStack.push_back (rootScope);
 
 	bool isWholeExprClosed = false;
@@ -103,7 +103,7 @@ int ExpressionParser::parseExpression (InterpretedFileWriter & intrprtrWriter)  
 					errorMsg.append (L" but got ");
 					errorMsg.append (currTkn->description());
 
-				} else if ((currTkn->tkn_type == OPR8R_TKN && (TERNARY_2ND & usrSrcTerms.get_type_mask(currTkn->_string)))
+				} else if ((currTkn->tkn_type == SRC_OPR8R_TKN && (TERNARY_2ND & usrSrcTerms.get_type_mask(currTkn->_string)))
 						&& !isTernaryOpen())	{
 					isFailed = true;
 					errOnOurSrcLineNum = __LINE__;
@@ -112,7 +112,7 @@ int ExpressionParser::parseExpression (InterpretedFileWriter & intrprtrWriter)  
 					errorMsg.append (L" without required preceding starting ternary operator ");
 					errorMsg.append (usrSrcTerms.get_ternary_1st());
 
-				} else if ((currTkn->tkn_type == OPR8R_TKN && (TERNARY_2ND & usrSrcTerms.get_type_mask(currTkn->_string)))
+				} else if ((currTkn->tkn_type == SRC_OPR8R_TKN && (TERNARY_2ND & usrSrcTerms.get_type_mask(currTkn->_string)))
 						&& get2ndTernaryCnt() > 0)	{
 					isFailed = true;
 					errOnOurSrcLineNum = __LINE__;
@@ -120,7 +120,7 @@ int ExpressionParser::parseExpression (InterpretedFileWriter & intrprtrWriter)  
 					errorMsg.append (currTkn->description());
 
 				} else if ((currTkn->tkn_type == SPR8R_TKN && currTkn->_string == L"(")
-						|| (currTkn->tkn_type == OPR8R_TKN && (TERNARY_1ST & usrSrcTerms.get_type_mask(currTkn->_string))))	{
+						|| (currTkn->tkn_type == SRC_OPR8R_TKN && (TERNARY_1ST & usrSrcTerms.get_type_mask(currTkn->_string))))	{
 					// Open parenthesis or 1st ternary
 					if (OK != openSubExprScope())	{
 						isFailed = true;
@@ -186,13 +186,13 @@ int ExpressionParser::parseExpression (InterpretedFileWriter & intrprtrWriter)  
 					tknStream.erase(tknStream.begin());
 					ExprTreeNode * treeNode = new ExprTreeNode (currTkn);
 
-					if (expectedEndTkn.tkn_type == OPR8R_TKN && currTkn->tkn_type == OPR8R_TKN && currTkn->_string == expectedEndTkn._string)	{
+					if (expectedEndTkn.tkn_type == SRC_OPR8R_TKN && currTkn->tkn_type == SRC_OPR8R_TKN && currTkn->_string == expectedEndTkn._string)	{
 						// TODO: Recursively wrap up the expression scope stack (Put ; at the root and what should be a single ExprTreeNode as the 1st child
 						isWholeExprClosed = true;
 					} else	{
 						exprScopeStack[exprScopeStack.size() - 1]->scopedKids.push_back (treeNode);
 
-						if (currTkn->tkn_type == OPR8R_TKN && (TERNARY_2ND & usrSrcTerms.get_type_mask(currTkn->_string)))
+						if (currTkn->tkn_type == SRC_OPR8R_TKN && (TERNARY_2ND & usrSrcTerms.get_type_mask(currTkn->_string)))
 							// Keep track of secondary ternary operators; expecting only 1 paired with 1st ternary, which
 							// opened a new scope inside the expression
 							exprScopeStack[exprScopeStack.size() - 1]->ternary2ndCnt++;
@@ -275,7 +275,7 @@ int ExpressionParser::closeParenClosesScope (bool & isOpenParenFndYet)  {
 			// TODO: Might be hurting myself here.....
 			// exprScopeStack[exprScopeStack.size() - 1]->myParentScopener = NULL;
 
-		} else if (scopener->originalTkn->tkn_type == OPR8R_TKN && scopener->originalTkn->_string == usrSrcTerms.get_ternary_1st())	{
+		} else if (scopener->originalTkn->tkn_type == SRC_OPR8R_TKN && scopener->originalTkn->_string == usrSrcTerms.get_ternary_1st())	{
 			isScopeTopTernary = true;
 
 		} else	{
@@ -487,10 +487,10 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 					errOnOurSrcLineNum = __LINE__;
 					isFailed = true;
 
-				} else if (currTkn->tkn_type == OPR8R_TKN && ((currTkn->_string != unary1stOpr8r && currNode->_1stChild == NULL)
+				} else if (currTkn->tkn_type == SRC_OPR8R_TKN && ((currTkn->_string != unary1stOpr8r && currNode->_1stChild == NULL)
 						|| (currTkn->_string == unary1stOpr8r && currNode->_2ndChild == NULL)))	{
 					// IFF OPR8R at current precedence level is encountered at this expression scope, we can move some|all neighbors under this OPR8R
-					Operator tgtOpr8r(L"",0,0,0);
+					Operator tgtOpr8r;
 
 					// TODO: Could improve on this loop by re-starting it AFTER the last OPR8R completed on the previous loop
 					for (innr8r = precedenceLvl.opr8rs.begin(); innr8r != precedenceLvl.opr8rs.end() && !isFailed && !isOpr8rReady; ++innr8r){
@@ -502,7 +502,7 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 							isOpr8rReady = true;
 							// TODO: Could use an "=" operator override for Operator class
 							tgtOpr8r.symbol = pssblOpr8r.symbol;
-							tgtOpr8r.numOperands = pssblOpr8r.numOperands;
+							tgtOpr8r.numReqSrcOperands = pssblOpr8r.numReqSrcOperands;
 							tgtOpr8r.type_mask = pssblOpr8r.type_mask;
 							tgtOpr8r.valid_for_mask = pssblOpr8r.valid_for_mask;
 						}
@@ -769,7 +769,7 @@ bool ExpressionParser::isTernaryOpen ()  {
 		if (currScope->myParentScopener != NULL)	{
 			ExprTreeNode * scopener = (ExprTreeNode *)currScope->myParentScopener;
 
-			if (scopener->originalTkn->tkn_type == OPR8R_TKN
+			if (scopener->originalTkn->tkn_type == SRC_OPR8R_TKN
 					&& (TERNARY_1ST & usrSrcTerms.get_type_mask(scopener->originalTkn->_string)))
 				isT3rnOpen = true;
 		}
@@ -826,7 +826,7 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   	}
 
   	// PREFIX_OPR8R
-  	if ((allowed_tkn_types & PREFIX_OPR8R_NXT_OK) && curr_tkn->tkn_type == OPR8R_TKN
+  	if ((allowed_tkn_types & PREFIX_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN
 			&& (PREFIX & usrSrcTerms.get_type_mask(curr_tkn->_string)))	{
   		isTknTypeOK = true;
   		// Make user source OPR8R unambiguous for internal use
@@ -837,7 +837,7 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   	}
 
   	// UNARY_OPR8R
-  	if ((allowed_tkn_types & UNARY_OPR8R_NXT_OK) && curr_tkn->tkn_type == OPR8R_TKN
+  	if ((allowed_tkn_types & UNARY_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN
 			&& (UNARY & usrSrcTerms.get_type_mask(curr_tkn->_string)))	{
   		isTknTypeOK = true;
   		// Make user source OPR8R unambiguous for internal use
@@ -848,7 +848,7 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   	}
 
   	// POSTFIX_OPR8R
-  	if ((allowed_tkn_types & POSTFIX_OPR8R_NXT_OK) && curr_tkn->tkn_type == OPR8R_TKN
+  	if ((allowed_tkn_types & POSTFIX_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN
 			&& (POSTFIX & usrSrcTerms.get_type_mask(curr_tkn->_string)))	{
   		isTknTypeOK = true;
   		// Make user source OPR8R unambiguous for internal use
@@ -862,21 +862,21 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   	}
 
   	// BINARY_OPR8R
-  	if ((allowed_tkn_types & BINARY_OPR8R_NXT_OK) && curr_tkn->tkn_type == OPR8R_TKN
+  	if ((allowed_tkn_types & BINARY_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN
 			&& (BINARY & usrSrcTerms.get_type_mask(curr_tkn->_string)))	{
   		isTknTypeOK = true;
   		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
   	}
 
   	// TERNARY_OPR8R
-  	if ((allowed_tkn_types & TERNARY_OPR8R_1ST_NXT_OK) && curr_tkn->tkn_type == OPR8R_TKN
+  	if ((allowed_tkn_types & TERNARY_OPR8R_1ST_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN
   			&& (TERNARY_1ST & usrSrcTerms.get_type_mask(curr_tkn->_string)))	{
   		isTknTypeOK = true;
   		// TODO: Is PREFIX_OPR8R legit here?
   		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
   	}
 
-  	if ((allowed_tkn_types & TERNARY_OPR8R_2ND_NXT_OK) && curr_tkn->tkn_type == OPR8R_TKN
+  	if ((allowed_tkn_types & TERNARY_OPR8R_2ND_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN
   			&& (TERNARY_2ND & usrSrcTerms.get_type_mask(curr_tkn->_string)))	{
   		isTknTypeOK = true;
   		// TODO: Is PREFIX_OPR8R legit here?
@@ -987,7 +987,7 @@ int ExpressionParser::getExpectedEndToken (Token * startTkn, uint32_t & _1stTknT
 		} else if (startTkn->tkn_type == KEYWORD_TKN)	{
 			// Must be [VAR_NAME|FXN_CALL] that currently exists in the NameSpace
 
-		} else if ((startTkn->tkn_type == OPR8R_TKN && ((PREFIX|UNARY) & usrSrcTerms.get_type_mask(startTkn->_string)))
+		} else if ((startTkn->tkn_type == SRC_OPR8R_TKN && ((PREFIX|UNARY) & usrSrcTerms.get_type_mask(startTkn->_string)))
 			|| startTkn->tkn_type == STRING_TKN
 			|| startTkn->tkn_type == DATETIME_TKN
 			|| startTkn->tkn_type == UINT16_TKN
@@ -997,7 +997,7 @@ int ExpressionParser::getExpectedEndToken (Token * startTkn, uint32_t & _1stTknT
 			|| startTkn->tkn_type == INT32_TKN
 			|| startTkn->tkn_type == INT64_TKN
 			|| startTkn->tkn_type == DOUBLE_TKN)	{
-			expectedEndTkn.tkn_type = OPR8R_TKN;
+			expectedEndTkn.tkn_type = SRC_OPR8R_TKN;
 
 			std::wstring statementEnder = usrSrcTerms.get_statement_ender();
 			if (statementEnder.length() > 0)	{

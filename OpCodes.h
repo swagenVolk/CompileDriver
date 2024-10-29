@@ -3,13 +3,7 @@
  *
  * This file defines OpCodes that will be produced by the Compiler and consumed by the Interpreter.
  *
- * TODO: Do I want OPR8Rs to match up with their ASCII code for readability, or do I want extreme compactness?
- * TODO: When BIT_7 is clear, the op_code is atomic and its entirety is contained in 1 8-bit BYTE.  BIT_x position
- * could be different, depending on how many simple, atomic op_codes are expected.
- * TODO: Could have an extensible op_code that starts off as a BYTE, but then has either another 8-bit BYTE or 16-bit field
- * that allows for more op_codes.
- *
- * TODO: Could do OPR8R op_codes in precedence order.  Might make it easier to remember what OPR8Rs the op_codes refer to.
+ * Create OPR8R op_codes in precedence order.  Might make it easier to remember what OPR8Rs the op_codes refer to.
  *
  *  Created on: Oct 10, 2024
  *      Author: mike
@@ -24,6 +18,7 @@
 // TODO: This is the "compressed" approach.  Do I need to have _OPCODE on the end?
 // Will there be any confusion with other types of opcodes?
 // [0x1-0x2F] is reserved for self-contained, single 8-bit BYTE OPR8R op_codes
+#define OPCODE_BYTE_LEN									1
 #define INVALID_OPCODE									0x0
 #define ATOMIC_OPCODE_RANGE_BEGIN				0x1
 #define ATOMIC_OPCODE_RANGE_END					0x2F
@@ -108,8 +103,8 @@
 // Opcodes [0x60-0x7F(?)] are guaranteed to have a [DWORD] sized total_length field directly
 // following the op_code. This allows the Interpreter to rapidly jump to the next object without
 // chomping through all the internals of this op_code.
-
-
+#define FLEX_LEN_FLD_BYTE_LEN						4
+#define FIRST_VALID_FLEX_LEN_OPCODE			0x60
 #define STRING_OPCODE										0x60	// [op_code][total_length][string]
 #define VAR_NAME_OPCODE									0x61	// [op_code][total_length][var name string]
 // TODO: ARRAY_VARIABLE_OPCODE?  Or is that more of a parsing problem @ run time?
@@ -132,6 +127,7 @@
 #define FXN_DECLARATION_OPCODE					0x6C	// [op_code][total_length][string fxn_name][parameter type list][parameter name list]
 #define FXN_CALL_OPCODE									0x6D	// [op_code][total_length][string fxn_name][expression list]
 #define SYSTEM_CALL_OPCODE							0x6E	// [op_code][total_length][string fxn_name][expression list]
+#define LAST_VALID_FLEX_LEN_OPCODE			0x6E	// Change this value if new flexible length op_codes in this range are created
 
 // TODO: What about SPR8Rs?
 // this->_1char_spr8rs = L"()[]{}"; [ASCII - 0x28,0x29,0x5B,0x5D,0x7B,0x7D]
@@ -139,17 +135,5 @@
 // Probably doesn't matter since (,),{ and } are syntactic sugar that melts away
 // If at all necessary, could create an appropriate 8-bit payload op_code that holds a character
 // TODO: Is a comma a spr8r?  What about the '\' character, for paths?
-
-class OpCodes {
-public:
-	OpCodes();
-	virtual ~OpCodes();
-
-	int writeAtomicOpCode (uint8_t op_code);
-	int write8BitOpCode (uint8_t op_code, uint8_t payload);
-	int write16BitOpCode (uint8_t op_code, uint16_t payload);
-	int write32BitOpCode (uint8_t op_code, uint32_t payload);
-	int write64BitOpCode (uint8_t op_code, uint64_t payload);
-};
 
 #endif /* OPCODES_H_ */

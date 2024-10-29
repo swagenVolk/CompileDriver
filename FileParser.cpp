@@ -32,7 +32,6 @@ using namespace std;
  * file_parser constructor
  * ***************************************************************************/
 FileParser::FileParser (BaseLanguageTerms & inOppoSpr8rs) {
-	// assert (1 != 1);
   curr_file_pos = 0;
 	line_num = 1;
   curr_line_start_pos = 0;
@@ -557,7 +556,7 @@ void FileParser::resolve_final_tkn_type (Token * tkn_of_ambiguity)  {
           }
         }
         break;
-      case OPR8R_TKN:
+      case SRC_OPR8R_TKN:
         // Check to make sure it's not junk
       	if (!oppoSpr8rs.is_valid_opr8r(tkn_of_ambiguity->_string, USR_SRC))
           // Not a valid OPR8R
@@ -621,7 +620,7 @@ tkn_type_enum FileParser::start_new_tkn_get_type (std::fstream & input_stream, T
     } else if (oppoSpr8rs.is_atomic_opr8r(curr_char)) {
       // Consume this Token right away by adding it to the Token stream
       curr_file_pos = input_stream.tellg();
-      Token *tkn = new Token(OPR8R_TKN, sngl_char_symbol, curr_tkn_starts_on_line_num, num_chars_chomped_this_line);
+      Token *tkn = new Token(SRC_OPR8R_TKN, sngl_char_symbol, curr_tkn_starts_on_line_num, num_chars_chomped_this_line);
       token_stream.push_back(tkn);
       tkn_type = START_UNDEF_TKN;
 
@@ -635,11 +634,11 @@ tkn_type_enum FileParser::start_new_tkn_get_type (std::fstream & input_stream, T
         else if (peeked == '/')
           tkn_type = TIL_EOL_CMMNT_TKN;
         else {
-          tkn_type = OPR8R_TKN;
+          tkn_type = SRC_OPR8R_TKN;
         }
       }
     } else  {
-      tkn_type = OPR8R_TKN;
+      tkn_type = SRC_OPR8R_TKN;
     }
   } else if (iswdigit(curr_char))  {
   	// TODO: These 64-bit data types will be used as place holders. When the Token is finalized, we can
@@ -910,7 +909,7 @@ int FileParser::gnr8_token_stream(std::string file_name, TokenPtrVector & token_
             curr_str += curr_char;
           }
           break;
-        case OPR8R_TKN               :
+        case SRC_OPR8R_TKN               :
           // OPR8Rs are made up of punctuation characters, *except* for the 1-char separators
           // A single character OPR8R (e.g. ;) will end the currently accumulating OPR8R, and
           // both will be added to the Token stream in order

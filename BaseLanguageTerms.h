@@ -39,7 +39,9 @@ public:
 
   // Outer list indicates precedence level.  Multiple OPR8Rs can reside at same precedence level
   std::list<Opr8rPrecedenceLvl> grouped_opr8rs;
-  uint8_t getOpr8rOpCode (std::wstring opr8r);
+  uint8_t getOpCodeFor (std::wstring opr8r);
+  std::wstring getOpr8rStrFor (uint8_t op_code);
+  int getExecOpr8rDetails (uint8_t op_code, Operator & opr8r);
 
 protected:
   void validityCheck();
@@ -49,7 +51,7 @@ protected:
   std::wstring ternary_1st;
   std::wstring ternary_2nd;
   std::wstring statement_ender;
-  std::map <std::wstring, int> opr8rOpCodes;
+  std::map <std::wstring, Operator> execTimeOpr8rMap;
 };
 
 #endif /* BASELANGUAGETERMS_H_ */

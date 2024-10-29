@@ -35,18 +35,6 @@ InterpretedFileReader::~InterpretedFileReader() {
 /* ****************************************************************************
  * TODO: Check for EOF!
  * ***************************************************************************/
-uint8_t InterpretedFileReader::readOpCode ()	{
-	uint8_t op_code = 0;
-
-	if (inputStream != NULL)	{
-	}
-
-	return (op_code);
-}
-
-/* ****************************************************************************
- * TODO: Check for EOF!
- * ***************************************************************************/
 int InterpretedFileReader::readFileByte (uint8_t & nextByte)	{
 	int ret_code = GENERAL_FAILURE;
 
@@ -118,12 +106,10 @@ int InterpretedFileReader::readRawUnsigned (uint64_t & payload, int payloadByteS
 				isFailed = true;
 
 			} else	{
-
 				if (idx < payloadByteSize - 1)
 					payload <<= NUM_BITS_IN_BYTE;
 
 				payload |= nextByte;
-
 			}
 		}
 		if (!isFailed)
@@ -137,35 +123,15 @@ int InterpretedFileReader::readRawUnsigned (uint64_t & payload, int payloadByteS
 /* ****************************************************************************
  * TODO: Check for EOF!
  * ***************************************************************************/
-int InterpretedFileReader::readRawString (std::wstring & rawString, int strLen)	{
-	int ret_code = GENERAL_FAILURE;
-	uint32_t currFilePos;
-
-	if (inputStream != NULL)	{
-		currFilePos = inputStream->tellg();
-		char * strBffr = new char[strLen * 2];
-		// TODO: I expect that this won't work properly!
-		inputStream->read (reinterpret_cast<char*>(&strBffr), strLen * 2);
-		delete (strBffr);
-	}
-
-	if (ret_code != OK) { std::wcout << L"FAILED on line " << __LINE__ << std::endl; }	// TODO
-	return (ret_code);
-}
-
-
-/* ****************************************************************************
- * TODO: Check for EOF!
- * ***************************************************************************/
 int InterpretedFileReader::snagOpr8r (uint8_t op_code, Token nxtTkn, std::vector<Token> & exprTknStream)	{
 	int ret_code = GENERAL_FAILURE;
 
-	std::wstring r8rStr = execTerms->getOpCodeOpr8r(op_code);
+	Operator chkOpr8r;
 
-	if (r8rStr.length() > 0)	{
-		nxtTkn.tkn_type = OPR8R_TKN;
-		nxtTkn._string = r8rStr;
-		exprTknStream.push_back(nxtTkn);
+	if (OK == execTerms->getExecOpr8rDetails(op_code, chkOpr8r))	{
+		nxtTkn.tkn_type = EXEC_OPR8R_TKN;
+		nxtTkn._unsigned = op_code;
+		exprTknStream.push_back (nxtTkn);
 		ret_code = OK;
 	}
 
@@ -255,7 +221,8 @@ int InterpretedFileReader::snagFixedRange (uint8_t op_code, Token nxtTkn, std::v
 	}
 
 	if (!isFailed)	{
-		exprTknStream.push_back(nxtTkn);
+		
+		exprTknStream.push_back (nxtTkn);
 		ret_code = OK;
 	}
 
@@ -317,7 +284,8 @@ int InterpretedFileReader::snagString (uint8_t op_code, Token nxtTkn, std::vecto
 
 				if (!isFailed && (nxtTkn.tkn_type == STRING_TKN || !tknStr.empty()))	{
 					nxtTkn._string = tknStr;
-					exprTknStream.push_back(nxtTkn);
+								
+					exprTknStream.push_back (nxtTkn);
 					ret_code = OK;
 				}
 			}
@@ -328,14 +296,13 @@ int InterpretedFileReader::snagString (uint8_t op_code, Token nxtTkn, std::vecto
 }
 
 /* ****************************************************************************
- * TODO: Check for EOF!
+ *
  * ***************************************************************************/
-int InterpretedFileReader::evalExpr ()	{
+int InterpretedFileReader::readExprIntoList (std::vector<Token> & exprTknStream)	{
 	int ret_code = GENERAL_FAILURE;
 	uint32_t exprStartPos;
 	uint8_t op_code;
 	uint32_t exprLen;
-	std::vector<Token> exprTknStream;
 
 	if (inputStream != NULL)	{
 		exprStartPos = inputStream->tellg();
@@ -372,7 +339,7 @@ int InterpretedFileReader::evalExpr ()	{
 					// Handle next Token
 					// TODO: Will this work without doing a malloc of some kind?  If so, what's
 					// happening behind the scenes?
-					Token nxtTkn (JUNK_TKN, L"", 0, 0);
+					Token nxtTkn (START_UNDEF_TKN, L"", 0, 0);
 
 					if (op_code >= ATOMIC_OPCODE_RANGE_BEGIN && op_code <= LAST_VALID_OPR8R_OPCODE)	{
 						if (OK != snagOpr8r (op_code, nxtTkn, exprTknStream))
@@ -396,22 +363,21 @@ int InterpretedFileReader::evalExpr ()	{
 				}
 			}
 
-			int idx;
-			for (idx = 0; idx < exprTknStream.size(); idx++)	{
-				Token listTkn = exprTknStream[idx];
-				std::wcout << L"[" ;
-				if (listTkn._string.length() > 0)
-					std::wcout << listTkn._string;
-				else	{
-					std::wcout << listTkn._signed;
-				}
-				std::wcout << L"] ";
-			}
+			if (!isFailed && isItTheEnd)
+				ret_code = OK;
 
-			std::wcout << std::endl;
 		}
 	}
 
 	if (ret_code != OK) { std::wcout << L"FAILED on line " << __LINE__ << std::endl; }	// TODO
+
 	return (ret_code);
 }
+
+
+
+
+
+
+
+

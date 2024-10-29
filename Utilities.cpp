@@ -7,6 +7,7 @@
  */
 
 #include "Utilities.h"
+#include <stdint.h>
 
 Utilities::Utilities() {
 	// TODO Auto-generated constructor stub
@@ -26,7 +27,7 @@ std::wstring Utilities::stringToWstring (std::string skinnyStr)	{
 
 	// Fatten up the skinnyStr and make it W_I_D_E
 	for (std::string::iterator str8r = skinnyStr.begin(); str8r != skinnyStr.end(); str8r++)	{
-		wideStr.append (1, (wchar_t)*str8r);
+		wideStr.append (1, *str8r);
 	}
 
 	return (wideStr);

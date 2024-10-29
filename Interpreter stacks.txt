@@ -1,3 +1,82 @@
+TODO: Going L2R now!
+
+
+(count == 1 ? desc = "one" : count == 2 ? desc = "two" : count == 3 ? altCount =  5 + 6 * 7 * (8 + 9) : count == 4 ? desc = "four" : desc = "MANY")
+
+
+L2R 
+(1 + 2 * (3 + 4 * (5 + 6 * 7 * (8 + 9))))
+[1] [2] [3] [4] [5] [42] [8] [9] [+] [*] [+] [*] [+] [*] [+] 
+[1] [2] [3] [4] [5] [42] [17] [*] [+] [*] [+] [*] [+] 
+[1] [2] [3] [4] [5] [714] [+] [*] [+] [*] [+] 
+[1] [2] [3] [4] [719] [*] [+] [*] [+] 
+[1] [2] [3] [2876] [+] [*] [+] 
+[1] [2] [2879] [*] [+] 
+[1] [5758] [+] 
+[5759]
+
+
+
+(count == 1 ? "one" : count == 2 ? "two" : count == 3 ? "three" : count == 4 ? "four" : "MANY")
+[count] [1] [==] [?] [one] [:] [count] [2] [==] [?] [two] [:] [count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+
+count = 1;
+[count] [1] [==] [?] [one] [:] [count] [2] [==] [?] [two] [:] [count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+[1] [?] [one] [:] [count] [2] [==] [?] [two] [:] [count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+        ^^^^ <- Figure out where path(s) not taken end!
+count = 2;        
+[count] [1] [==] [?] [one] [:] [count] [2] [==] [?] [two] [:] [count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+[0] [?] [one] [:] [count] [2] [==] [?] [two] [:] [count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+[count] [2] [==] [?] [two] [:] [count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+[1] [?] [two] [:] [count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+        ^^^^^ <- Figure out where path(s) not taken end!
+
+count = 3;        
+[count] [1] [==] [?] [one] [:] [count] [2] [==] [?] [two] [:] [count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+[0] [?] [one] [:] [count] [2] [==] [?] [two] [:] [count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+[count] [2] [==] [?] [two] [:] [count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+[0] [?] [two] [:] [count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+[count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+[1] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+        ^^^^^^^ <- Figure out where path(s) not taken end!
+        
+count = 4;        
+[count] [1] [==] [?] [one] [:] [count] [2] [==] [?] [two] [:] [count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+[0] [?] [one] [:] [count] [2] [==] [?] [two] [:] [count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+[count] [2] [==] [?] [two] [:] [count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+[0] [?] [two] [:] [count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+[count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+[0] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+[count] [4] [==] [?] [four] [:] [MANY] 
+[1] [?] [four] [:] [MANY] 
+        ^^^^^^ <- Figure out where path(s) not taken end!
+        
+count = 5;        
+[count] [1] [==] [?] [one] [:] [count] [2] [==] [?] [two] [:] [count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+[0] [?] [one] [:] [count] [2] [==] [?] [two] [:] [count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+[count] [2] [==] [?] [two] [:] [count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+[0] [?] [two] [:] [count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+[count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+[0] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+[count] [4] [==] [?] [four] [:] [MANY] 
+[0] [?] [four] [:] [MANY] 
+                   ^^^^^^
+
+
+count = 1;
+[count] [1] [==] [?] [one] [:] [count] [2] [==] [?] [two] [:] [count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+[1] [?] [one] [:] [count] [2] [==] [?] [two] [:] [count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+        ^^^^ <- Figure out where path(s) not taken end!
+
+[1] [?] [one] [:] [count] [2] [==] [?] [two] [:] [count] [3] [==] [?] [three] [:] [count] [4] [==] [?] [four] [:] [MANY] 
+
+[four] [:] [MANY] 
+[three] [:] [count] [4] [==] [?]
+[two] [:] [count] [3] [==] [?] 
+[1] [?] [one] [:] [count] [2] [==]
+
+
+
  * Example C expression
  * (1 + 2 * (3 + 4 * (5 + 6 * 7 * (8 + 9))))
  * 
@@ -90,3 +169,116 @@
  * 1st going from R2L, which would in turn be 2nd in L2R order for that expression 2-tuple
 
 
+
+
+
+(1 + 2 * (3 + 4 * (5 + 6 * 7 * (count == 1 ? 10 : count == 2 ? 11 : count == 3 ? 12 : count == 4 ? 13 : 33))))
+
+count = 1;
+[1] [2] [3] [4] [5] [6] [7] [*] [count] [1] [==] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+] 
+[1] [2] [3] [4] [5] [42] [count] [1] [==] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+] 
+[1] [2] [3] [4] [5] [42] [1] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+] 
+
+[*] [+] [*] [+] [*] [+] 
+^ OPR8R after single operand indicates a different scope
+[13] [:] [33] 
+[12] [:] [count] [4] [==] [?] 
+[11] [:] [count] [3] [==] [?] 
+[10] [:] [count] [2] [==] [?] 
+[1] [2] [3] [4] [5] [42] [1] [?]  
+
+[1] [2] [3] [4] [5] [42] [10] [*] [+] [*] [+] [*] [+] 
+[1] [2] [3] [4] [5] [420] [+] [*] [+] [*] [+] 
+[1] [2] [3] [4] [425] [*] [+] [*] [+] 
+[1] [2] [3] [1700] [+] [*] [+] 
+[1] [2] [1703] [*] [+] 
+[1] [3406] [+] 
+[3407]
+
+
+
+count = 2;
+(1 + 2 * (3 + 4 * (5 + 6 * 7 * (count == 1 ? 10 : count == 2 ? 11 : count == 3 ? 12 : count == 4 ? 13 : 33))))
+
+[1] [2] [3] [4] [5] [6] [7] [*] [count] [1] [==] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+] 
+[1] [2] [3] [4] [5] [42] [count] [1] [==] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+] 
+[1] [2] [3] [4] [5] [42] [0] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+] 
+                          ^ Toss contents up to and including [:]
+[1] [2] [3] [4] [5] [42] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+] 
+[1] [2] [3] [4] [5] [42] [1] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+] 
+                          ^ Take true path, but we need to figure out where the false path ends
+
+
+
+[:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+] 
+             ^ If this was a BINARY OPR8R, then [count] would be a single term expression
+
+************************************************************************
+[:] [count] [3] [==] [?] <- Open a new scope (?)
+[12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+] 
+
+************************************************************************
+[:] [count] [3] [==] [?] <- Open a new scope (?)
+[12] [:] [count] [4] [==] [?] <- Open a new scope
+[13] [:] [33] [*] [+] [*] [+] [*] [+] 
+         ^ Single term followed by binary OPR8R
+
+************************************************************************
+[:] [count] [3] [==] [?] <- Open a new scope (?)
+[12] [:] [count] [4] [==] [?] <- Open a new scope
+[13] [:] [33] 
+         ^ Single term followed by binary OPR8R. The nested TERNARY chain is now closed.
+[*] [+] [*] [+] [*] [+] <- This remainder gets returned         
+
+[:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+] 
+^ TERNARY FALSE STACK/STREAM
+
+[1] [2] [3] [4] [5] [42] [11] 
+
+[1] [2] [3] [4] [5] [42] [11] [*] [+] [*] [+] [*] [+]
+[1] [2] [3] [4] [5] [462] [+] [*] [+] [*] [+]
+[1] [2] [3] [4] [467] [*] [+] [*] [+]
+[1] [2] [3] [4] [467] [*] [+] [*] [+]
+[1] [2] [3] [1868] [+] [*] [+]
+[1] [2] [1871] [*] [+]
+[1] [3742] [+]
+[3743]
+
+
+count = 3;
+[1] [2] [3] [4] [5] [6] [7] [*] [count] [1] [==] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+] 
+
+count = 4;
+[1] [2] [3] [4] [5] [6] [7] [*] [count] [1] [==] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+] 
+
+count = 5;
+[1] [2] [3] [4] [5] [6] [7] [*] [count] [1] [==] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+] 
+
+
+
+
+
+
+
+
+
+
+ * (1 + 2 * (3 + 4 * (5 + 6 * 7 * (count == 1 ? 10 : count == 2 ? 11 : count == 3 ? 12 : count == 4 ? 13 : 33))))
+ * 
+ * count = 1;
+ * [1] [2] [3] [4] [5] [6] [7] [*] [count] [1] [==] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+] 
+ *                      ^^ 1st ^^^ ^^^ 2nd ^^^^^^^^
+ * [1] [2] [3] [4] [5] [42] [1] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+] 
+ *                      1st 2nd
+ * [1] [2] [3] [4] [5] [42] [1] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+] 
+ *                           ^^^1st - TRUE path; leave expression before [:] (e.g. [10]) in the stream and consume the FALSE path (1 complete sub-expression within)
+ * [1] [2] [3] [4] [5] [42] [1] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+] 
+ *                              numOperands: 1       2   1    1(?) - but need to consume this nested TERNARY - if this was a BINARY OPR8R (UNARY? POSTFIX? PREFIX? STATEMENT_ENDER?)
+ *                                                                   then we'd be done with it. Consume everything up to and including the [:] OPR8R, then consume the next expression
+ * 
+ * [1] [2] [3] [4] [5] [42] [1] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+] 
+ *                                                             numOprands: 1       2   1    1(?) ^^^ ^^^  1       2   1   1(?) ^^^ ^^^ 1    ^ Not enough operands for this OPR8R, so
+ *                                                                                                                                            we've closed off the nested TERNARYs
+ *                                                                                                                                            and need to preserve these OPR8Rs
+                                       
+                          
