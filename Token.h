@@ -49,6 +49,7 @@ typedef tkn_type_enum TokenTypeEnum;
 
 class Token {
   public:
+		Token();
     Token(tkn_type_enum found_type, std::wstring tokenized_str,  int line_num, int col_pos);
     ~Token();
     Token& operator= (const Token & srcTkn);
@@ -70,6 +71,13 @@ class Token {
     TokenCompareResult compare (Token & otherTkn);
     bool isOperand();
     bool evalResolvedTokenAsIf ();
+    bool isUnsigned ();
+    bool isSigned ();
+    void resetToken ();
+    void resetToUnsigned (uint64_t newValue);
+    void resetToSigned (int64_t newValue);
+    void resetToDouble (double newValue);
+    void resetToString (std::wstring newValue);
 
   private:
 

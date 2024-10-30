@@ -11,6 +11,25 @@
 #include <iostream>
 
 using namespace std;
+Token::Token()	{
+	resetToken();
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+void Token::resetToken ()	{
+  tkn_type = START_UNDEF_TKN;
+  _string.clear();
+  line_number = 0;
+  column_pos = 0;
+  _unsigned = 0;
+  _signed = 0;
+  _double = 0.0;
+  is_rvalue = false;
+
+}
+
 /* ****************************************************************************
  *
  * ***************************************************************************/
@@ -350,4 +369,103 @@ bool Token::evalResolvedTokenAsIf ()	{
 			break;
 	}
 	return (isTrue);
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+bool Token::isUnsigned ()	{
+	bool isUnsigned = false;
+
+	switch (tkn_type)	{
+		case UINT8_TKN:
+		case UINT16_TKN:
+		case UINT32_TKN:
+		case UINT64_TKN:
+			isUnsigned = true;
+			break;
+		default:
+			break;
+	}
+
+	return (isUnsigned);
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+bool Token::isSigned ()	{
+	bool isSigned = false;
+
+	switch (tkn_type)	{
+		case INT8_TKN:
+		case INT16_TKN:
+		case INT32_TKN:
+		case INT64_TKN:
+			isSigned = true;
+			break;
+		default:
+			break;
+	}
+	return (isSigned);
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+void Token::resetToUnsigned (uint64_t newValue)	{
+	resetToken();
+	_unsigned = newValue;
+
+	if (newValue < (0x1 << NUM_BITS_IN_BYTE))
+		tkn_type = UINT8_TKN;
+	else if (newValue < (0x1 << NUM_BITS_IN_WORD))
+		tkn_type = UINT16_TKN;
+	else if (newValue < (0x1 << NUM_BITS_IN_DWORD))
+		// TODO: Warning!
+		tkn_type = UINT32_TKN;
+	else
+		tkn_type = UINT64_TKN;
+
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+void Token::resetToSigned (int64_t newValue)	{
+	resetToken();
+	_signed = newValue;
+
+	int64_t absolute = abs(newValue);
+
+
+	if (absolute < (0x1 << (NUM_BITS_IN_BYTE - 1)))
+		tkn_type = INT8_TKN;
+	else if (absolute < (0x1 << (NUM_BITS_IN_WORD - 1)))
+		tkn_type = INT16_TKN;
+	else if (absolute < (0x1 << (NUM_BITS_IN_DWORD - 1)))
+		tkn_type = INT32_TKN;
+	else
+		tkn_type = INT64_TKN;
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+void Token::resetToDouble (double newValue)	{
+	resetToken();
+	_double = newValue;
+	tkn_type = DOUBLE_TKN;
+
+	// TODO: Any string representation to take care of?
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+void Token::resetToString (std::wstring newValue)	{
+	resetToken();
+
+	_string = newValue;
+	tkn_type = STRING_TKN;
 }

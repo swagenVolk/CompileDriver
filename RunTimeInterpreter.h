@@ -26,19 +26,12 @@ public:
 protected:
 
 private:
-  std::vector<int> randStackLvlOfOpr8r;
-  // No longer necessary
-  std::vector<int> numRands_Opr8r;
   Token * oneTkn;
   Token * zeroTkn;
   CompileExecTerms execTerms;
 	std::wstring thisSrcFile;
 	Utilities util;
 	int failedOnLineNum;
-
-  // TODO: public, protected or private?
-  bool isShortCircuit (Token * opr8rTkn, int operandIdx, Token * operand);
-  int consumeShortCircuit (TokenPtrVector & unifiedStream, int startIdx);
 
 	int execBinaryOp (std::vector<Token> & exprTknStream, int & callersIdx);
 	int findNextTernary2ndIdx (std::vector<Token> & exprTknStream, int ternary1stOpIdx);
@@ -47,14 +40,10 @@ private:
 	int takeTernaryTrue (std::vector<Token> & exprTknStream, int & callersIdx);
 	int takeTernaryFalse (std::vector<Token> & exprTknStream, int & callersIdx);
 
-	int execGr8rThan (TokenCompareResult compareRez, Token & resultTkn);
-	int execGr8rThanEqual (TokenCompareResult compareRez, Token & resultTkn);
 	int execEquivalenceOp (Token & operand1, Token & operand2, Token & resultTkn);
-	int execNotEqualsOp (TokenCompareResult compareRez, Token & resultTkn);
-	int execLessThan (TokenCompareResult compareRez, Token & resultTkn);
-	int execLessThanEqual (TokenCompareResult compareRez, Token & resultTkn);
-	int execLogicalAndOp (TokenCompareResult leftRez, TokenCompareResult rightRez, Token & resultTkn);
-	int execLogicalOrOp (TokenCompareResult leftRez, TokenCompareResult rightRez, Token & resultTkn);
+	int execShift (Token & operand1, Token & operand2, Token & resultTkn);
+	int execBitWiseOp (Token & operand1, Token & operand2, Token & resultTkn);
+	int execStandardMath (Token & operand1, Token & operand2, Token & resultTkn);
 };
 
 #endif /* RUNTIMEINTERPRETER_H_ */

@@ -1,6 +1,5 @@
 /* ****************************************************************************
  * TODO:
- * Add Interpreter handling of TERNARY conditions - FALSE path coded
  * Add all the OPR8R mechanics
  * Should I re-visit the 1<->2 swapping of :'s operands?
  * Update explanation of how an expression is flattened and written out to interpreted file.
@@ -16,6 +15,7 @@
  * file for the location. It can do a quick(er) lookup
  *
  * RECENTLY DONE:
+ * Add Interpreter handling of TERNARY conditions - FALSE & TRUE paths coded and tested
  * EXEC_OPR8R_TKN
  * Mechanics of writing expression out to interpreted file
  * ***************************************************************************/
