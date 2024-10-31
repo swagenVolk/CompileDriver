@@ -20,17 +20,25 @@ CompileExecTerms::CompileExecTerms() {
 	grouped_opr8rs.back().opr8rs.push_back( Operator (L"++", POSTFIX, USR_SRC, 1, 0, INVALID_OPCODE));   // NOTE: Pre-fix and post-fix precedence is different
 	grouped_opr8rs.back().opr8rs.push_back ( Operator (L"--", POSTFIX, USR_SRC, 1, 0, INVALID_OPCODE));
 	grouped_opr8rs.back().opr8rs.push_back ( Operator (POST_INCR_OPR8R, POSTFIX, GNR8D_SRC, 1, 1, POST_INCR_OPR8R_OPCODE));
+	execToSrcOpr8rMap.insert (std::pair {POST_INCR_OPR8R, L"++"});
 	grouped_opr8rs.back().opr8rs.push_back ( Operator (POST_DECR_OPR8R, POSTFIX, GNR8D_SRC, 1, 1, POST_DECR_OPR8R_OPCODE));   // NOTE: Pre-fix and post-fix precedence is different
+	execToSrcOpr8rMap.insert (std::pair {POST_DECR_OPR8R, L"--"});
 
 	grouped_opr8rs.push_back(Opr8rPrecedenceLvl ());
 	grouped_opr8rs.back().opr8rs.push_back ( Operator (L"++", PREFIX, USR_SRC, 1, 0, INVALID_OPCODE));
 	grouped_opr8rs.back().opr8rs.push_back ( Operator (L"--", PREFIX, USR_SRC, 1, 0, INVALID_OPCODE));
 	grouped_opr8rs.back().opr8rs.push_back ( Operator (PRE_INCR_OPR8R, PREFIX, GNR8D_SRC, 1, 1, PRE_INCR_OPR8R_OPCODE));   // NOTE: Pre-fix and post-fix precedence is different
+	execToSrcOpr8rMap.insert (std::pair {PRE_INCR_OPR8R, L"++"});
 	grouped_opr8rs.back().opr8rs.push_back ( Operator (PRE_DECR_OPR8R, PREFIX, GNR8D_SRC, 1, 1, PRE_DECR_OPR8R_OPCODE));   // NOTE: Pre-fix and post-fix precedence is different
+	execToSrcOpr8rMap.insert (std::pair {PRE_DECR_OPR8R, L"++"});
 
-	// TODO: Unary +? What's the point? Completeness? UNARY_PLUS_OPR8R_OPCODE
-  grouped_opr8rs.back().opr8rs.push_back ( Operator (L"-", UNARY, USR_SRC, 1, 0, INVALID_OPCODE));
+  grouped_opr8rs.back().opr8rs.push_back ( Operator (L"+", UNARY, USR_SRC, 1, 0, INVALID_OPCODE));
+  grouped_opr8rs.back().opr8rs.push_back ( Operator (UNARY_PLUS_OPR8R, UNARY, GNR8D_SRC, 1, 1, UNARY_PLUS_OPR8R_OPCODE));
+	execToSrcOpr8rMap.insert (std::pair {UNARY_PLUS_OPR8R, L"+"});
+
+	grouped_opr8rs.back().opr8rs.push_back ( Operator (L"-", UNARY, USR_SRC, 1, 0, INVALID_OPCODE));
   grouped_opr8rs.back().opr8rs.push_back ( Operator (UNARY_MINUS_OPR8R, UNARY, GNR8D_SRC, 1, 1, UNARY_MINUS_OPR8R_OPCODE));
+	execToSrcOpr8rMap.insert (std::pair {UNARY_MINUS_OPR8R, L"-"});
   grouped_opr8rs.back().opr8rs.push_back ( Operator (L"!", UNARY, (USR_SRC|GNR8D_SRC), 1, 1, LOGICAL_NOT_OPR8R_OPCODE));
   grouped_opr8rs.back().opr8rs.push_back ( Operator (L"~", UNARY, (USR_SRC|GNR8D_SRC), 1, 1, BITWISE_NOT_OPR8R_OPCODE));
 
@@ -46,8 +54,13 @@ CompileExecTerms::CompileExecTerms() {
 	grouped_opr8rs.back().opr8rs.push_back ( Operator (L"%", BINARY, (USR_SRC|GNR8D_SRC), 2, 2, MOD_OPR8R_OPCODE));
 
 	grouped_opr8rs.push_back(Opr8rPrecedenceLvl ());
-  grouped_opr8rs.back().opr8rs.push_back ( Operator (L"+", BINARY, (USR_SRC|GNR8D_SRC), 2, 2, BINARY_PLUS_OPR8R_OPCODE));
-  grouped_opr8rs.back().opr8rs.push_back ( Operator (L"-", BINARY, (USR_SRC|GNR8D_SRC), 2, 2, BINARY_MINUS_OPR8R_OPCODE));
+  grouped_opr8rs.back().opr8rs.push_back ( Operator (L"+", BINARY, USR_SRC, 2, 0, INVALID_OPCODE));
+  grouped_opr8rs.back().opr8rs.push_back ( Operator (BINARY_PLUS_OPR8R, BINARY, GNR8D_SRC, 2, 2, BINARY_PLUS_OPR8R_OPCODE));
+	execToSrcOpr8rMap.insert (std::pair {BINARY_PLUS_OPR8R, L"+"});
+
+	grouped_opr8rs.back().opr8rs.push_back ( Operator (L"-", BINARY, USR_SRC, 2, 0, INVALID_OPCODE));
+  grouped_opr8rs.back().opr8rs.push_back ( Operator (BINARY_MINUS_OPR8R, BINARY, GNR8D_SRC, 2, 2, BINARY_MINUS_OPR8R_OPCODE));
+	execToSrcOpr8rMap.insert (std::pair {BINARY_MINUS_OPR8R, L"-"});
 
 	grouped_opr8rs.push_back(Opr8rPrecedenceLvl ());
   grouped_opr8rs.back().opr8rs.push_back ( Operator (L"<<", BINARY, (USR_SRC|GNR8D_SRC), 2, 2, LEFT_SHIFT_OPR8R_OPCODE));
@@ -149,6 +162,7 @@ CompileExecTerms::~CompileExecTerms() {
 	// TODO Auto-generated destructor stub
 }
 
+#if 0
 /* ****************************************************************************
  * Return internal use string for PREFIX OPR8R that is unambiguous and unique
  * NOTE: PREFIX and POSTFIX OPR8Rs in source code are the same (++,--), but
@@ -184,6 +198,23 @@ std::wstring CompileExecTerms::getUniqUnaryOpr8r (std::wstring srcStr) {
 }
 
 /* ****************************************************************************
+ * Return internal use string for BINARY OPR8R that is unambiguous and unique
+ * NOTE: BINARY OPR8Rs in source code have the same string (+,-), as some
+ * UNARY OPR8Rs, and expression context is used to determine whether they're
+ * UNARY or BINARY. The internal use string allows for carrying this info forward.
+ * ***************************************************************************/
+std::wstring CompileExecTerms::getUniqUnaryOpr8r (std::wstring srcStr) {
+	std::wstring internalStr = srcStr;
+
+	if (srcStr == L"+")
+		internalStr = BINARY_PLUS_OPR8R;
+	else if (srcStr == L"-")
+		internalStr = BINARY_MINUS_OPR8R;
+
+	return (internalStr);
+}
+
+/* ****************************************************************************
  * Return internal use string for POSTFIX OPR8R that is unambiguous and unique
  * NOTE: PREFIX and POSTFIX OPR8Rs in source code are the same (++,--), but
  * position relative to their operand determines whether they're PREFIX or
@@ -200,3 +231,4 @@ std::wstring CompileExecTerms::getUniqPostfixOpr8r (std::wstring srcStr) {
 	return (internalStr);
 }
 
+#endif

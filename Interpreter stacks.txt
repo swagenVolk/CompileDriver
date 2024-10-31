@@ -1,3 +1,20 @@
+[3] [7] [B+] [2] [B-] [4] [%] [16] [*] [8] [/] 
+[10] [2] [B-] [4] [%] [16] [*] [8] [/] 
+[8] [4] [%] [16] [*] [8] [/] 
+[2] [16] [*] [8] [/] 
+[32] [8] [/] 
+[4] 
+
+
+isSuccess = 1; OPR8R = B+; result = BRKN_TKN  _signed = 10; on line 0 column 0
+isSuccess = 1; OPR8R = B-; result = BRKN_TKN  _signed = 8; on line 0 column 0
+isSuccess = 1; OPR8R = %; result = BRKN_TKN  on line 0 column 0
+isSuccess = 1; OPR8R = *; result = BRKN_TKN  on line 0 column 0
+isSuccess = 1; OPR8R = /; result = BRKN_TKN  on line 0 column 0
+
+
+
+
 TODO: Going L2R now!
 
 

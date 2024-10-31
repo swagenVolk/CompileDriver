@@ -33,6 +33,8 @@ private:
 	Utilities util;
 	int failedOnLineNum;
 
+	int execUnaryOp (std::vector<Token> & exprTknStream, int & callersIdx);
+	int execAssignmentOp(std::vector<Token> & exprTknStream, int & callersIdx);
 	int execBinaryOp (std::vector<Token> & exprTknStream, int & callersIdx);
 	int findNextTernary2ndIdx (std::vector<Token> & exprTknStream, int ternary1stOpIdx);
 	int getEndOfSubExprIdx (std::vector<Token> & exprTknStream, int startIdx, int & lastIdxOfExpr);
@@ -40,10 +42,10 @@ private:
 	int takeTernaryTrue (std::vector<Token> & exprTknStream, int & callersIdx);
 	int takeTernaryFalse (std::vector<Token> & exprTknStream, int & callersIdx);
 
-	int execEquivalenceOp (Token & operand1, Token & operand2, Token & resultTkn);
-	int execShift (Token & operand1, Token & operand2, Token & resultTkn);
-	int execBitWiseOp (Token & operand1, Token & operand2, Token & resultTkn);
-	int execStandardMath (Token & operand1, Token & operand2, Token & resultTkn);
+	int execEquivalenceOp (std::vector<Token> & exprTknStream, int & callersIdx);
+	int execShift (std::vector<Token> & exprTknStream, int & callersIdx);
+	int execBitWiseOp (std::vector<Token> & exprTknStream, int & callersIdx);
+	int execStandardMath (std::vector<Token> & exprTknStream, int & callersIdx);
 };
 
 #endif /* RUNTIMEINTERPRETER_H_ */

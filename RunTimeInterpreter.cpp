@@ -5,6 +5,8 @@
  *      Author: Mike Volk
  *
  * TODO:
+ * Error handling on mismatched data types
+ * Complete assignment operations
  * Will need to be able to recognize complete, yet contained sub-expressions for the untaken TERNARY
  * branch, expressions as fxn|system calls, and potentially for short-circuiting (early break) on the [||] or [&&] OPR8Rs
  * Align comments below with reality
@@ -49,67 +51,79 @@ RunTimeInterpreter::~RunTimeInterpreter() {
 /* ****************************************************************************
  *
  * ***************************************************************************/
-int RunTimeInterpreter::execEquivalenceOp(Token & operand1, Token & operand2, Token & resultTkn)     {
+int RunTimeInterpreter::execEquivalenceOp(std::vector<Token> & exprTknStream, int & callersIdx)     {
 	int ret_code = GENERAL_FAILURE;
 	bool isFailed = false;
-	uint8_t op_code = resultTkn._unsigned;
-	TokenCompareResult compareRez = operand1.compare (operand2);
 
-	switch (op_code)	{
-		case LESS_THAN_OPR8R_OPCODE :
-			if (compareRez.lessThan == isTrue)
-				resultTkn = *oneTkn;
-			else if (compareRez.lessThan == isFalse)
-				resultTkn = *zeroTkn;
-			else
+	if (exprTknStream.size() > callersIdx && exprTknStream.size() >= 3 && callersIdx >= 2 && exprTknStream[callersIdx].tkn_type == EXEC_OPR8R_TKN)	{
+
+		// TODO: If these are KEYWORD_TKNs, then do a variable name lookup in our NameSpace
+		int opr8rIdx = callersIdx;
+		Token operand1 = exprTknStream[opr8rIdx-2];
+		Token operand2 = exprTknStream[opr8rIdx-1];
+		// Snarf up OPR8R op_code BEFORE it is overwritten by the result
+		uint8_t op_code = exprTknStream[opr8rIdx]._unsigned;
+
+
+		TokenCompareResult compareRez = operand1.compare (operand2);
+
+		switch (op_code)	{
+			case LESS_THAN_OPR8R_OPCODE :
+				if (compareRez.lessThan == isTrue)
+					exprTknStream[opr8rIdx] = *oneTkn;
+				else if (compareRez.lessThan == isFalse)
+					exprTknStream[opr8rIdx] = *zeroTkn;
+				else
+					isFailed = true;
+				break;
+			case LESS_EQUALS_OPR8R8_OPCODE :
+				if (compareRez.lessEquals == isTrue)
+					exprTknStream[opr8rIdx] = *oneTkn;
+				else if (compareRez.lessEquals == isFalse)
+					exprTknStream[opr8rIdx] = *zeroTkn;
+				else
+					isFailed = true;
+				break;
+			case GREATER_THAN_OPR8R_OPCODE :
+				if (compareRez.gr8rThan == isTrue)
+					exprTknStream[opr8rIdx] = *oneTkn;
+				else if (compareRez.gr8rThan == isFalse)
+					exprTknStream[opr8rIdx] = *zeroTkn;
+				else
+					isFailed = true;
+				break;
+			case GREATER_EQUALS_OPR8R8_OPCODE :
+				if (compareRez.gr8rEquals == isTrue)
+					exprTknStream[opr8rIdx] = *oneTkn;
+				else if (compareRez.gr8rEquals == isFalse)
+					exprTknStream[opr8rIdx] = *zeroTkn;
+				else
+					isFailed = true;
+				break;
+			case EQUALITY_OPR8R_OPCODE :
+				if (compareRez.equals == isTrue)
+					exprTknStream[opr8rIdx] = *oneTkn;
+				else if (compareRez.equals == isFalse)
+					exprTknStream[opr8rIdx] = *zeroTkn;
+				else
+					isFailed = true;
+				break;
+			case NOT_EQUALS_OPR8R_OPCODE:
+				if (compareRez.equals == isFalse)
+					exprTknStream[opr8rIdx] = *oneTkn;
+				else if (compareRez.equals == isTrue)
+					exprTknStream[opr8rIdx] = *zeroTkn;
+				else
+					isFailed = true;
+				break;
+			default:
 				isFailed = true;
-			break;
-		case LESS_EQUALS_OPR8R8_OPCODE :
-			if (compareRez.lessEquals == isTrue)
-				resultTkn = *oneTkn;
-			else if (compareRez.lessEquals == isFalse)
-				resultTkn = *zeroTkn;
-			else
-				isFailed = true;
-			break;
-		case GREATER_THAN_OPR8R_OPCODE :
-			if (compareRez.gr8rThan == isTrue)
-				resultTkn = *oneTkn;
-			else if (compareRez.gr8rThan == isFalse)
-				resultTkn = *zeroTkn;
-			else
-				isFailed = true;
-			break;
-		case GREATER_EQUALS_OPR8R8_OPCODE :
-			if (compareRez.gr8rEquals == isTrue)
-				resultTkn = *oneTkn;
-			else if (compareRez.gr8rEquals == isFalse)
-				resultTkn = *zeroTkn;
-			else
-				isFailed = true;
-			break;
-		case EQUALITY_OPR8R_OPCODE :
-			if (compareRez.equals == isTrue)
-				resultTkn = *oneTkn;
-			else if (compareRez.equals == isFalse)
-				resultTkn = *zeroTkn;
-			else
-				isFailed = true;
-			break;
-		case NOT_EQUALS_OPR8R_OPCODE:
-			if (compareRez.equals == isFalse)
-				resultTkn = *oneTkn;
-			else if (compareRez.equals == isTrue)
-				resultTkn = *zeroTkn;
-			else
-				isFailed = true;
-		default:
-			isFailed = true;
-			break;
+				break;
+		}
+
+		if (!isFailed)
+			ret_code = OK;
 	}
-
-	if (!isFailed)
-		ret_code = OK;
 
   return (ret_code);
 }
@@ -118,336 +132,392 @@ int RunTimeInterpreter::execEquivalenceOp(Token & operand1, Token & operand2, To
 /* ****************************************************************************
  *
  * ***************************************************************************/
-int RunTimeInterpreter::execStandardMath (Token & operand1, Token & operand2, Token & resultTkn)	{
+int RunTimeInterpreter::execStandardMath (std::vector<Token> & exprTknStream, int & callersIdx)	{
 	int ret_code = GENERAL_FAILURE;
 	bool isParamsValid = false;
 	bool isMissedCase = false;
+	bool isDivByZero = false;
 	uint64_t tmpUnsigned;
 	int64_t tmpSigned;
 	double tmpDouble;
 	std::wstring tmpStr;
 
-	// Passed in resultTkn has OPR8R op_code BEFORE it is overwritten by the result
-	uint8_t op_code = resultTkn._unsigned;
+	if (exprTknStream.size() > callersIdx && exprTknStream.size() >= 3 && callersIdx >= 2 && exprTknStream[callersIdx].tkn_type == EXEC_OPR8R_TKN)	{
 
-	// 1st check for valid passed parameters
-	if (op_code == MULTIPLY_OPR8R_OPCODE || op_code == DIV_OPR8R_OPCODE || op_code == BINARY_MINUS_OPR8R_OPCODE)	{
-		if ((operand1.isSigned() || operand1.isUnsigned() || operand1.tkn_type == DOUBLE_TKN)
-				&& (operand2.isSigned() || operand2.isUnsigned() || operand2.tkn_type == DOUBLE_TKN))
-			isParamsValid = true;
+		// TODO: If these are KEYWORD_TKNs, then do a variable name lookup in our NameSpace
+		int opr8rIdx = callersIdx;
+		Token operand1 = exprTknStream[opr8rIdx-2];
+		Token operand2 = exprTknStream[opr8rIdx-1];
+		// Snarf up OPR8R op_code BEFORE it is overwritten by the result
+		uint8_t op_code = exprTknStream[opr8rIdx]._unsigned;
 
-	} else if (op_code == MOD_OPR8R_OPCODE)	{
-		if ((operand1.isSigned() || operand1.isUnsigned()) && (operand2.isSigned() || operand2.isUnsigned()))
-			isParamsValid = true;
+		// 1st check for valid passed parameters
+		if (op_code == MULTIPLY_OPR8R_OPCODE || op_code == DIV_OPR8R_OPCODE || op_code == BINARY_MINUS_OPR8R_OPCODE)	{
+			if ((operand1.isSigned() || operand1.isUnsigned() || operand1.tkn_type == DOUBLE_TKN)
+					&& (operand2.isSigned() || operand2.isUnsigned() || operand2.tkn_type == DOUBLE_TKN))
+				isParamsValid = true;
 
-	} else if (op_code == BINARY_PLUS_OPR8R_OPCODE)	{
-		if ((operand1.isSigned() || operand1.isUnsigned() || operand1.tkn_type == DOUBLE_TKN)
-				&& (operand2.isSigned() || operand2.isUnsigned() || operand2.tkn_type == DOUBLE_TKN))
-			isParamsValid = true;
+		} else if (op_code == MOD_OPR8R_OPCODE)	{
+			if ((operand1.isSigned() || operand1.isUnsigned()) && (operand2.isSigned() || operand2.isUnsigned()))
+				isParamsValid = true;
 
-		if (operand1.tkn_type == STRING_TKN && operand2.tkn_type == STRING_TKN)
-			isParamsValid = true;
-	}
+		} else if (op_code == BINARY_PLUS_OPR8R_OPCODE)	{
+			if ((operand1.isSigned() || operand1.isUnsigned() || operand1.tkn_type == DOUBLE_TKN)
+					&& (operand2.isSigned() || operand2.isUnsigned() || operand2.tkn_type == DOUBLE_TKN))
+				isParamsValid = true;
 
-	if (isParamsValid)	{
-		bool isAddingStrings;
-		(op_code == BINARY_PLUS_OPR8R_OPCODE && operand1.tkn_type == STRING_TKN) ? isAddingStrings = true : isAddingStrings = false;
-
-
-		if (!isAddingStrings && operand1.isSigned() && operand2.isSigned())	{
-			// signed vs. signed
-			switch (op_code)	{
-				case MULTIPLY_OPR8R_OPCODE :
-					tmpSigned = operand1._signed * operand2._signed;
-					break;
-				case DIV_OPR8R_OPCODE :
-					tmpSigned = operand1._signed / operand2._signed;
-					break;
-				case BINARY_MINUS_OPR8R_OPCODE :
-					tmpSigned = operand1._signed - operand2._signed;
-					break;
-				case BINARY_PLUS_OPR8R_OPCODE :
-					tmpSigned = operand1._signed + operand2._signed;
-					break;
-				case MOD_OPR8R_OPCODE:
-					tmpSigned = operand1._signed % operand2._signed;
-					break;
-				default:
-					isMissedCase = true;
-					break;
-			}
-
-			if (!isMissedCase)
-				resultTkn.resetToSigned(tmpSigned);
-
-		} else if (!isAddingStrings && operand1.isSigned() && operand2.isUnsigned())	{
-			// signed vs. unsigned
-			switch (op_code)	{
-				case MULTIPLY_OPR8R_OPCODE :
-					tmpSigned = operand1._signed * operand2._unsigned;
-					break;
-				case DIV_OPR8R_OPCODE :
-					tmpSigned = operand1._signed / operand2._unsigned;
-					break;
-				case BINARY_MINUS_OPR8R_OPCODE :
-					tmpSigned = operand1._signed - operand2._unsigned;
-					break;
-				case BINARY_PLUS_OPR8R_OPCODE :
-					tmpSigned = operand1._signed + operand2._unsigned;
-					break;
-				case MOD_OPR8R_OPCODE:
-					tmpSigned = operand1._signed % operand2._unsigned;
-					break;
-				default:
-					isMissedCase = true;
-					break;
-			}
-
-			if (!isMissedCase)
-				resultTkn.resetToSigned(tmpSigned);
-
-		} else if (!isAddingStrings && operand1.isSigned() && operand2.tkn_type == DOUBLE_TKN)	{
-			// signed vs. double
-			switch (op_code)	{
-				case MULTIPLY_OPR8R_OPCODE :
-					tmpDouble = operand1._signed * operand2._double;
-					break;
-				case DIV_OPR8R_OPCODE :
-					tmpDouble = operand1._signed / operand2._double;
-					break;
-				case BINARY_MINUS_OPR8R_OPCODE :
-					tmpDouble = operand1._signed - operand2._double;
-					break;
-				case BINARY_PLUS_OPR8R_OPCODE :
-					tmpDouble = operand1._signed + operand2._double;
-					break;
-				default:
-					isMissedCase = true;
-					break;
-			}
-
-			if (!isMissedCase)
-				resultTkn.resetToDouble (tmpDouble);
-
-		} else if (!isAddingStrings && operand1.isUnsigned() && operand2.isSigned())	{
-			// unsigned vs. double
-			switch (op_code)	{
-				case MULTIPLY_OPR8R_OPCODE :
-					tmpDouble = operand1._unsigned * operand2._double;
-					break;
-				case DIV_OPR8R_OPCODE :
-					tmpDouble = operand1._unsigned / operand2._double;
-					break;
-				case BINARY_MINUS_OPR8R_OPCODE :
-					tmpDouble = operand1._unsigned - operand2._double;
-					break;
-				case BINARY_PLUS_OPR8R_OPCODE :
-					tmpDouble = operand1._unsigned + operand2._double;
-					break;
-				default:
-					isMissedCase = true;
-					break;
-			}
-
-			if (!isMissedCase)
-				resultTkn.resetToDouble(tmpDouble);
-
-		} else if (!isAddingStrings && operand1.isUnsigned() && operand2.isUnsigned())	{
-			// unsigned vs. unsigned
-			switch (op_code)	{
-				case MULTIPLY_OPR8R_OPCODE :
-					tmpUnsigned = operand1._unsigned * operand2._unsigned;
-					break;
-				case DIV_OPR8R_OPCODE :
-					tmpUnsigned = operand1._unsigned / operand2._unsigned;
-					break;
-				case BINARY_MINUS_OPR8R_OPCODE :
-					tmpUnsigned = operand1._unsigned - operand2._unsigned;
-					break;
-				case BINARY_PLUS_OPR8R_OPCODE :
-					tmpUnsigned = operand1._unsigned + operand2._unsigned;
-					break;
-				case MOD_OPR8R_OPCODE:
-					tmpUnsigned = operand1._unsigned % operand2._unsigned;
-					break;
-				default:
-					isMissedCase = true;
-					break;
-			}
-
-			if (!isMissedCase)
-				resultTkn.resetToUnsigned(tmpUnsigned);
-
-		} else if (!isAddingStrings && operand1.isUnsigned() && operand2.tkn_type == DOUBLE_TKN)	{
-			// unsigned vs. double
-			switch (op_code)	{
-				case MULTIPLY_OPR8R_OPCODE :
-					tmpDouble = operand1._unsigned * operand2._double;
-					break;
-				case DIV_OPR8R_OPCODE :
-					tmpDouble = operand1._unsigned / operand2._double;
-					break;
-				case BINARY_MINUS_OPR8R_OPCODE :
-					tmpDouble = operand1._unsigned - operand2._double;
-					break;
-				case BINARY_PLUS_OPR8R_OPCODE :
-					tmpDouble = operand1._unsigned + operand2._double;
-					break;
-				default:
-					isMissedCase = true;
-					break;
-			}
-
-			if (!isMissedCase)
-				resultTkn.resetToDouble (tmpDouble);
-
-		} else if (!isAddingStrings && operand1.tkn_type == DOUBLE_TKN && operand2.isSigned())	{
-			// double vs. signed
-			switch (op_code)	{
-				case MULTIPLY_OPR8R_OPCODE :
-					tmpDouble = operand1._double * operand2._signed;
-					break;
-				case DIV_OPR8R_OPCODE :
-					tmpDouble = operand1._double / operand2._signed;
-					break;
-				case BINARY_MINUS_OPR8R_OPCODE :
-					tmpDouble = operand1._double - operand2._signed;
-					break;
-				case BINARY_PLUS_OPR8R_OPCODE :
-					tmpDouble = operand1._double + operand2._signed;
-					break;
-				default:
-					isMissedCase = true;
-					break;
-			}
-			if (!isMissedCase)
-				resultTkn.resetToDouble (tmpDouble);
-
-		} else if (!isAddingStrings && operand1.tkn_type == DOUBLE_TKN && operand2.isUnsigned())	{
-			// double vs. unsigned
-			switch (op_code)	{
-				case MULTIPLY_OPR8R_OPCODE :
-					tmpDouble = operand1._double * operand2._unsigned;
-					break;
-				case DIV_OPR8R_OPCODE :
-					tmpDouble = operand1._double / operand2._unsigned;
-					break;
-				case BINARY_MINUS_OPR8R_OPCODE :
-					tmpDouble = operand1._double - operand2._unsigned;
-					break;
-				case BINARY_PLUS_OPR8R_OPCODE :
-					tmpDouble = operand1._double + operand2._unsigned;
-					break;
-				default:
-					isMissedCase = true;
-					break;
-			}
-
-			if (!isMissedCase)
-				resultTkn.resetToDouble (tmpDouble);
-
-		} else if (!isAddingStrings && operand1.tkn_type == DOUBLE_TKN && operand2.tkn_type == DOUBLE_TKN)	{
-			// double vs. double
-			switch (op_code)	{
-			case MULTIPLY_OPR8R_OPCODE :
-				tmpDouble = operand1._double * operand2._double;
-				break;
-			case DIV_OPR8R_OPCODE :
-				tmpDouble = operand1._double / operand2._double;
-				break;
-			case BINARY_MINUS_OPR8R_OPCODE :
-				tmpDouble = operand1._double - operand2._double;
-				break;
-			case BINARY_PLUS_OPR8R_OPCODE :
-				tmpDouble = operand1._double + operand2._double;
-				break;
-			default:
-				isMissedCase = true;
-				break;
-			}
-
-			if (!isMissedCase)
-				resultTkn.resetToDouble (tmpDouble);
-
-		} else if (isAddingStrings && operand1.tkn_type == STRING_TKN && operand2.tkn_type == STRING_TKN)	{
-			if (!operand1._string.empty())
-				tmpStr = operand1._string;
-			if (!operand2._string.empty())
-				tmpStr.append(operand2._string);
-
-			resultTkn.resetToString (tmpStr);
+			if (operand1.tkn_type == STRING_TKN && operand2.tkn_type == STRING_TKN)
+				isParamsValid = true;
 		}
-	}
 
-	if (isParamsValid && !isMissedCase)
-		ret_code = OK;
+		if (isParamsValid)	{
+			bool isAddingStrings;
+			(op_code == BINARY_PLUS_OPR8R_OPCODE && operand1.tkn_type == STRING_TKN) ? isAddingStrings = true : isAddingStrings = false;
+
+
+			if (!isAddingStrings && operand1.isSigned() && operand2.isSigned())	{
+				// signed vs. signed
+				switch (op_code)	{
+					case MULTIPLY_OPR8R_OPCODE :
+						tmpSigned = operand1._signed * operand2._signed;
+						break;
+					case DIV_OPR8R_OPCODE :
+						if (operand2._signed == 0)
+							isDivByZero = true;
+						else
+							tmpSigned = operand1._signed / operand2._signed;
+						break;
+					case BINARY_MINUS_OPR8R_OPCODE :
+						tmpSigned = operand1._signed - operand2._signed;
+						break;
+					case BINARY_PLUS_OPR8R_OPCODE :
+						tmpSigned = operand1._signed + operand2._signed;
+						break;
+					case MOD_OPR8R_OPCODE:
+						if (operand2._signed == 0)
+							isDivByZero = true;
+						else
+							tmpSigned = operand1._signed % operand2._signed;
+						break;
+					default:
+						isMissedCase = true;
+						break;
+				}
+
+				if (!isMissedCase &&!isDivByZero)
+					exprTknStream[opr8rIdx].resetToSigned(tmpSigned);
+
+			} else if (!isAddingStrings && operand1.isSigned() && operand2.isUnsigned())	{
+				// signed vs. unsigned
+				switch (op_code)	{
+					case MULTIPLY_OPR8R_OPCODE :
+						tmpSigned = operand1._signed * operand2._unsigned;
+						break;
+					case DIV_OPR8R_OPCODE :
+						if (operand2._unsigned == 0)
+							isDivByZero = true;
+						else
+							tmpSigned = operand1._signed / operand2._unsigned;
+						break;
+					case BINARY_MINUS_OPR8R_OPCODE :
+						tmpSigned = operand1._signed - operand2._unsigned;
+						break;
+					case BINARY_PLUS_OPR8R_OPCODE :
+						tmpSigned = operand1._signed + operand2._unsigned;
+						break;
+					case MOD_OPR8R_OPCODE:
+						if (operand2._unsigned == 0)
+							isDivByZero = true;
+						else
+							tmpSigned = operand1._signed % operand2._unsigned;
+						break;
+					default:
+						isMissedCase = true;
+						break;
+				}
+
+				if (!isMissedCase &&!isDivByZero)
+					exprTknStream[opr8rIdx].resetToSigned(tmpSigned);
+
+			} else if (!isAddingStrings && operand1.isSigned() && operand2.tkn_type == DOUBLE_TKN)	{
+				// signed vs. double
+				switch (op_code)	{
+					case MULTIPLY_OPR8R_OPCODE :
+						tmpDouble = operand1._signed * operand2._double;
+						break;
+					case DIV_OPR8R_OPCODE :
+						if (operand2._double == 0)
+							isDivByZero = true;
+						else
+							tmpDouble = operand1._signed / operand2._double;
+						break;
+					case BINARY_MINUS_OPR8R_OPCODE :
+						tmpDouble = operand1._signed - operand2._double;
+						break;
+					case BINARY_PLUS_OPR8R_OPCODE :
+						tmpDouble = operand1._signed + operand2._double;
+						break;
+					default:
+						isMissedCase = true;
+						break;
+				}
+
+				if (!isMissedCase &&!isDivByZero)
+					exprTknStream[opr8rIdx].resetToDouble (tmpDouble);
+
+			} else if (!isAddingStrings && operand1.isUnsigned() && operand2.isSigned())	{
+				// unsigned vs. double
+				switch (op_code)	{
+					case MULTIPLY_OPR8R_OPCODE :
+						tmpDouble = operand1._unsigned * operand2._double;
+						break;
+					case DIV_OPR8R_OPCODE :
+						if (operand2._double == 0)
+							isDivByZero = true;
+						else
+							tmpDouble = operand1._unsigned / operand2._double;
+						break;
+					case BINARY_MINUS_OPR8R_OPCODE :
+						tmpDouble = operand1._unsigned - operand2._double;
+						break;
+					case BINARY_PLUS_OPR8R_OPCODE :
+						tmpDouble = operand1._unsigned + operand2._double;
+						break;
+					case MOD_OPR8R_OPCODE:
+						if (operand2._signed == 0)
+							isDivByZero = true;
+						else
+							tmpSigned = operand1._unsigned % operand2._signed;
+						break;
+					default:
+						isMissedCase = true;
+						break;
+				}
+
+				if (!isMissedCase &&!isDivByZero)
+					exprTknStream[opr8rIdx].resetToDouble(tmpDouble);
+
+			} else if (!isAddingStrings && operand1.isUnsigned() && operand2.isUnsigned())	{
+				// unsigned vs. unsigned
+				switch (op_code)	{
+					case MULTIPLY_OPR8R_OPCODE :
+						tmpUnsigned = operand1._unsigned * operand2._unsigned;
+						break;
+					case DIV_OPR8R_OPCODE :
+						if (operand2._unsigned == 0)
+							isDivByZero = true;
+						else
+							tmpUnsigned = operand1._unsigned / operand2._unsigned;
+						break;
+					case BINARY_MINUS_OPR8R_OPCODE :
+						tmpUnsigned = operand1._unsigned - operand2._unsigned;
+						break;
+					case BINARY_PLUS_OPR8R_OPCODE :
+						tmpUnsigned = operand1._unsigned + operand2._unsigned;
+						break;
+					case MOD_OPR8R_OPCODE:
+						if (operand2._unsigned == 0)
+							isDivByZero = true;
+						else
+							tmpUnsigned = operand1._unsigned % operand2._unsigned;
+						break;
+					default:
+						isMissedCase = true;
+						break;
+				}
+
+				if (!isMissedCase &&!isDivByZero)
+					exprTknStream[opr8rIdx].resetToUnsigned(tmpUnsigned);
+
+			} else if (!isAddingStrings && operand1.isUnsigned() && operand2.tkn_type == DOUBLE_TKN)	{
+				// unsigned vs. double
+				switch (op_code)	{
+					case MULTIPLY_OPR8R_OPCODE :
+						tmpDouble = operand1._unsigned * operand2._double;
+						break;
+					case DIV_OPR8R_OPCODE :
+						if (operand2._double == 0)
+							isDivByZero = true;
+						else
+							tmpDouble = operand1._unsigned / operand2._double;
+						break;
+					case BINARY_MINUS_OPR8R_OPCODE :
+						tmpDouble = operand1._unsigned - operand2._double;
+						break;
+					case BINARY_PLUS_OPR8R_OPCODE :
+						tmpDouble = operand1._unsigned + operand2._double;
+						break;
+					default:
+						isMissedCase = true;
+						break;
+				}
+
+				if (!isMissedCase &&!isDivByZero)
+					exprTknStream[opr8rIdx].resetToDouble (tmpDouble);
+
+			} else if (!isAddingStrings && operand1.tkn_type == DOUBLE_TKN && operand2.isSigned())	{
+				// double vs. signed
+				switch (op_code)	{
+					case MULTIPLY_OPR8R_OPCODE :
+						tmpDouble = operand1._double * operand2._signed;
+						break;
+					case DIV_OPR8R_OPCODE :
+						if (operand2._signed == 0)
+							isDivByZero = true;
+						else
+							tmpDouble = operand1._double / operand2._signed;
+						break;
+					case BINARY_MINUS_OPR8R_OPCODE :
+						tmpDouble = operand1._double - operand2._signed;
+						break;
+					case BINARY_PLUS_OPR8R_OPCODE :
+						tmpDouble = operand1._double + operand2._signed;
+						break;
+					default:
+						isMissedCase = true;
+						break;
+				}
+				if (!isMissedCase &&!isDivByZero)
+					exprTknStream[opr8rIdx].resetToDouble (tmpDouble);
+
+			} else if (!isAddingStrings && operand1.tkn_type == DOUBLE_TKN && operand2.isUnsigned())	{
+				// double vs. unsigned
+				switch (op_code)	{
+					case MULTIPLY_OPR8R_OPCODE :
+						tmpDouble = operand1._double * operand2._unsigned;
+						break;
+					case DIV_OPR8R_OPCODE :
+						if (operand2._unsigned == 0)
+							isDivByZero = true;
+						else
+							tmpDouble = operand1._double / operand2._unsigned;
+						break;
+					case BINARY_MINUS_OPR8R_OPCODE :
+						tmpDouble = operand1._double - operand2._unsigned;
+						break;
+					case BINARY_PLUS_OPR8R_OPCODE :
+						tmpDouble = operand1._double + operand2._unsigned;
+						break;
+					default:
+						isMissedCase = true;
+						break;
+				}
+
+				if (!isMissedCase &&!isDivByZero)
+					exprTknStream[opr8rIdx].resetToDouble (tmpDouble);
+
+			} else if (!isAddingStrings && operand1.tkn_type == DOUBLE_TKN && operand2.tkn_type == DOUBLE_TKN)	{
+				// double vs. double
+				switch (op_code)	{
+				case MULTIPLY_OPR8R_OPCODE :
+					tmpDouble = operand1._double * operand2._double;
+					break;
+				case DIV_OPR8R_OPCODE :
+					if (operand2._double == 0)
+						isDivByZero = true;
+					else
+						tmpDouble = operand1._double / operand2._double;
+					break;
+				case BINARY_MINUS_OPR8R_OPCODE :
+					tmpDouble = operand1._double - operand2._double;
+					break;
+				case BINARY_PLUS_OPR8R_OPCODE :
+					tmpDouble = operand1._double + operand2._double;
+					break;
+				default:
+					isMissedCase = true;
+					break;
+				}
+
+				if (!isMissedCase &&!isDivByZero)
+					exprTknStream[opr8rIdx].resetToDouble (tmpDouble);
+
+			} else if (isAddingStrings && operand1.tkn_type == STRING_TKN && operand2.tkn_type == STRING_TKN)	{
+				if (!operand1._string.empty())
+					tmpStr = operand1._string;
+				if (!operand2._string.empty())
+					tmpStr.append(operand2._string);
+
+				exprTknStream[opr8rIdx].resetToString (tmpStr);
+			}
+		}
+
+		if (isParamsValid && !isMissedCase && !isDivByZero)
+			ret_code = OK;
+	}
 
 	return (ret_code);
 }
 
-
 /* ****************************************************************************
  *
  * ***************************************************************************/
-int RunTimeInterpreter::execShift (Token & operand1, Token & operand2, Token & resultTkn)	{
+int RunTimeInterpreter::execShift (std::vector<Token> & exprTknStream, int & callersIdx)	{
 	int ret_code = GENERAL_FAILURE;
 
-	// Passed in resultTkn has OPR8R op_code BEFORE it is overwritten by the result
-	uint8_t op_code = resultTkn._unsigned;
+	if (exprTknStream.size() > callersIdx && exprTknStream.size() >= 3 && callersIdx >= 2 && exprTknStream[callersIdx].tkn_type == EXEC_OPR8R_TKN)	{
+		// Passed in resultTkn has OPR8R op_code BEFORE it is overwritten by the result
+		// TODO: If these are KEYWORD_TKNs, then do a variable name lookup in our NameSpace
+		int opr8rIdx = callersIdx;
+		Token operand1 = exprTknStream[opr8rIdx-2];
+		Token operand2 = exprTknStream[opr8rIdx-1];
+		// Snarf up OPR8R op_code BEFORE it is overwritten by the result
+		uint8_t op_code = exprTknStream[opr8rIdx]._unsigned;
 
-	// Operand #1 must be of type UINT[N] or INT[N]; Operand #2 can be either UINT[N] or INT[N] > 0
-	if ((op_code == LEFT_SHIFT_OPR8R_OPCODE || op_code == RIGHT_SHIFT_OPR8R_OPCODE) && (operand1.isUnsigned() || operand1.isSigned())
-			&& ((operand2.isUnsigned() && operand2._unsigned >= 0) || operand2.isSigned() && operand2._signed >= 0))	{
+		// Operand #1 must be of type UINT[N] or INT[N]; Operand #2 can be either UINT[N] or INT[N] > 0
+		if ((op_code == LEFT_SHIFT_OPR8R_OPCODE || op_code == RIGHT_SHIFT_OPR8R_OPCODE) && (operand1.isUnsigned() || operand1.isSigned())
+				&& ((operand2.isUnsigned() && operand2._unsigned >= 0) || operand2.isSigned() && operand2._signed >= 0))	{
 
-		uint64_t tmpUnsigned;
-		int64_t tmpSigned;
+			uint64_t tmpUnsigned;
+			int64_t tmpSigned;
 
-		if (operand1.isUnsigned())	{
-			if (operand2.isUnsigned())	{
-				if (op_code == LEFT_SHIFT_OPR8R_OPCODE)	{
-					tmpUnsigned = operand1._unsigned << operand2._unsigned;
-				} else {
-					tmpUnsigned = operand1._unsigned >> operand2._unsigned;
+			if (operand1.isUnsigned())	{
+				if (operand2.isUnsigned())	{
+					if (op_code == LEFT_SHIFT_OPR8R_OPCODE)	{
+						tmpUnsigned = operand1._unsigned << operand2._unsigned;
+					} else {
+						tmpUnsigned = operand1._unsigned >> operand2._unsigned;
+					}
+				} else 	{
+					if (op_code == LEFT_SHIFT_OPR8R_OPCODE)	{
+						tmpUnsigned = operand1._unsigned << operand2._signed;
+					} else {
+						tmpUnsigned = operand1._unsigned >> operand2._signed;
+					}
 				}
-			} else 	{
-				if (op_code == LEFT_SHIFT_OPR8R_OPCODE)	{
-					tmpUnsigned = operand1._unsigned << operand2._signed;
-				} else {
-					tmpUnsigned = operand1._unsigned >> operand2._signed;
-				}
-			}
 
-			resultTkn.resetToUnsigned (tmpUnsigned);
+				exprTknStream[opr8rIdx].resetToUnsigned (tmpUnsigned);
 
-		} else if (operand1._signed > 0)	{
-			if (operand2.isUnsigned())	{
-				if (op_code == LEFT_SHIFT_OPR8R_OPCODE)	{
-					tmpUnsigned = operand1._signed << operand2._unsigned;
-				} else {
-					tmpUnsigned = operand1._signed >> operand2._unsigned;
+			} else if (operand1._signed > 0)	{
+				if (operand2.isUnsigned())	{
+					if (op_code == LEFT_SHIFT_OPR8R_OPCODE)	{
+						tmpUnsigned = operand1._signed << operand2._unsigned;
+					} else {
+						tmpUnsigned = operand1._signed >> operand2._unsigned;
+					}
+				} else	{
+					// operand2 is SIGNED
+					if (op_code == LEFT_SHIFT_OPR8R_OPCODE)	{
+						tmpUnsigned = operand1._signed << operand2._signed;
+					} else {
+						tmpUnsigned = operand1._signed >> operand2._signed;
+					}
 				}
+
+				exprTknStream[opr8rIdx].resetToUnsigned (tmpUnsigned);
+
 			} else	{
-				// operand2 is SIGNED
+				// operand1 is negative, so we have to keep the sign bit around
 				if (op_code == LEFT_SHIFT_OPR8R_OPCODE)	{
-					tmpUnsigned = operand1._signed << operand2._signed;
+					tmpSigned = operand1._signed << operand2._signed;
 				} else {
-					tmpUnsigned = operand1._signed >> operand2._signed;
+					tmpSigned = operand1._signed >> operand2._signed;
 				}
+				exprTknStream[opr8rIdx].resetToSigned (tmpSigned);
 			}
 
-			resultTkn.resetToUnsigned (tmpUnsigned);
-
-		} else	{
-			// operand1 is negative, so we have to keep the sign bit around
-			if (op_code == LEFT_SHIFT_OPR8R_OPCODE)	{
-				tmpSigned = operand1._signed << operand2._signed;
-			} else {
-				tmpSigned = operand1._signed >> operand2._signed;
-			}
-			resultTkn.resetToSigned (tmpSigned);
+			ret_code = OK;
 		}
-
-		ret_code = OK;
 	}
 
 	return (ret_code);
@@ -456,90 +526,270 @@ int RunTimeInterpreter::execShift (Token & operand1, Token & operand2, Token & r
 /* ****************************************************************************
  *
  * ***************************************************************************/
-int RunTimeInterpreter::execBitWiseOp (Token & operand1, Token & operand2, Token & resultTkn)	{
+int RunTimeInterpreter::execBitWiseOp (std::vector<Token> & exprTknStream, int & callersIdx)	{
 	int ret_code = GENERAL_FAILURE;
 	bool isParamsValid = true;
 	bool isMissedCase = false;
 
-	// Passed in resultTkn has OPR8R op_code BEFORE it is overwritten by the result
-	uint8_t op_code = resultTkn._unsigned;
-	uint64_t bitWiseResult;
+	if (exprTknStream.size() > callersIdx && exprTknStream.size() >= 3 && callersIdx >= 2 && exprTknStream[callersIdx].tkn_type == EXEC_OPR8R_TKN)	{
 
-	if (op_code == BITWISE_AND_OPR8R_OPCODE || op_code == BITWISE_XOR_OPR8R_OPCODE || op_code == BITWISE_OR_OPR8R_OPCODE)	{
-		if (operand1.isUnsigned() && operand2.isUnsigned())	{
-			switch (op_code)	{
-				case BITWISE_AND_OPR8R_OPCODE :
-					bitWiseResult = operand1._unsigned & operand2._unsigned;
-					break;
-				case BITWISE_XOR_OPR8R_OPCODE :
-					bitWiseResult = operand1._unsigned ^ operand2._unsigned;
-					break;
-				case BITWISE_OR_OPR8R_OPCODE :
-					bitWiseResult = operand1._unsigned | operand2._unsigned;
-					break;
-				default :
-					isMissedCase = true;
-					break;
+		// Passed in resultTkn has OPR8R op_code BEFORE it is overwritten by the result
+		// TODO: If these are KEYWORD_TKNs, then do a variable name lookup in our NameSpace
+		int opr8rIdx = callersIdx;
+		Token operand1 = exprTknStream[opr8rIdx-2];
+		Token operand2 = exprTknStream[opr8rIdx-1];
+		// Snarf up OPR8R op_code BEFORE it is overwritten by the result
+		uint8_t op_code = exprTknStream[opr8rIdx]._unsigned;
+
+		uint64_t bitWiseResult;
+
+		if (op_code == BITWISE_AND_OPR8R_OPCODE || op_code == BITWISE_XOR_OPR8R_OPCODE || op_code == BITWISE_OR_OPR8R_OPCODE)	{
+			if (operand1.isUnsigned() && operand2.isUnsigned())	{
+				switch (op_code)	{
+					case BITWISE_AND_OPR8R_OPCODE :
+						bitWiseResult = operand1._unsigned & operand2._unsigned;
+						break;
+					case BITWISE_XOR_OPR8R_OPCODE :
+						bitWiseResult = operand1._unsigned ^ operand2._unsigned;
+						break;
+					case BITWISE_OR_OPR8R_OPCODE :
+						bitWiseResult = operand1._unsigned | operand2._unsigned;
+						break;
+					default :
+						isMissedCase = true;
+						break;
+				}
+
+			} else if (operand1.isUnsigned() && operand2.isSigned() && operand2._signed >= 0)	{
+				switch (op_code)	{
+					case BITWISE_AND_OPR8R_OPCODE :
+						bitWiseResult = operand1._unsigned & operand2._signed;
+						break;
+					case BITWISE_XOR_OPR8R_OPCODE :
+						bitWiseResult = operand1._unsigned ^ operand2._signed;
+						break;
+					case BITWISE_OR_OPR8R_OPCODE :
+						bitWiseResult = operand1._unsigned | operand2._signed;
+						break;
+					default :
+						isMissedCase = true;
+						break;
+				}
+
+			} else if (operand1.isSigned() && operand1._signed >= 0 && operand2.isUnsigned())	{
+				switch (op_code)	{
+					case BITWISE_AND_OPR8R_OPCODE :
+						bitWiseResult = operand1._signed & operand2._unsigned;
+						break;
+					case BITWISE_XOR_OPR8R_OPCODE :
+						bitWiseResult = operand1._signed ^ operand2._unsigned;
+						break;
+					case BITWISE_OR_OPR8R_OPCODE :
+						bitWiseResult = operand1._signed | operand2._unsigned;
+						break;
+					default :
+						isMissedCase = true;
+						break;
+				}
+
+			} else if (operand1.isSigned() && operand1._signed >= 0 && operand2.isSigned() && operand2._signed >= 0)	{
+				switch (op_code)	{
+					case BITWISE_AND_OPR8R_OPCODE :
+						bitWiseResult = operand1._signed & operand2._signed;
+						break;
+					case BITWISE_XOR_OPR8R_OPCODE :
+						bitWiseResult = operand1._signed ^ operand2._signed;
+						break;
+					case BITWISE_OR_OPR8R_OPCODE :
+						bitWiseResult = operand1._signed | operand2._signed;
+						break;
+					default :
+						isMissedCase = true;
+						break;
+				}
+
+			} else	{
+				isParamsValid = false;
 			}
+		}
 
-		} else if (operand1.isUnsigned() && operand2.isSigned() && operand2._signed >= 0)	{
-			switch (op_code)	{
-				case BITWISE_AND_OPR8R_OPCODE :
-					bitWiseResult = operand1._unsigned & operand2._signed;
-					break;
-				case BITWISE_XOR_OPR8R_OPCODE :
-					bitWiseResult = operand1._unsigned ^ operand2._signed;
-					break;
-				case BITWISE_OR_OPR8R_OPCODE :
-					bitWiseResult = operand1._unsigned | operand2._signed;
-					break;
-				default :
-					isMissedCase = true;
-					break;
-			}
-
-		} else if (operand1.isSigned() && operand1._signed >= 0 && operand2.isUnsigned())	{
-			switch (op_code)	{
-				case BITWISE_AND_OPR8R_OPCODE :
-					bitWiseResult = operand1._signed & operand2._unsigned;
-					break;
-				case BITWISE_XOR_OPR8R_OPCODE :
-					bitWiseResult = operand1._signed ^ operand2._unsigned;
-					break;
-				case BITWISE_OR_OPR8R_OPCODE :
-					bitWiseResult = operand1._signed | operand2._unsigned;
-					break;
-				default :
-					isMissedCase = true;
-					break;
-			}
-
-		} else if (operand1.isSigned() && operand1._signed >= 0 && operand2.isSigned() && operand2._signed >= 0)	{
-			switch (op_code)	{
-				case BITWISE_AND_OPR8R_OPCODE :
-					bitWiseResult = operand1._signed & operand2._signed;
-					break;
-				case BITWISE_XOR_OPR8R_OPCODE :
-					bitWiseResult = operand1._signed ^ operand2._signed;
-					break;
-				case BITWISE_OR_OPR8R_OPCODE :
-					bitWiseResult = operand1._signed | operand2._signed;
-					break;
-				default :
-					isMissedCase = true;
-					break;
-			}
-
-		} else	{
-			isParamsValid = false;
+		if (isParamsValid && !isMissedCase)	{
+			exprTknStream[opr8rIdx].resetToUnsigned(bitWiseResult);
+			ret_code = OK;
 		}
 	}
 
-	if (isParamsValid && !isMissedCase)	{
-		resultTkn.resetToUnsigned(bitWiseResult);
-		ret_code = OK;
+	return (ret_code);
+}
+
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+int RunTimeInterpreter::execUnaryOp (std::vector<Token> & exprTknStream, int & callersIdx)	{
+	int ret_code = GENERAL_FAILURE;
+	bool isSuccess = false;
+
+	if (exprTknStream.size() > callersIdx && exprTknStream.size() >= 2 && callersIdx >= 1 && exprTknStream[callersIdx].tkn_type == EXEC_OPR8R_TKN)	{
+
+		// TODO: If these are KEYWORD_TKNs, then do a variable name lookup in our NameSpace
+		int opr8rIdx = callersIdx;
+		Token operand1 = exprTknStream[opr8rIdx-1];
+		// Snarf up OPR8R op_code BEFORE it is overwritten by the result
+		uint8_t op_code = exprTknStream[opr8rIdx]._unsigned;
+		uint64_t unaryResult;
+
+		if (op_code == UNARY_PLUS_OPR8R_OPCODE)	{
+			// UNARY_PLUS is a NO-OP with the right data types
+			if (operand1.isSigned() || operand1.isUnsigned())	{
+				exprTknStream[opr8rIdx] = operand1;
+				isSuccess = true;
+			}
+
+		} else if (op_code == UNARY_MINUS_OPR8R_OPCODE)	{
+			if (operand1.isSigned())	{
+				exprTknStream[opr8rIdx] = operand1;
+				exprTknStream[opr8rIdx]._signed = (0 - operand1._signed);
+				isSuccess = true;
+
+			} else if (operand1.isUnsigned())	{
+				int64_t tmpInt64 = exprTknStream[opr8rIdx]._unsigned;
+				exprTknStream[opr8rIdx].resetToSigned (-tmpInt64);
+				isSuccess = true;
+
+			} else if (operand1.tkn_type == DOUBLE_TKN)	{
+				double tmpDouble = exprTknStream[opr8rIdx]._double;
+				exprTknStream[opr8rIdx].resetToDouble (-tmpDouble);
+				isSuccess = true;
+			}
+
+		} else if (op_code == LOGICAL_NOT_OPR8R_OPCODE)	{
+			if (operand1.isUnsigned())	{
+				if (operand1._unsigned == 0)
+					exprTknStream[opr8rIdx] = *oneTkn;
+				else
+					exprTknStream[opr8rIdx] = *zeroTkn;
+
+				isSuccess = true;
+
+			} else if (operand1.isSigned())	{
+				if (operand1._signed == 0)
+					exprTknStream[opr8rIdx] = *oneTkn;
+				else
+					exprTknStream[opr8rIdx] = *zeroTkn;
+
+				isSuccess = true;
+
+			} else if (operand1.tkn_type == DOUBLE_TKN)	{
+				if (operand1._double == 0.0)
+					exprTknStream[opr8rIdx] = *oneTkn;
+				else
+					exprTknStream[opr8rIdx] = *zeroTkn;
+
+				isSuccess = true;
+			}
+		} else if (op_code == BITWISE_NOT_OPR8R_OPCODE && operand1.isUnsigned())	{
+			operand1._unsigned = ~(operand1._unsigned);
+			exprTknStream[opr8rIdx] = operand1;
+			isSuccess = true;
+		}
+
+		if (isSuccess)	{
+			exprTknStream.erase (exprTknStream.begin() + (opr8rIdx-1));
+			callersIdx -= 1;
+			ret_code = OK;
+		}
 	}
 
+	return (ret_code);
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+int RunTimeInterpreter::execAssignmentOp(std::vector<Token> & exprTknStream, int & callersIdx)     {
+	int ret_code = GENERAL_FAILURE;
+	bool isSuccess = false;
+	int opr8rIdx = callersIdx;
+	if (exprTknStream.size() > opr8rIdx && exprTknStream.size() >= 3 && opr8rIdx >= 2 && exprTknStream[opr8rIdx].tkn_type == EXEC_OPR8R_TKN)	{
+		// Snarf up OPR8R op_code BEFORE it is overwritten by the result
+		uint8_t original_op_code = exprTknStream[opr8rIdx]._unsigned;
+		bool isOpSuccess = false;
+		bool isDataTypeOK = false;
+
+		// TODO: operand1 *MUST* resolve to a variable that we can store a result to!
+		bool isAssignable = true;
+		Token operand1 = exprTknStream[opr8rIdx-2];
+		Token operand2 = exprTknStream[opr8rIdx-1];
+
+		if (isAssignable)	{
+			switch (original_op_code)	{
+				case ASSIGNMENT_OPR8R_OPCODE :
+					isOpSuccess = true;
+					break;
+				case PLUS_ASSIGN_OPR8R_OPCODE :
+					exprTknStream[opr8rIdx]._unsigned = BINARY_PLUS_OPR8R_OPCODE;
+					if (OK == execBinaryOp (exprTknStream, callersIdx))
+						isOpSuccess = true;
+					break;
+				case MINUS_ASSIGN_OPR8R_OPCODE :
+					exprTknStream[opr8rIdx]._unsigned = BINARY_MINUS_OPR8R_OPCODE;
+					if (OK == execBinaryOp (exprTknStream, callersIdx))
+						isOpSuccess = true;
+					break;
+				case MULTIPLY_ASSIGN_OPR8R_OPCODE :
+					exprTknStream[opr8rIdx]._unsigned = MULTIPLY_OPR8R_OPCODE;
+					if (OK == execBinaryOp (exprTknStream, callersIdx))
+						isOpSuccess = true;
+					break;
+				case DIV_ASSIGN_OPR8R_OPCODE :
+					exprTknStream[opr8rIdx]._unsigned = DIV_OPR8R_OPCODE;
+					if (OK == execBinaryOp (exprTknStream, callersIdx))
+						isOpSuccess = true;
+					break;
+				case MOD_ASSIGN_OPR8R_OPCODE :
+					exprTknStream[opr8rIdx]._unsigned = MOD_OPR8R_OPCODE;
+					if (OK == execBinaryOp (exprTknStream, callersIdx))
+						isOpSuccess = true;
+					break;
+				case LEFT_SHIFT_ASSIGN_OPR8R_OPCODE :
+					exprTknStream[opr8rIdx]._unsigned = LEFT_SHIFT_OPR8R_OPCODE;
+					if (OK == execBinaryOp (exprTknStream, callersIdx))
+						isOpSuccess = true;
+					break;
+				case RIGHT_SHIFT_ASSIGN_OPR8R_OPCODE :
+					exprTknStream[opr8rIdx]._unsigned = RIGHT_SHIFT_OPR8R_OPCODE;
+					if (OK == execBinaryOp (exprTknStream, callersIdx))
+						isOpSuccess = true;
+					break;
+				case BITWISE_AND_ASSIGN_OPR8R_OPCODE :
+					exprTknStream[opr8rIdx]._unsigned = BITWISE_AND_OPR8R_OPCODE;
+					if (OK == execBinaryOp (exprTknStream, callersIdx))
+						isOpSuccess = true;
+					break;
+				case BITWISE_XOR_ASSIGN_OPR8R_OPCODE :
+					exprTknStream[opr8rIdx]._unsigned = BITWISE_XOR_OPR8R_OPCODE;
+					if (OK == execBinaryOp (exprTknStream, callersIdx))
+						isOpSuccess = true;
+					break;
+				case BITWISE_OR_ASSIGN_OPR8R_OPCODE :
+					exprTknStream[opr8rIdx]._unsigned = BITWISE_OR_OPR8R_OPCODE;
+					if (OK == execBinaryOp (exprTknStream, callersIdx))
+						isOpSuccess = true;
+					break;
+				default:
+					break;
+			}
+		}
+
+		if (isOpSuccess)	{
+			// TODO: Check that exprTknStream[opr8rIdx] and variable indicated by operand1 are compatible
+			if (isDataTypeOK)	{
+				// Commit the result to the stored variable
+				ret_code = OK;
+			}
+		}
+	}
 
 	return (ret_code);
 }
@@ -553,7 +803,10 @@ int RunTimeInterpreter::execBinaryOp(std::vector<Token> & exprTknStream, int & c
 	int opr8rIdx = callersIdx;
 
 	if (exprTknStream.size() > opr8rIdx && exprTknStream.size() >= 3 && opr8rIdx >= 2 && exprTknStream[opr8rIdx].tkn_type == EXEC_OPR8R_TKN)	{
+		// Snarf up OPR8R op_code BEFORE it is overwritten by the result
 		uint8_t op_code = exprTknStream[opr8rIdx]._unsigned;
+		Operator opr8r;
+		execTerms.getExecOpr8rDetails(op_code, opr8r);
 
 		// TODO: If these are KEYWORD_TKNs, then do a variable name lookup in our NameSpace
 		Token operand1 = exprTknStream[opr8rIdx-2];
@@ -565,13 +818,13 @@ int RunTimeInterpreter::execBinaryOp(std::vector<Token> & exprTknStream, int & c
 			case MOD_OPR8R_OPCODE :
 			case BINARY_PLUS_OPR8R_OPCODE :
 			case BINARY_MINUS_OPR8R_OPCODE :
-				if (OK == execStandardMath (operand1, operand2, exprTknStream[opr8rIdx]))
+				if (OK == execStandardMath (exprTknStream, opr8rIdx))
 					isSuccess = true;
 
 				break;
 			case LEFT_SHIFT_OPR8R_OPCODE :
 			case RIGHT_SHIFT_OPR8R_OPCODE :
-				if (OK == execShift (operand1, operand2, exprTknStream[opr8rIdx]))
+				if (OK == execShift (exprTknStream, opr8rIdx))
 					isSuccess = true;
 				break;
 
@@ -581,14 +834,14 @@ int RunTimeInterpreter::execBinaryOp(std::vector<Token> & exprTknStream, int & c
 			case GREATER_EQUALS_OPR8R8_OPCODE :
 			case EQUALITY_OPR8R_OPCODE :
 			case NOT_EQUALS_OPR8R_OPCODE :
-				if (OK == execEquivalenceOp (operand1, operand2, exprTknStream[opr8rIdx]))
+				if (OK == execEquivalenceOp (exprTknStream, opr8rIdx))
 					isSuccess = true;
 				break;
 
 			case BITWISE_AND_OPR8R_OPCODE :
 			case BITWISE_XOR_OPR8R_OPCODE :
 			case BITWISE_OR_OPR8R_OPCODE :
-				if (OK == execBitWiseOp (operand1, operand2, exprTknStream[opr8rIdx]))
+				if (OK == execBitWiseOp (exprTknStream, opr8rIdx))
 					isSuccess = true;
 				break;
 
@@ -609,28 +862,18 @@ int RunTimeInterpreter::execBinaryOp(std::vector<Token> & exprTknStream, int & c
 				break;
 
 			case ASSIGNMENT_OPR8R_OPCODE :
-				break;
-
-			// TODO: Might be able to leverage earlier work (e.g. BINARY_PLUS_OPR8R_OPCODE)
 			case PLUS_ASSIGN_OPR8R_OPCODE :
-				break;
 			case MINUS_ASSIGN_OPR8R_OPCODE :
-				break;
 			case MULTIPLY_ASSIGN_OPR8R_OPCODE :
-				break;
 			case DIV_ASSIGN_OPR8R_OPCODE :
-				break;
 			case MOD_ASSIGN_OPR8R_OPCODE :
-				break;
 			case LEFT_SHIFT_ASSIGN_OPR8R_OPCODE :
-				break;
 			case RIGHT_SHIFT_ASSIGN_OPR8R_OPCODE :
-				break;
 			case BITWISE_AND_ASSIGN_OPR8R_OPCODE :
-				break;
 			case BITWISE_XOR_ASSIGN_OPR8R_OPCODE :
-				break;
 			case BITWISE_OR_ASSIGN_OPR8R_OPCODE :
+				if (OK == execAssignmentOp (exprTknStream, opr8rIdx))
+					isSuccess = true;
 				break;
 			default:
 				break;
@@ -781,7 +1024,6 @@ int RunTimeInterpreter::execTernary1stOp(std::vector<Token> & exprTknStream, int
 	return (ret_code);
 }
 
-
 /* ****************************************************************************
  *
  * ***************************************************************************/
@@ -931,15 +1173,23 @@ int RunTimeInterpreter::resolveExpression(std::vector<Token> & exprTknStream)   
 						isFailed = true;
 
 					} else if ((opr8r_obj.type_mask & UNARY) && opr8r_obj.numReqExecOperands == 1)	{
-						failedOnLineNum == 0 ? failedOnLineNum = __LINE__ : 1;
-						isFailed = true;
+						if (OK != execUnaryOp (exprTknStream, currIdx))	{
+							failedOnLineNum == 0 ? failedOnLineNum = __LINE__ : 1;
+							isFailed = true;
+						} else	{
+							// Deletions made; Break out of loop so currIdx -> 0
+							// TODO: Is there a way to be SMRT about this?  Maybe currIdx points to NEXT idx after handled
+							// OPR8R, and if it's an OPERAND we can continue w/o breaking out of the loop?
+							break;
+						}
 
 					} else if ((opr8r_obj.type_mask & TERNARY_1ST) && opr8r_obj.numReqExecOperands == 1)	{
 						if (OK != execTernary1stOp (exprTknStream, currIdx))
 							isFailed = true;
 						else	{
 							// Deletions made; Break out of loop so currIdx -> 0
-							// TODO: Is there a way to be SMRT about this?
+							// TODO: Is there a way to be SMRT about this?  Maybe currIdx points to NEXT idx after handled
+							// OPR8R, and if it's an OPERAND we can continue w/o breaking out of the loop?
 							break;
 						}
 
@@ -954,7 +1204,8 @@ int RunTimeInterpreter::resolveExpression(std::vector<Token> & exprTknStream)   
 							isFailed = true;
 						} else	{
 							// Deletions made; Break out of loop so currIdx -> 0
-							// TODO: Is there a way to be SMRT about this?
+							// TODO: Is there a way to be SMRT about this?  Maybe currIdx points to NEXT idx after handled
+							// OPR8R, and if it's an OPERAND we can continue w/o breaking out of the loop?
 							break;
 						}
 					} else	{
@@ -1010,7 +1261,7 @@ void RunTimeInterpreter::dumpTokenPtrStream (TokenPtrVector tokenStream, std::ws
 		Token * listTkn = tokenStream[idx];
 		std::wcout << L"[" ;
 		if (listTkn->tkn_type == EXEC_OPR8R_TKN)
-			std::wcout << execTerms.getOpr8rStrFor(listTkn->_unsigned);
+			std::wcout << execTerms.getSrcOpr8rStrFor(listTkn->_unsigned);
 		else if (listTkn->_string.length() > 0)
 			std::wcout << listTkn->_string;
 		else	{
@@ -1035,7 +1286,7 @@ void RunTimeInterpreter::dumpTokenList (std::vector<Token> & tokenStream, std::w
 		Token listTkn = tokenStream[idx];
 		std::wcout << L"[" ;
 		if (listTkn.tkn_type == EXEC_OPR8R_TKN)
-			std::wcout << execTerms.getOpr8rStrFor(listTkn._unsigned);
+			std::wcout << execTerms.getSrcOpr8rStrFor(listTkn._unsigned);
 		else if (listTkn._string.length() > 0)
 			std::wcout << listTkn._string;
 		else	{

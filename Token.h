@@ -9,7 +9,7 @@
 #include <stdexcept>
 #include <vector>
 #include <iostream>
-
+#include <sstream>
 
 #define END_OF_STREAM_STR L"END_OF_STREAM"
 
@@ -66,7 +66,6 @@ class Token {
     bool is_rvalue;
 
     std::wstring get_tkn_type_by_enum (tkn_type_enum tkn_type);
-    void dumpOut();
     std::wstring description ();
     TokenCompareResult compare (Token & otherTkn);
     bool isOperand();

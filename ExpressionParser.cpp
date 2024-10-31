@@ -801,15 +801,18 @@ int ExpressionParser::get2ndTernaryCnt ()  {
 bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t & next_legal_tkn_types, Token * curr_tkn)  {
   bool isTknTypeOK = false;
 
+  int numTruths = 0;
+
   if (curr_tkn != NULL)	{
-  	if ((allowed_tkn_types & VAR_NAME_NXT_OK) && curr_tkn->tkn_type == KEYWORD_TKN
+  	if ((allowed_tkn_types & VAR_NAME_NXT_OK) && curr_tkn->tkn_type == KEYWORD_TKN)	{
  	  	// VAR_NAME
   		// TODO: && found in NameSpace
-  		)	{
+
   		isTknTypeOK = true;
   		next_legal_tkn_types = (POSTFIX_OPR8R_NXT_OK|BINARY_OPR8R_NXT_OK|TERNARY_OPR8R_1ST_NXT_OK|CLOSE_PAREN_NXT_OK);
   		if (isTernaryOpen())
   			next_legal_tkn_types |= TERNARY_OPR8R_2ND_NXT_OK;
+  		numTruths++;
   	}
 
   	// LITERAL
@@ -823,49 +826,69 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   		next_legal_tkn_types = (BINARY_OPR8R_NXT_OK|TERNARY_OPR8R_1ST_NXT_OK|CLOSE_PAREN_NXT_OK);
   		if (isTernaryOpen())
   			next_legal_tkn_types |= TERNARY_OPR8R_2ND_NXT_OK;
+  		numTruths++;
   	}
 
   	// PREFIX_OPR8R
-  	if ((allowed_tkn_types & PREFIX_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN
-			&& (PREFIX & usrSrcTerms.get_type_mask(curr_tkn->_string)))	{
-  		isTknTypeOK = true;
-  		// Make user source OPR8R unambiguous for internal use
-  		// TODO: Could have a separate Token member variable for this and keep user OPR8R around
-  		// TODO: Do I mark this as an R-value now, or is this implied somehow via the OPR8R?
-  		curr_tkn->_string = usrSrcTerms.getUniqPrefixOpr8r(curr_tkn->_string);
-  		next_legal_tkn_types = (VAR_NAME_NXT_OK);
+  	if ((allowed_tkn_types & PREFIX_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN)	{
+
+  		std::wstring unqExecOpr8rStr = usrSrcTerms.getUniqExecOpr8rStr(curr_tkn->_string, PREFIX /*UNARY*/);
+  		if (!unqExecOpr8rStr.empty() && curr_tkn->_string != unqExecOpr8rStr)
+  			// Make user source OPR8R unambiguous for internal use
+  			curr_tkn->_string = unqExecOpr8rStr;
+
+  		if (PREFIX & usrSrcTerms.get_type_mask(curr_tkn->_string))	{
+  			isTknTypeOK = true;
+				next_legal_tkn_types = (VAR_NAME_NXT_OK);
+	  		numTruths++;
+  		}
   	}
 
   	// UNARY_OPR8R
-  	if ((allowed_tkn_types & UNARY_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN
-			&& (UNARY & usrSrcTerms.get_type_mask(curr_tkn->_string)))	{
-  		isTknTypeOK = true;
+  	if ((allowed_tkn_types & UNARY_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN)	{
   		// Make user source OPR8R unambiguous for internal use
-  		// TODO: Could have a separate Token member variable for this and keep user OPR8R around
-  		// TODO: Do I mark this as an R-value now, or is this implied somehow via the OPR8R?
-  		curr_tkn->_string = usrSrcTerms.getUniqUnaryOpr8r(curr_tkn->_string);
-  		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|CLOSE_PAREN_NXT_OK);
+  		std::wstring unqExecOpr8rStr = usrSrcTerms.getUniqExecOpr8rStr(curr_tkn->_string, UNARY);
+  		if (!unqExecOpr8rStr.empty() && curr_tkn->_string != unqExecOpr8rStr)
+  			// Make user source OPR8R unambiguous for internal use
+  			curr_tkn->_string = unqExecOpr8rStr;
+
+  		if (UNARY & usrSrcTerms.get_type_mask(curr_tkn->_string))	{
+  			isTknTypeOK = true;
+    		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|CLOSE_PAREN_NXT_OK);
+    		numTruths++;
+
+  		}
   	}
 
   	// POSTFIX_OPR8R
-  	if ((allowed_tkn_types & POSTFIX_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN
-			&& (POSTFIX & usrSrcTerms.get_type_mask(curr_tkn->_string)))	{
-  		isTknTypeOK = true;
-  		// Make user source OPR8R unambiguous for internal use
-  		// TODO: Could have a separate Token member variable for this and keep user OPR8R around
-  		// TODO: Do I mark this as an R-value now, or is this implied somehow via the OPR8R?
-  		curr_tkn->_string = usrSrcTerms.getUniqPostfixOpr8r(curr_tkn->_string);
-  		// TODO: Double check TERNARY
-  		next_legal_tkn_types = (BINARY_OPR8R_NXT_OK|TERNARY_OPR8R_1ST_NXT_OK|CLOSE_PAREN_NXT_OK);
-  		if (isTernaryOpen())
-  			next_legal_tkn_types |= TERNARY_OPR8R_2ND_NXT_OK;
+  	if ((allowed_tkn_types & POSTFIX_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN)	{
+  		std::wstring unqExecOpr8rStr = usrSrcTerms.getUniqExecOpr8rStr(curr_tkn->_string, POSTFIX);
+  		if (!unqExecOpr8rStr.empty() && curr_tkn->_string != unqExecOpr8rStr)
+  			// Make user source OPR8R unambiguous for internal use
+  			curr_tkn->_string = unqExecOpr8rStr;
+
+  		if (POSTFIX & usrSrcTerms.get_type_mask(curr_tkn->_string))	{
+				isTknTypeOK = true;
+				next_legal_tkn_types = (BINARY_OPR8R_NXT_OK|TERNARY_OPR8R_1ST_NXT_OK|CLOSE_PAREN_NXT_OK);
+				if (isTernaryOpen())
+					next_legal_tkn_types |= TERNARY_OPR8R_2ND_NXT_OK;
+				numTruths++;
+			}
   	}
 
   	// BINARY_OPR8R
-  	if ((allowed_tkn_types & BINARY_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN
-			&& (BINARY & usrSrcTerms.get_type_mask(curr_tkn->_string)))	{
-  		isTknTypeOK = true;
-  		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
+  	if ((allowed_tkn_types & BINARY_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN)	{
+  		// Disambiguate the + and - OPR8Rs because they can be either UNARY or BINARY
+  		std::wstring unqExecOpr8rStr = usrSrcTerms.getUniqExecOpr8rStr(curr_tkn->_string, BINARY);
+  		if (!unqExecOpr8rStr.empty() && curr_tkn->_string != unqExecOpr8rStr)
+  			// Make user source OPR8R unambiguous for internal use
+  			curr_tkn->_string = unqExecOpr8rStr;
+
+  		if ((BINARY & usrSrcTerms.get_type_mask(curr_tkn->_string)))	{
+	  		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
+      	isTknTypeOK = true;
+    		numTruths++;
+			}
   	}
 
   	// TERNARY_OPR8R
@@ -874,6 +897,7 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   		isTknTypeOK = true;
   		// TODO: Is PREFIX_OPR8R legit here?
   		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
+  		numTruths++;
   	}
 
   	if ((allowed_tkn_types & TERNARY_OPR8R_2ND_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN
@@ -881,12 +905,14 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   		isTknTypeOK = true;
   		// TODO: Is PREFIX_OPR8R legit here?
   		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
+  		numTruths++;
   	}
 
   	if ((allowed_tkn_types & OPEN_PAREN_NXT_OK) && SPR8R_TKN == curr_tkn->tkn_type && 0 == curr_tkn->_string.compare(L"("))	{
     	// OPEN_PAREN
   		isTknTypeOK = true;
   		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
+  		numTruths++;
   	}
 
   	if ((allowed_tkn_types & CLOSE_PAREN_NXT_OK) && SPR8R_TKN == curr_tkn->tkn_type && 0 == curr_tkn->_string.compare(L")"))	{
@@ -897,6 +923,7 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   		if (isTernaryOpen())
   			next_legal_tkn_types |= TERNARY_OPR8R_2ND_NXT_OK;
 
+  		numTruths++;
   	}
 
   	if ((allowed_tkn_types & DCLR_VAR_OR_FXN_NXT_OK) && KEYWORD_TKN == curr_tkn->tkn_type && usrSrcTerms.is_valid_datatype(curr_tkn->_string))	{
@@ -906,8 +933,11 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   	}
 
   	// FXN_CALL
-
   }
+
+	if (numTruths > 1)
+		std::wcout << L"TODO: numTruths = " << numTruths << std::endl;
+
 
   return (isTknTypeOK);
 }

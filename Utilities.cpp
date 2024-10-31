@@ -21,6 +21,7 @@ Utilities::~Utilities() {
 /* ****************************************************************************
  * Take a "skinny" std::string and return a "wide" std::wstring
  * NOTE: This is probably only useful for ASCII 8-bit characters
+ * TODO: check out std::wstring_convert
  * ***************************************************************************/
 std::wstring Utilities::stringToWstring (std::string skinnyStr)	{
 	std::wstring wideStr;

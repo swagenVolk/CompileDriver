@@ -1,9 +1,12 @@
 /* ****************************************************************************
+ * NEEDS TESTING:
+ * Unary OPR8R mechanics
+ *
  * TODO:
- * Add all the OPR8R mechanics
+ * Dividing 2 SIGNED Tokens that should return a DOUBLE still returns a SIGNED
+ * Add assignment OPR8R mechanics
  * Should I re-visit the 1<->2 swapping of :'s operands?
  * Update explanation of how an expression is flattened and written out to interpreted file.
- * Evaluate an expression with Interpreter
  * How many pointers/new(s) can I replace with essentially a copy?
  * Method to regression test lots of expressions and compare results against regular compiler
  * Compile variable declarations and put into NameSpace
@@ -15,8 +18,11 @@
  * file for the location. It can do a quick(er) lookup
  *
  * RECENTLY DONE:
+ * Add unary OPR8R mechanics
+ * Test current BINARY OPR8Rs
  * Add Interpreter handling of TERNARY conditions - FALSE & TRUE paths coded and tested
  * EXEC_OPR8R_TKN
+ * Evaluate an expression with Interpreter
  * Mechanics of writing expression out to interpreted file
  * ***************************************************************************/
 
@@ -93,7 +99,7 @@ int main(int argc, const char * argv[])
 						Token listTkn = exprTknList[idx];
 						std::wcout << L"[" ;
 						if (listTkn.tkn_type == EXEC_OPR8R_TKN)
-							std::wcout << srcExecTerms.getOpr8rStrFor(listTkn._unsigned);
+							std::wcout << srcExecTerms.getSrcOpr8rStrFor(listTkn._unsigned);
 						else if (listTkn._string.length() > 0)
 							std::wcout << listTkn._string;
 						else	{

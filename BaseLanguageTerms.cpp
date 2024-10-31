@@ -277,15 +277,26 @@ uint8_t BaseLanguageTerms::getOpCodeFor (std::wstring opr8r)	{
 /* ****************************************************************************
  * Return the OPR8R for the passed in BYTE sized opCode
  * ***************************************************************************/
-std::wstring BaseLanguageTerms::getOpr8rStrFor (uint8_t op_code)	{
-	std::wstring opr8rStr = L"";
+std::wstring BaseLanguageTerms::getSrcOpr8rStrFor (uint8_t op_code)	{
+	std::wstring srcOpr8rStr = L"";
 	Operator opr8r;
 
 	if (OK == getExecOpr8rDetails (op_code, opr8r))	{
-		opr8rStr = opr8r.symbol;
+		std::wstring execOpr8rStr = opr8r.symbol;
+
+		if (auto search = execToSrcOpr8rMap.find(execOpr8rStr); search != execToSrcOpr8rMap.end())	{
+			// Corresponding source OPR8R string was found in our special case map used to
+			// disambiguate OPR8Rs like [++] [--] which can be PREFIX|POSTFIX
+			// and [+] [-] which can be UNARY|BINARY
+			srcOpr8rStr = search->second;
+		}
+
+		if (srcOpr8rStr.empty())	{
+			srcOpr8rStr = opr8r.symbol;
+		}
 	}
 
-	return (opr8rStr);
+	return (srcOpr8rStr);
 }
 
 /* ****************************************************************************
@@ -307,3 +318,54 @@ int BaseLanguageTerms::getExecOpr8rDetails (uint8_t op_code, Operator & callers_
 	return (ret_code);
 }
 
+/* ****************************************************************************
+ * For the passed ambiguous source OPR8R, search the special case map used
+ * for disambiguation and find the exec OPR8R that matches the req_type_mask
+ * ***************************************************************************/
+std::wstring BaseLanguageTerms::getUniqExecOpr8rStr (std::wstring srcStr, uint8_t req_type_mask)	{
+	std::wstring execOpr8rStr = L"";
+
+	std::vector <std::wstring> pssblExecOpr8rs;
+	std::vector <Operator> matchingOpr8rs;
+
+	// TODO: decrypt, disambiguate, clarify, uniqify.....
+	for (auto itr8r = execToSrcOpr8rMap.begin(); itr8r != execToSrcOpr8rMap.end(); itr8r++)	{
+		if (itr8r->second == srcStr)	{
+			// Matched on the passed in source OPR8R string
+			pssblExecOpr8rs.push_back (itr8r->first);
+		}
+	}
+
+	if (pssblExecOpr8rs.empty())
+		// No disambiguation matches from execToSrcOpr8rMap
+		pssblExecOpr8rs.push_back (srcStr);
+
+	std::list<Opr8rPrecedenceLvl>::iterator outr8r;
+	std::list<Operator>::iterator innr8r;
+	std::vector <std::wstring>::iterator pssblR8r;
+	Opr8rPrecedenceLvl precedenceLvl;
+
+	for (outr8r = grouped_opr8rs.begin(); outr8r != grouped_opr8rs.end(); outr8r++){
+		precedenceLvl = *outr8r;
+
+		for (innr8r = precedenceLvl.opr8rs.begin(); innr8r != precedenceLvl.opr8rs.end(); ++innr8r){
+			Operator nxtOpr8r = *innr8r;
+
+			if (req_type_mask == (req_type_mask & nxtOpr8r.type_mask))	{
+				// The current usage mode of this defined OPR8R meets the search criteria
+				for (pssblR8r = pssblExecOpr8rs.begin(); pssblR8r != pssblExecOpr8rs.end(); pssblR8r++)	{
+					if (0 == nxtOpr8r.symbol.compare(*pssblR8r))	{
+						// Operator string matches
+						matchingOpr8rs.push_back(nxtOpr8r);
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	if (matchingOpr8rs.size() == 1)
+		execOpr8rStr = matchingOpr8rs[0].symbol;
+
+	return (execOpr8rStr);
+}

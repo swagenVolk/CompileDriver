@@ -121,7 +121,10 @@ std::wstring Token::get_type_str()  {
     case TIL_EOL_CMMNT_TKN       :
       ret_string = L"TIL_EOL_CMMNT_TKN";
       break;
-		case UINT16_TKN								:
+    case UINT8_TKN								:
+			ret_string = L"UINT8_TKN";
+			break;
+    case UINT16_TKN								:
 			ret_string = L"UINT16_TKN";
 			break;
 		case UINT32_TKN								:
@@ -129,6 +132,9 @@ std::wstring Token::get_type_str()  {
 			break;
 		case UINT64_TKN								:
 			ret_string = L"UINT64_TKN";
+			break;
+		case INT8_TKN								:
+			ret_string = L"INT8_TKN";
 			break;
 		case INT16_TKN								:
 			ret_string = L"INT16_TKN";
@@ -172,13 +178,35 @@ std::wstring Token::description ()	{
 	else if (this->tkn_type == SPR8R_TKN)
 		desc.append (L"'");
 
-	desc.append (this->_string);
+	if (!_string.empty())	{
+		desc.append (this->_string);
+	}
 
 	// Give STRINGs, DATETIMEs and SPR8Rs some context clues
 	if (this->tkn_type == STRING_TKN || this->tkn_type == DATETIME_TKN)
 		desc.append (L"\"");
 	else if (this->tkn_type == SPR8R_TKN)
 		desc.append (L"'");
+
+	if (_unsigned != 0)	{
+		std::wstringstream wstream;
+		wstream << L"0x" << std::hex << _unsigned;
+		desc.append (wstream.str());
+		desc.append (L";");
+	}
+
+	if (_signed != 0)	{
+		desc.append (L" _signed = ");
+		desc.append (std::to_wstring (_signed));
+		desc.append (L";");
+
+	}
+
+	if (_double != 0.0)	{
+		desc.append (L" _double = ");
+		desc.append (std::to_wstring (_double));
+		desc.append (L";");
+	}
 
 	// TODO: Filename?
 	desc.append (L" on line ");
@@ -437,7 +465,6 @@ void Token::resetToSigned (int64_t newValue)	{
 	_signed = newValue;
 
 	int64_t absolute = abs(newValue);
-
 
 	if (absolute < (0x1 << (NUM_BITS_IN_BYTE - 1)))
 		tkn_type = INT8_TKN;
