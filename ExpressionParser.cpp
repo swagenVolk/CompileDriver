@@ -802,6 +802,12 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   std::vector<int> trueLines;
 
   if (curr_tkn != NULL)	{
+
+  	std::wstring execPrefixOpr8rStr = usrSrcTerms.getUniqExecOpr8rStr(curr_tkn->_string, PREFIX /*UNARY*/);
+  	std::wstring execUnaryOpr8rStr = usrSrcTerms.getUniqExecOpr8rStr(curr_tkn->_string, UNARY);
+  	std::wstring execPostfixOpr8rStr = usrSrcTerms.getUniqExecOpr8rStr(curr_tkn->_string, POSTFIX);
+  	std::wstring execBinaryOpr8rStr = usrSrcTerms.getUniqExecOpr8rStr(curr_tkn->_string, BINARY);
+
   	if ((allowed_tkn_types & VAR_NAME_NXT_OK) && curr_tkn->tkn_type == KEYWORD_TKN)	{
  	  	// VAR_NAME
   		// TODO: && found in NameSpace
@@ -811,108 +817,73 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   		if (isTernaryOpen())
   			next_legal_tkn_types |= TERNARY_OPR8R_2ND_NXT_OK;
   		trueLines.push_back(__LINE__);
-  	}
 
-  	// LITERAL
-  	if ((allowed_tkn_types & LITERAL_NXT_OK) && curr_tkn->tkn_type == STRING_TKN || curr_tkn->tkn_type == DATETIME_TKN
+  	} else if ((allowed_tkn_types & LITERAL_NXT_OK) && curr_tkn->tkn_type == STRING_TKN || curr_tkn->tkn_type == DATETIME_TKN
   			|| curr_tkn->tkn_type == UINT8_TKN || curr_tkn->tkn_type == UINT16_TKN
 				|| curr_tkn->tkn_type == UINT32_TKN || curr_tkn->tkn_type == UINT64_TKN
   			|| curr_tkn->tkn_type == INT8_TKN || curr_tkn->tkn_type == INT16_TKN
 				|| curr_tkn->tkn_type == INT32_TKN || curr_tkn->tkn_type == INT64_TKN
 				|| curr_tkn->tkn_type == DOUBLE_TKN)	{
+    	// LITERAL
   		isTknTypeOK = true;
   		next_legal_tkn_types = (BINARY_OPR8R_NXT_OK|TERNARY_OPR8R_1ST_NXT_OK|CLOSE_PAREN_NXT_OK);
   		if (isTernaryOpen())
   			next_legal_tkn_types |= TERNARY_OPR8R_2ND_NXT_OK;
   		trueLines.push_back(__LINE__);
-  	}
 
-  	// PREFIX_OPR8R
-  	if ((allowed_tkn_types & PREFIX_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN)	{
+  	} else if ((allowed_tkn_types & PREFIX_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN && !execPrefixOpr8rStr.empty())	{
+    	// PREFIX_OPR8R
+			// Make user source OPR8R unambiguous for internal use
+			curr_tkn->_string = execPrefixOpr8rStr;
+			isTknTypeOK = true;
+			next_legal_tkn_types = (VAR_NAME_NXT_OK);
+			trueLines.push_back(__LINE__);
 
-  		std::wstring unqExecOpr8rStr = usrSrcTerms.getUniqExecOpr8rStr(curr_tkn->_string, PREFIX /*UNARY*/);
-  		if (!unqExecOpr8rStr.empty() && curr_tkn->_string != unqExecOpr8rStr)
-  			// Make user source OPR8R unambiguous for internal use
-  			curr_tkn->_string = unqExecOpr8rStr;
-
-  		if (PREFIX & usrSrcTerms.get_type_mask(curr_tkn->_string))	{
-  			isTknTypeOK = true;
-				next_legal_tkn_types = (VAR_NAME_NXT_OK);
-	  		trueLines.push_back(__LINE__);
-  		}
-  	}
-
-  	// UNARY_OPR8R
-  	if ((allowed_tkn_types & UNARY_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN)	{
+  	} else if ((allowed_tkn_types & UNARY_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN && !execUnaryOpr8rStr.empty())	{
   		// Make user source OPR8R unambiguous for internal use
-  		std::wstring unqExecOpr8rStr = usrSrcTerms.getUniqExecOpr8rStr(curr_tkn->_string, UNARY);
-  		if (!unqExecOpr8rStr.empty() && curr_tkn->_string != unqExecOpr8rStr)
-  			// Make user source OPR8R unambiguous for internal use
-  			curr_tkn->_string = unqExecOpr8rStr;
+ 			curr_tkn->_string = execUnaryOpr8rStr;
+			isTknTypeOK = true;
+			next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|OPEN_PAREN_NXT_OK);
+			trueLines.push_back(__LINE__);
 
-  		if (UNARY & usrSrcTerms.get_type_mask(curr_tkn->_string))	{
-  			isTknTypeOK = true;
-    		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|OPEN_PAREN_NXT_OK);
-    		trueLines.push_back(__LINE__);
-  		}
-  	}
+  	} else if ((allowed_tkn_types & POSTFIX_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN && !execPostfixOpr8rStr.empty())	{
+			// Make user source OPR8R unambiguous for internal use
+			curr_tkn->_string = execPostfixOpr8rStr;
+			isTknTypeOK = true;
+			next_legal_tkn_types = (BINARY_OPR8R_NXT_OK|TERNARY_OPR8R_1ST_NXT_OK|CLOSE_PAREN_NXT_OK);
+			if (isTernaryOpen())
+				next_legal_tkn_types |= TERNARY_OPR8R_2ND_NXT_OK;
+			trueLines.push_back(__LINE__);
 
-  	// POSTFIX_OPR8R
-  	if ((allowed_tkn_types & POSTFIX_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN)	{
-  		std::wstring unqExecOpr8rStr = usrSrcTerms.getUniqExecOpr8rStr(curr_tkn->_string, POSTFIX);
-  		if (!unqExecOpr8rStr.empty() && curr_tkn->_string != unqExecOpr8rStr)
-  			// Make user source OPR8R unambiguous for internal use
-  			curr_tkn->_string = unqExecOpr8rStr;
-
-  		if (POSTFIX & usrSrcTerms.get_type_mask(curr_tkn->_string))	{
-				isTknTypeOK = true;
-				next_legal_tkn_types = (BINARY_OPR8R_NXT_OK|TERNARY_OPR8R_1ST_NXT_OK|CLOSE_PAREN_NXT_OK);
-				if (isTernaryOpen())
-					next_legal_tkn_types |= TERNARY_OPR8R_2ND_NXT_OK;
-	  		trueLines.push_back(__LINE__);
-			}
-  	}
-
-  	// BINARY_OPR8R
-  	if ((allowed_tkn_types & BINARY_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN)	{
-  		// Disambiguate the + and - OPR8Rs because they can be either UNARY or BINARY
-  		std::wstring unqExecOpr8rStr = usrSrcTerms.getUniqExecOpr8rStr(curr_tkn->_string, BINARY);
-  		if (!unqExecOpr8rStr.empty() && curr_tkn->_string != unqExecOpr8rStr)
-  			// Make user source OPR8R unambiguous for internal use
-  			curr_tkn->_string = unqExecOpr8rStr;
-
-  		if ((BINARY & usrSrcTerms.get_type_mask(curr_tkn->_string)))	{
-	  		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
-      	isTknTypeOK = true;
-    		trueLines.push_back(__LINE__);
-			}
-  	}
-
-  	// TERNARY_OPR8R
-  	if ((allowed_tkn_types & TERNARY_OPR8R_1ST_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN
-  			&& (TERNARY_1ST & usrSrcTerms.get_type_mask(curr_tkn->_string)))	{
-  		isTknTypeOK = true;
-  		// TODO: Is PREFIX_OPR8R legit here?
-  		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
-  		trueLines.push_back(__LINE__);
-  	}
-
-  	if ((allowed_tkn_types & TERNARY_OPR8R_2ND_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN
+  	} else if ((allowed_tkn_types & TERNARY_OPR8R_2ND_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN
   			&& (TERNARY_2ND & usrSrcTerms.get_type_mask(curr_tkn->_string)))	{
   		isTknTypeOK = true;
   		// TODO: Is PREFIX_OPR8R legit here?
   		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
   		trueLines.push_back(__LINE__);
-  	}
 
-  	if ((allowed_tkn_types & OPEN_PAREN_NXT_OK) && SPR8R_TKN == curr_tkn->tkn_type && 0 == curr_tkn->_string.compare(L"("))	{
+  	} else if ((allowed_tkn_types & TERNARY_OPR8R_1ST_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN
+  			&& (TERNARY_1ST & usrSrcTerms.get_type_mask(curr_tkn->_string)))	{
+    	// TERNARY_OPR8R
+  		isTknTypeOK = true;
+  		// TODO: Is PREFIX_OPR8R legit here?
+  		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
+  		trueLines.push_back(__LINE__);
+
+  	} else if ((allowed_tkn_types & BINARY_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN && !execBinaryOpr8rStr.empty())	{
+    	// BINARY_OPR8R
+ 			curr_tkn->_string = execBinaryOpr8rStr;
+			next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
+			isTknTypeOK = true;
+			trueLines.push_back(__LINE__);
+
+  	} else if ((allowed_tkn_types & OPEN_PAREN_NXT_OK) && SPR8R_TKN == curr_tkn->tkn_type && 0 == curr_tkn->_string.compare(L"("))	{
     	// OPEN_PAREN
   		isTknTypeOK = true;
   		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
   		trueLines.push_back(__LINE__);
-  	}
 
-  	if ((allowed_tkn_types & CLOSE_PAREN_NXT_OK) && SPR8R_TKN == curr_tkn->tkn_type && 0 == curr_tkn->_string.compare(L")"))	{
+  	} else if ((allowed_tkn_types & CLOSE_PAREN_NXT_OK) && SPR8R_TKN == curr_tkn->tkn_type && 0 == curr_tkn->_string.compare(L")"))	{
     	// CLOSE_PAREN
   		isTknTypeOK = true;
   		next_legal_tkn_types = (BINARY_OPR8R_NXT_OK|TERNARY_1ST|CLOSE_PAREN_NXT_OK);
@@ -921,9 +892,8 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   			next_legal_tkn_types |= TERNARY_OPR8R_2ND_NXT_OK;
 
   		trueLines.push_back(__LINE__);
-  	}
 
-  	if ((allowed_tkn_types & DCLR_VAR_OR_FXN_NXT_OK) && KEYWORD_TKN == curr_tkn->tkn_type && usrSrcTerms.is_valid_datatype(curr_tkn->_string))	{
+  	} else if ((allowed_tkn_types & DCLR_VAR_OR_FXN_NXT_OK) && KEYWORD_TKN == curr_tkn->tkn_type && usrSrcTerms.is_valid_datatype(curr_tkn->_string))	{
   		// DCLR_VAR_OR_FXN
   		// TODO: isTknTypeOK = true;
   		next_legal_tkn_types = (0x0);
