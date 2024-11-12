@@ -207,10 +207,8 @@ int ExpressionParser::parseExpression (InterpretedFileWriter & intrprtrWriter)  
 
 		if (isWholeExprClosed && !isFailed)	{
 			ret_code = OK;
-			exprScopeStack[0]->scopedKids[0]->showTree(exprScopeStack[0]->scopedKids[0], thisSrcFile, __LINE__);
+			// exprScopeStack[0]->scopedKids[0]->showTree(exprScopeStack[0]->scopedKids[0], thisSrcFile, __LINE__);
 			intrprtrWriter.writeExpressionToFile(exprScopeStack[0]->scopedKids[0]);
-			// TODO: Write expression out to the the interpretable file
-
 		}
   }
 
@@ -801,7 +799,7 @@ int ExpressionParser::get2ndTernaryCnt ()  {
 bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t & next_legal_tkn_types, Token * curr_tkn)  {
   bool isTknTypeOK = false;
 
-  int numTruths = 0;
+  std::vector<int> trueLines;
 
   if (curr_tkn != NULL)	{
   	if ((allowed_tkn_types & VAR_NAME_NXT_OK) && curr_tkn->tkn_type == KEYWORD_TKN)	{
@@ -812,7 +810,7 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   		next_legal_tkn_types = (POSTFIX_OPR8R_NXT_OK|BINARY_OPR8R_NXT_OK|TERNARY_OPR8R_1ST_NXT_OK|CLOSE_PAREN_NXT_OK);
   		if (isTernaryOpen())
   			next_legal_tkn_types |= TERNARY_OPR8R_2ND_NXT_OK;
-  		numTruths++;
+  		trueLines.push_back(__LINE__);
   	}
 
   	// LITERAL
@@ -826,7 +824,7 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   		next_legal_tkn_types = (BINARY_OPR8R_NXT_OK|TERNARY_OPR8R_1ST_NXT_OK|CLOSE_PAREN_NXT_OK);
   		if (isTernaryOpen())
   			next_legal_tkn_types |= TERNARY_OPR8R_2ND_NXT_OK;
-  		numTruths++;
+  		trueLines.push_back(__LINE__);
   	}
 
   	// PREFIX_OPR8R
@@ -840,7 +838,7 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   		if (PREFIX & usrSrcTerms.get_type_mask(curr_tkn->_string))	{
   			isTknTypeOK = true;
 				next_legal_tkn_types = (VAR_NAME_NXT_OK);
-	  		numTruths++;
+	  		trueLines.push_back(__LINE__);
   		}
   	}
 
@@ -854,9 +852,8 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
 
   		if (UNARY & usrSrcTerms.get_type_mask(curr_tkn->_string))	{
   			isTknTypeOK = true;
-    		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|CLOSE_PAREN_NXT_OK);
-    		numTruths++;
-
+    		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|OPEN_PAREN_NXT_OK);
+    		trueLines.push_back(__LINE__);
   		}
   	}
 
@@ -872,7 +869,7 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
 				next_legal_tkn_types = (BINARY_OPR8R_NXT_OK|TERNARY_OPR8R_1ST_NXT_OK|CLOSE_PAREN_NXT_OK);
 				if (isTernaryOpen())
 					next_legal_tkn_types |= TERNARY_OPR8R_2ND_NXT_OK;
-				numTruths++;
+	  		trueLines.push_back(__LINE__);
 			}
   	}
 
@@ -887,7 +884,7 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   		if ((BINARY & usrSrcTerms.get_type_mask(curr_tkn->_string)))	{
 	  		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
       	isTknTypeOK = true;
-    		numTruths++;
+    		trueLines.push_back(__LINE__);
 			}
   	}
 
@@ -897,7 +894,7 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   		isTknTypeOK = true;
   		// TODO: Is PREFIX_OPR8R legit here?
   		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
-  		numTruths++;
+  		trueLines.push_back(__LINE__);
   	}
 
   	if ((allowed_tkn_types & TERNARY_OPR8R_2ND_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN
@@ -905,14 +902,14 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   		isTknTypeOK = true;
   		// TODO: Is PREFIX_OPR8R legit here?
   		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
-  		numTruths++;
+  		trueLines.push_back(__LINE__);
   	}
 
   	if ((allowed_tkn_types & OPEN_PAREN_NXT_OK) && SPR8R_TKN == curr_tkn->tkn_type && 0 == curr_tkn->_string.compare(L"("))	{
     	// OPEN_PAREN
   		isTknTypeOK = true;
   		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
-  		numTruths++;
+  		trueLines.push_back(__LINE__);
   	}
 
   	if ((allowed_tkn_types & CLOSE_PAREN_NXT_OK) && SPR8R_TKN == curr_tkn->tkn_type && 0 == curr_tkn->_string.compare(L")"))	{
@@ -923,7 +920,7 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   		if (isTernaryOpen())
   			next_legal_tkn_types |= TERNARY_OPR8R_2ND_NXT_OK;
 
-  		numTruths++;
+  		trueLines.push_back(__LINE__);
   	}
 
   	if ((allowed_tkn_types & DCLR_VAR_OR_FXN_NXT_OK) && KEYWORD_TKN == curr_tkn->tkn_type && usrSrcTerms.is_valid_datatype(curr_tkn->_string))	{
@@ -935,8 +932,12 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   	// FXN_CALL
   }
 
-	if (numTruths > 1)
-		std::wcout << L"TODO: numTruths = " << numTruths << std::endl;
+	if (trueLines.size() > 1)	{
+		std::wcout << L"TODO: trueLines: ";
+		for (int idx = 0; idx < trueLines.size(); idx++)
+			std::wcout << trueLines[idx] << L" ";
+		std::wcout << std::endl;
+	}
 
 
   return (isTknTypeOK);

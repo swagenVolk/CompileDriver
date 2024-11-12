@@ -1,11 +1,11 @@
 /* ****************************************************************************
  * NEEDS TESTING:
+ * Tighten up type conversions
  * Unary OPR8R mechanics
  *
  * TODO:
- * Dividing 2 SIGNED Tokens that should return a DOUBLE still returns a SIGNED
+ * Add variable declaration logic
  * Add assignment OPR8R mechanics
- * Should I re-visit the 1<->2 swapping of :'s operands?
  * Update explanation of how an expression is flattened and written out to interpreted file.
  * How many pointers/new(s) can I replace with essentially a copy?
  * Method to regression test lots of expressions and compare results against regular compiler
@@ -18,6 +18,8 @@
  * file for the location. It can do a quick(er) lookup
  *
  * RECENTLY DONE:
+ * Dividing 2 SIGNED Tokens that should return a DOUBLE still returns a SIGNED
+ * Should I re-visit the 1<->2 swapping of :'s operands? Probably not; at least for now
  * Add unary OPR8R mechanics
  * Test current BINARY OPR8Rs
  * Add Interpreter handling of TERNARY conditions - FALSE & TRUE paths coded and tested
@@ -92,23 +94,6 @@ int main(int argc, const char * argv[])
 					std::vector<Token> exprTknList;
 					interpretedReader.readExprIntoList (exprTknList);
 					input_stream.close();
-
-					std::wcout << L"********** CompileDriver.cpp:" << __LINE__ << L" **********" << std::endl;
-					int idx;
-					for (idx = 0; idx < exprTknList.size(); idx++)	{
-						Token listTkn = exprTknList[idx];
-						std::wcout << L"[" ;
-						if (listTkn.tkn_type == EXEC_OPR8R_TKN)
-							std::wcout << srcExecTerms.getSrcOpr8rStrFor(listTkn._unsigned);
-						else if (listTkn._string.length() > 0)
-							std::wcout << listTkn._string;
-						else	{
-							std::wcout << listTkn._signed;
-						}
-						std::wcout << L"] ";
-					}
-
-					std::wcout << std::endl;
 
 					RunTimeInterpreter interpreter(srcExecTerms);
 					if (OK != interpreter.resolveExpression (exprTknList))	{

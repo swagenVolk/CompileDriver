@@ -137,6 +137,7 @@ int RunTimeInterpreter::execStandardMath (std::vector<Token> & exprTknStream, in
 	bool isParamsValid = false;
 	bool isMissedCase = false;
 	bool isDivByZero = false;
+	bool isNowDouble = false;
 	uint64_t tmpUnsigned;
 	int64_t tmpSigned;
 	double tmpDouble;
@@ -184,8 +185,12 @@ int RunTimeInterpreter::execStandardMath (std::vector<Token> & exprTknStream, in
 					case DIV_OPR8R_OPCODE :
 						if (operand2._signed == 0)
 							isDivByZero = true;
-						else
+						else if (0 == operand1._signed % operand2._signed)
 							tmpSigned = operand1._signed / operand2._signed;
+						else	{
+							tmpDouble = (double) operand1._signed / (double) operand2._signed;
+							isNowDouble = true;
+						}
 						break;
 					case BINARY_MINUS_OPR8R_OPCODE :
 						tmpSigned = operand1._signed - operand2._signed;
@@ -204,8 +209,12 @@ int RunTimeInterpreter::execStandardMath (std::vector<Token> & exprTknStream, in
 						break;
 				}
 
-				if (!isMissedCase &&!isDivByZero)
-					exprTknStream[opr8rIdx].resetToSigned(tmpSigned);
+				if (!isMissedCase &&!isDivByZero)	{
+					if (isNowDouble)
+						exprTknStream[opr8rIdx].resetToDouble(tmpDouble);
+					else
+						exprTknStream[opr8rIdx].resetToSigned(tmpSigned);
+				}
 
 			} else if (!isAddingStrings && operand1.isSigned() && operand2.isUnsigned())	{
 				// signed vs. unsigned
@@ -216,8 +225,12 @@ int RunTimeInterpreter::execStandardMath (std::vector<Token> & exprTknStream, in
 					case DIV_OPR8R_OPCODE :
 						if (operand2._unsigned == 0)
 							isDivByZero = true;
-						else
+						else if (0 == operand1._signed % operand2._unsigned)
 							tmpSigned = operand1._signed / operand2._unsigned;
+						else	{
+							tmpDouble = (double) operand1._signed / (double) operand2._unsigned;
+							isNowDouble = true;
+						}
 						break;
 					case BINARY_MINUS_OPR8R_OPCODE :
 						tmpSigned = operand1._signed - operand2._unsigned;
@@ -236,8 +249,12 @@ int RunTimeInterpreter::execStandardMath (std::vector<Token> & exprTknStream, in
 						break;
 				}
 
-				if (!isMissedCase &&!isDivByZero)
-					exprTknStream[opr8rIdx].resetToSigned(tmpSigned);
+				if (!isMissedCase &&!isDivByZero)	{
+					if (isNowDouble)
+						exprTknStream[opr8rIdx].resetToDouble(tmpDouble);
+					else
+						exprTknStream[opr8rIdx].resetToSigned(tmpSigned);
+				}
 
 			} else if (!isAddingStrings && operand1.isSigned() && operand2.tkn_type == DOUBLE_TKN)	{
 				// signed vs. double
@@ -266,6 +283,44 @@ int RunTimeInterpreter::execStandardMath (std::vector<Token> & exprTknStream, in
 					exprTknStream[opr8rIdx].resetToDouble (tmpDouble);
 
 			} else if (!isAddingStrings && operand1.isUnsigned() && operand2.isSigned())	{
+				// unsigned vs. signed
+				switch (op_code)	{
+					case MULTIPLY_OPR8R_OPCODE :
+						tmpSigned = operand1._unsigned * operand2._signed;
+						break;
+					case DIV_OPR8R_OPCODE :
+						if (operand2._double == 0)
+							isDivByZero = true;
+						else	{
+							tmpDouble = operand1._unsigned / operand2._signed;
+							isNowDouble = true;
+						}
+						break;
+					case BINARY_MINUS_OPR8R_OPCODE :
+						tmpSigned = operand1._unsigned - operand2._signed;
+						break;
+					case BINARY_PLUS_OPR8R_OPCODE :
+						tmpSigned = operand1._unsigned + operand2._signed;
+						break;
+					case MOD_OPR8R_OPCODE:
+						if (operand2._signed == 0)
+							isDivByZero = true;
+						else
+							tmpSigned = operand1._unsigned % operand2._signed;
+						break;
+					default:
+						isMissedCase = true;
+						break;
+				}
+
+				if (!isMissedCase &&!isDivByZero)	{
+					if (isNowDouble)
+						exprTknStream[opr8rIdx].resetToDouble(tmpDouble);
+					else
+						exprTknStream[opr8rIdx].resetToSigned (tmpSigned);
+				}
+
+			} else if (!isAddingStrings && operand1.isUnsigned() && operand2.tkn_type == DOUBLE_TKN)	{
 				// unsigned vs. double
 				switch (op_code)	{
 					case MULTIPLY_OPR8R_OPCODE :
@@ -309,6 +364,15 @@ int RunTimeInterpreter::execStandardMath (std::vector<Token> & exprTknStream, in
 						else
 							tmpUnsigned = operand1._unsigned / operand2._unsigned;
 						break;
+						if (operand2._unsigned == 0)
+							isDivByZero = true;
+						else if (0 == operand1._unsigned % operand2._unsigned)
+							tmpUnsigned = operand1._unsigned / operand2._unsigned;
+						else	{
+							tmpDouble = (double) operand1._unsigned / (double) operand2._unsigned;
+							isNowDouble = true;
+						}
+						break;
 					case BINARY_MINUS_OPR8R_OPCODE :
 						tmpUnsigned = operand1._unsigned - operand2._unsigned;
 						break;
@@ -326,8 +390,12 @@ int RunTimeInterpreter::execStandardMath (std::vector<Token> & exprTknStream, in
 						break;
 				}
 
-				if (!isMissedCase &&!isDivByZero)
-					exprTknStream[opr8rIdx].resetToUnsigned(tmpUnsigned);
+				if (!isMissedCase &&!isDivByZero)	{
+					if (isNowDouble)
+						exprTknStream[opr8rIdx].resetToDouble(tmpDouble);
+					else
+						exprTknStream[opr8rIdx].resetToUnsigned(tmpUnsigned);
+				}
 
 			} else if (!isAddingStrings && operand1.isUnsigned() && operand2.tkn_type == DOUBLE_TKN)	{
 				// unsigned vs. double
@@ -616,6 +684,10 @@ int RunTimeInterpreter::execBitWiseOp (std::vector<Token> & exprTknStream, int &
 		if (isParamsValid && !isMissedCase)	{
 			exprTknStream[opr8rIdx].resetToUnsigned(bitWiseResult);
 			ret_code = OK;
+		} else	{
+			Operator opr8r;
+			execTerms.getExecOpr8rDetails(op_code, opr8r);
+			std::wcout << "TODO: Failed to execute OPR8R " << opr8r.symbol << std::endl;
 		}
 	}
 
@@ -698,8 +770,14 @@ int RunTimeInterpreter::execUnaryOp (std::vector<Token> & exprTknStream, int & c
 			exprTknStream.erase (exprTknStream.begin() + (opr8rIdx-1));
 			callersIdx -= 1;
 			ret_code = OK;
+		} else	{
+			Operator opr8r;
+			execTerms.getExecOpr8rDetails(op_code, opr8r);
+			std::wcout << "TODO: Failed to execute OPR8R " << opr8r.symbol << std::endl;
 		}
 	}
+
+
 
 	return (ret_code);
 }
@@ -884,6 +962,9 @@ int RunTimeInterpreter::execBinaryOp(std::vector<Token> & exprTknStream, int & c
 			exprTknStream.erase (exprTknStream.begin() + (opr8rIdx-2), exprTknStream.begin() + (opr8rIdx));
 			callersIdx -= 2;
 			ret_code = OK;
+
+		} else	{
+			std::wcout << "TODO: Failed to execute OPR8R " << opr8r.symbol << std::endl;
 		}
 	}
 
@@ -1199,7 +1280,7 @@ int RunTimeInterpreter::resolveExpression(std::vector<Token> & exprTknStream)   
 						isFailed = true;
 
 					} else if ((opr8r_obj.type_mask & BINARY) && opr8r_obj.numReqExecOperands == 2)	{
-						if (OK != execBinaryOp (exprTknStream, currIdx))	{
+ 						if (OK != execBinaryOp (exprTknStream, currIdx))	{
 							failedOnLineNum == 0 ? failedOnLineNum = __LINE__ : 1;
 							isFailed = true;
 						} else	{
@@ -1285,12 +1366,35 @@ void RunTimeInterpreter::dumpTokenList (std::vector<Token> & tokenStream, std::w
 	for (idx = 0; idx < tokenStream.size(); idx++)	{
 		Token listTkn = tokenStream[idx];
 		std::wcout << L"[" ;
-		if (listTkn.tkn_type == EXEC_OPR8R_TKN)
-			std::wcout << execTerms.getSrcOpr8rStrFor(listTkn._unsigned);
-		else if (listTkn._string.length() > 0)
-			std::wcout << listTkn._string;
-		else	{
-			std::wcout << listTkn._signed;
+
+		switch (listTkn.tkn_type)	{
+			case EXEC_OPR8R_TKN:
+				std::wcout << execTerms.getSrcOpr8rStrFor(listTkn._unsigned);
+				break;
+			case UINT8_TKN:
+			case UINT16_TKN:
+			case UINT32_TKN:
+			case UINT64_TKN:
+				std::wcout << listTkn._unsigned;
+				break;
+			case INT8_TKN:
+			case INT16_TKN:
+			case INT32_TKN:
+			case INT64_TKN:
+				std::wcout << listTkn._signed;
+				break;
+			case DOUBLE_TKN:
+				std::wcout << listTkn._double;
+				break;
+			case STRING_TKN:
+			case DATETIME_TKN:
+			case KEYWORD_TKN:
+			case SRC_OPR8R_TKN:
+				std::wcout << listTkn._string;
+				break;
+			default:
+				std::wcout << L"???";
+				break;
 		}
 		std::wcout << L"] ";
 	}

@@ -106,7 +106,7 @@ int InterpretedFileReader::readRawUnsigned (uint64_t & payload, int payloadByteS
 				isFailed = true;
 
 			} else	{
-				if (idx < payloadByteSize - 1)
+				if (idx > 0)
 					payload <<= NUM_BITS_IN_BYTE;
 
 				payload |= nextByte;

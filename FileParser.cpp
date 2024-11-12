@@ -433,9 +433,6 @@ void FileParser::cnvrt_tkn_if_datetime (Token * pssbl_datetime_tkn) {
       std::time_t seconds_since_epoch = std::mktime(&tm);
       pssbl_datetime_tkn->_unsigned =  (seconds_since_epoch * 1000) + millisecond;
     }
-
-//    if (failing_line_num != 0)
-//      std::wcout << "TODO: failing_line_num = " << failing_line_num << ";" << std::endl;
   }
 }
 
@@ -477,7 +474,7 @@ void FileParser::resolve_final_tkn_type (Token * tkn_of_ambiguity)  {
 
         if (tkn_of_ambiguity->tkn_type != JUNK_TKN) {
           try {
-            cnvrtd_unsigned = std::stoul(tkn_of_ambiguity->_string, &sz);
+          	cnvrtd_unsigned = std::stoul(tkn_of_ambiguity->_string, &sz, 16);
             tkn_of_ambiguity->_unsigned = cnvrtd_unsigned;
 
             // Store this unsigned number (literal?) in the smallest possible size
@@ -528,13 +525,13 @@ void FileParser::resolve_final_tkn_type (Token * tkn_of_ambiguity)  {
 
             // Store this signed number (literal?) in the smallest possible size
             // Use 2's complement to determine range for each signed data type
-            if (cnvrtd_signed >= (0 - ceil(exp2(7)) && cnvrtd_signed < (ceil(exp2(7)))))
+            if (cnvrtd_signed >= (0 - ceil(exp2(7))) && cnvrtd_signed < ceil(exp2(7)))
             	tkn_of_ambiguity->tkn_type = INT8_TKN;
-            else if (cnvrtd_signed >= (0 - ceil(exp2(15)) && cnvrtd_signed < (ceil(exp2(15)))))
+            else if (cnvrtd_signed >= (0 - ceil(exp2(15))) && cnvrtd_signed < ceil(exp2(15)))
             	tkn_of_ambiguity->tkn_type = INT16_TKN;
-            else if (cnvrtd_signed >= (0 - ceil(exp2(31)) && cnvrtd_signed < (ceil(exp2(31)))))
+            else if (cnvrtd_signed >= (0 - ceil(exp2(31))) && cnvrtd_signed < ceil(exp2(31)))
             	tkn_of_ambiguity->tkn_type = INT32_TKN;
-            else if (cnvrtd_signed >= (0 - ceil(exp2(63)) && cnvrtd_signed < (ceil(exp2(63)))))
+            else if (cnvrtd_signed >= (0 - ceil(exp2(63))) && cnvrtd_signed < ceil(exp2(63)))
             	tkn_of_ambiguity->tkn_type = INT64_TKN;
             else
               tkn_of_ambiguity->tkn_type = JUNK_TKN;

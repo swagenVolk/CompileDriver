@@ -16,6 +16,7 @@ add_executable(
 	NestedScopeExpr.h NestedScopeExpr.cpp
 	ExpressionParser.h ExpressionParser.cpp
 	InterpretedFileWriter.h InterpretedFileWriter.cpp InterpretedFileReader.h InterpretedFileReader.cpp
+	ScopeFrame.h ScopeFrame.cpp
 	CompileDriver.cpp
 )
 
