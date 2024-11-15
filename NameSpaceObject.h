@@ -3,6 +3,8 @@
  *
  *  Created on: Jun 6, 2024
  *      Author: Mike Volk
+ *
+ *	TODO: Not used anywhere yet
  */
 
 #ifndef NAMESPACEOBJECT_H_

@@ -137,22 +137,22 @@ CompileExecTerms::CompileExecTerms() {
 
   // NOTE:  ;;; is 3 valid statements in a row, but if we interpreted it as 1 thing,
   // it would be an error
-  this->atomic_1char_opr8rs = L";";
+  atomic_1char_opr8rs = L";";
 
-  this->_1char_spr8rs = L"()[]{}";
+  _1char_spr8rs = L"()[]{},";
   // TODO: Is a comma a spr8r?  What about the '\' character, for paths?
 
-  this->valid_data_types.insert (L"uint8");
-  this->valid_data_types.insert (L"uint16");
-  this->valid_data_types.insert (L"uint32");
-  this->valid_data_types.insert (L"uint64");
-  this->valid_data_types.insert (L"int8");
-  this->valid_data_types.insert (L"int16");
-  this->valid_data_types.insert (L"int32");
-  this->valid_data_types.insert (L"int64");
-  this->valid_data_types.insert (L"string");
-  this->valid_data_types.insert (L"datetime");
-  this->valid_data_types.insert (L"double");
+  valid_data_types.insert (std::pair {L"uint8", DATA_TYPE_UINT8_OPCODE});
+  valid_data_types.insert (std::pair {L"uint16", DATA_TYPE_UINT16_OPCODE});
+  valid_data_types.insert (std::pair {L"uint32", DATA_TYPE_UINT32_OPCODE});
+  valid_data_types.insert (std::pair {L"uint64", DATA_TYPE_UINT64_OPCODE});
+  valid_data_types.insert (std::pair {L"int8", DATA_TYPE_INT8_OPCODE});
+  valid_data_types.insert (std::pair {L"int16", DATA_TYPE_INT16_OPCODE});
+  valid_data_types.insert (std::pair {L"int32", DATA_TYPE_INT32_OPCODE});
+  valid_data_types.insert (std::pair {L"int64", DATA_TYPE_INT64_OPCODE});
+  valid_data_types.insert (std::pair {L"string", DATA_TYPE_STRING_OPCODE});
+  valid_data_types.insert (std::pair {L"datetime", DATA_TYPE_DATETIME_OPCODE});
+  valid_data_types.insert (std::pair {L"double", DATA_TYPE_DOUBLE_OPCODE});
 
   // TODO: What is the right way to do this?
   validityCheck();
@@ -161,74 +161,3 @@ CompileExecTerms::CompileExecTerms() {
 CompileExecTerms::~CompileExecTerms() {
 	// TODO Auto-generated destructor stub
 }
-
-#if 0
-/* ****************************************************************************
- * Return internal use string for PREFIX OPR8R that is unambiguous and unique
- * NOTE: PREFIX and POSTFIX OPR8Rs in source code are the same (++,--), but
- * position relative to their operand determines whether they're PREFIX or
- * POSTFIX.  The internal use string allows for carrying this info forward.
- * ***************************************************************************/
-std::wstring CompileExecTerms::getUniqPrefixOpr8r (std::wstring srcStr) {
-	std::wstring internalStr = srcStr;
-
-	if (srcStr == L"++")
-		internalStr = PRE_INCR_OPR8R;
-	else if (srcStr == L"--")
-		internalStr = PRE_DECR_OPR8R;
-
-	return (internalStr);
-}
-
-/* ****************************************************************************
- * Return internal use string for UNARY OPR8R that is unambiguous and unique
- * NOTE: UNARY OPR8Rs in source code have the same string (+,-), as some
- * BINARY OPR8Rs, and expression context is used to determine whether they're
- * UNARY or BINARY. The internal use string allows for carrying this info forward.
- * ***************************************************************************/
-std::wstring CompileExecTerms::getUniqUnaryOpr8r (std::wstring srcStr) {
-	std::wstring internalStr = srcStr;
-
-	if (srcStr == L"+")
-		internalStr = UNARY_PLUS_OPR8R;
-	else if (srcStr == L"-")
-		internalStr = UNARY_MINUS_OPR8R;
-
-	return (internalStr);
-}
-
-/* ****************************************************************************
- * Return internal use string for BINARY OPR8R that is unambiguous and unique
- * NOTE: BINARY OPR8Rs in source code have the same string (+,-), as some
- * UNARY OPR8Rs, and expression context is used to determine whether they're
- * UNARY or BINARY. The internal use string allows for carrying this info forward.
- * ***************************************************************************/
-std::wstring CompileExecTerms::getUniqUnaryOpr8r (std::wstring srcStr) {
-	std::wstring internalStr = srcStr;
-
-	if (srcStr == L"+")
-		internalStr = BINARY_PLUS_OPR8R;
-	else if (srcStr == L"-")
-		internalStr = BINARY_MINUS_OPR8R;
-
-	return (internalStr);
-}
-
-/* ****************************************************************************
- * Return internal use string for POSTFIX OPR8R that is unambiguous and unique
- * NOTE: PREFIX and POSTFIX OPR8Rs in source code are the same (++,--), but
- * position relative to their operand determines whether they're PREFIX or
- * POSTFIX.  The internal use string allows for carrying this info forward.
- * ***************************************************************************/
-std::wstring CompileExecTerms::getUniqPostfixOpr8r (std::wstring srcStr) {
-	std::wstring internalStr = srcStr;
-
-	if (srcStr == L"++")
-		internalStr = POST_INCR_OPR8R;
-	else if (srcStr == L"--")
-		internalStr = POST_DECR_OPR8R;
-
-	return (internalStr);
-}
-
-#endif

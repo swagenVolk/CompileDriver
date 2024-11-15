@@ -18,7 +18,7 @@
 // TODO: This is the "compressed" approach.  Do I need to have _OPCODE on the end?
 // Will there be any confusion with other types of opcodes?
 // [0x1-0x2F] is reserved for self-contained, single 8-bit BYTE OPR8R op_codes
-#define OPCODE_BYTE_LEN									1
+#define OPCODE_NUM_BYTES								1
 #define INVALID_OPCODE									0x0
 #define ATOMIC_OPCODE_RANGE_BEGIN				0x1
 #define ATOMIC_OPCODE_RANGE_END					0x2F
@@ -103,7 +103,7 @@
 // Opcodes [0x60-0x7F(?)] are guaranteed to have a [DWORD] sized total_length field directly
 // following the op_code. This allows the Interpreter to rapidly jump to the next object without
 // chomping through all the internals of this op_code.
-#define FLEX_LEN_FLD_BYTE_LEN						4
+#define FLEX_OP_LEN_FLD_NUM_BYTES				4
 #define FIRST_VALID_FLEX_LEN_OPCODE			0x60
 #define STRING_OPCODE										0x60	// [op_code][total_length][string]
 #define VAR_NAME_OPCODE									0x61	// [op_code][total_length][var name string]
@@ -123,7 +123,7 @@
 #define WHILE_LOOP_OPCODE								0x68	// [op_code][total_length][conditional -> [op_code][total_length][expression stream]][code_block]
 #define FOR_LOOP_OPCODE									0x69	// [op_code][total_length][init_expression][conditional_expression][last_expression][code_block]
 #define SCOPE_OPEN_OPCODE								0x6A	// [op_code][total_length][]
-#define VARIABLE_DECLARATION_OPCODE			0x6B	// [op_code][total_length][comma separated list of expressions?]
+#define VARIABLES_DECLARATION_OPCODE		0x6B	// [op_code][total_length][datatype op_code][[string var_name][init_expression]]+
 #define FXN_DECLARATION_OPCODE					0x6C	// [op_code][total_length][string fxn_name][parameter type list][parameter name list]
 #define FXN_CALL_OPCODE									0x6D	// [op_code][total_length][string fxn_name][expression list]
 #define SYSTEM_CALL_OPCODE							0x6E	// [op_code][total_length][string fxn_name][expression list]

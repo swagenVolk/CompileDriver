@@ -43,12 +43,13 @@ public:
   std::wstring getSrcOpr8rStrFor (uint8_t op_code);
   int getExecOpr8rDetails (uint8_t op_code, Operator & opr8r);
   std::wstring getUniqExecOpr8rStr (std::wstring srcStr, uint8_t req_type_mask);
+  uint8_t getDataTypeOpCode (std::wstring keyword);
 
 protected:
   void validityCheck();
   std::wstring atomic_1char_opr8rs;
   std::wstring _1char_spr8rs;
-  std::set<std::wstring> valid_data_types;
+  std::map<std::wstring, uint8_t> valid_data_types;
   std::wstring ternary_1st;
   std::wstring ternary_2nd;
   std::wstring statement_ender;

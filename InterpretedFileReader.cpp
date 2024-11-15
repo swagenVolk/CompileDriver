@@ -248,7 +248,7 @@ int InterpretedFileReader::snagString (uint8_t op_code, Token nxtTkn, std::vecto
 		} else	{
 			// initPos is right after the 1-byte op_code (so -1)
 			uint32_t nxtObjStartPos = (initPos - 1) + objLen;
-			uint32_t numWideChars = (objLen - (OPCODE_BYTE_LEN + FLEX_LEN_FLD_BYTE_LEN)) / NUM_BYTES_IN_WORD;
+			uint32_t numWideChars = (objLen - (OPCODE_NUM_BYTES + FLEX_OP_LEN_FLD_NUM_BYTES)) / NUM_BYTES_IN_WORD;
 			int idx;
 
 			for (idx = 0; idx < numWideChars && !isFailed; idx++)	{

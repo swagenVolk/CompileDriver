@@ -26,7 +26,8 @@ void Token::resetToken ()	{
   _unsigned = 0;
   _signed = 0;
   _double = 0.0;
-  is_rvalue = false;
+  is_Rvalue = false;
+  isInitialized = false;
 
 }
 
@@ -51,7 +52,7 @@ Token::Token (tkn_type_enum found_type, std::wstring tokenized_str, int line_num
   // while (someVal++ < 37 && otherVal++ < 43) {...}
   // will generated underlying code like so:
   // while (someVal < 37 && otherVal < 43) {someVal += 1; otherVal +=1; ...}
-  this->is_rvalue = false;
+  this->is_Rvalue = false;
 
 
 }
@@ -78,7 +79,7 @@ Token& Token::operator= (const Token & srcTkn)
 	_double = srcTkn._double;
 	line_number = srcTkn.line_number;
 	column_pos = srcTkn.column_pos;
-	is_rvalue = srcTkn.is_rvalue;
+	is_Rvalue = srcTkn.is_Rvalue;
 
 
 	// TODO: I don't understand the comment below

@@ -369,3 +369,18 @@ std::wstring BaseLanguageTerms::getUniqExecOpr8rStr (std::wstring srcStr, uint8_
 
 	return (execOpr8rStr);
 }
+
+/* ****************************************************************************
+ * If the passed in KEYWORD is a valid data type, a valid op_code will be returned
+ * Otherwise, return INVALID_OPCODE
+ * ***************************************************************************/
+uint8_t BaseLanguageTerms::getDataTypeOpCode (std::wstring keyword)	{
+	uint8_t dataTypeOpCode = INVALID_OPCODE;
+
+	if (auto search = valid_data_types.find(keyword); search != valid_data_types.end())	{
+		dataTypeOpCode = search->second;
+	}
+
+
+	return (dataTypeOpCode);
+}

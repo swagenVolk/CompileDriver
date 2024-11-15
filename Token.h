@@ -63,7 +63,8 @@ class Token {
     int line_number;
     int column_pos;
     std::wstring get_type_str();
-    bool is_rvalue;
+    bool is_Rvalue;
+    bool isInitialized;
 
     std::wstring get_tkn_type_by_enum (tkn_type_enum tkn_type);
     std::wstring description ();

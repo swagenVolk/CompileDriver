@@ -1206,7 +1206,7 @@ int RunTimeInterpreter::getEndOfSubExprIdx (std::vector<Token> & exprTknStream, 
 /* ****************************************************************************
  *
  * ***************************************************************************/
-int RunTimeInterpreter::resolveExpression(std::vector<Token> & exprTknStream)     {
+int RunTimeInterpreter::resolveFlattenedExpr(std::vector<Token> & exprTknStream)     {
 	int ret_code = GENERAL_FAILURE;
 
 	bool isFailed = false;

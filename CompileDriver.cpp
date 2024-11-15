@@ -1,10 +1,14 @@
 /* ****************************************************************************
  * NEEDS TESTING:
+ * SMRT pointers?
  * Tighten up type conversions
- * Unary OPR8R mechanics
+ * Look for opportunities to clarify (ie #defines -> enums?) to make debugging easier
  *
  * TODO:
  * Add variable declaration logic
+ * 	Initialization expressions are allowed!
+ * 	Will need an isInitialized var of some kind
+ * 	Should a datatype KEYWORD perhaps open up a scope?
  * Add assignment OPR8R mechanics
  * Update explanation of how an expression is flattened and written out to interpreted file.
  * How many pointers/new(s) can I replace with essentially a copy?
@@ -18,6 +22,7 @@
  * file for the location. It can do a quick(er) lookup
  *
  * RECENTLY DONE:
+ * Tested unary OPR8R mechanics
  * Dividing 2 SIGNED Tokens that should return a DOUBLE still returns a SIGNED
  * Should I re-visit the 1<->2 swapping of :'s operands? Probably not; at least for now
  * Add unary OPR8R mechanics
@@ -39,6 +44,7 @@
 #include "InterpretedFileReader.h"
 #include "RunTimeInterpreter.h"
 #include "Utilities.h"
+#include "GeneralParser.h"
 
 using namespace std;
 
@@ -62,10 +68,10 @@ int main(int argc, const char * argv[])
     // TODO: Might not be necessary until we decide to support Unicode file names in the future
     file_to_parse = util.stringToWstring(input_file);
 
-    TokenPtrVector tkn_ptr_vctr;
+    TokenPtrVector tokenStream;
     CompileExecTerms srcExecTerms;
     FileParser fileParser (srcExecTerms);
-    if (OK == fileParser.gnr8_token_stream(input_file, tkn_ptr_vctr))	{
+    if (OK == fileParser.gnr8_token_stream(input_file, tokenStream))	{
 
     	std::string output_file_name = "interpreted_file.o";
 			std::wstring wide_output_file_name = util.stringToWstring(output_file_name);
@@ -77,28 +83,29 @@ int main(int argc, const char * argv[])
 
 			} else {
 				// Input & output files are ready to go
-				InterpretedFileWriter interpretedWriter (output_stream, srcExecTerms);
-				ExpressionParser exprParser (tkn_ptr_vctr, srcExecTerms);
-				ret_code = exprParser.parseExpression(interpretedWriter);
-
+				GeneralParser generalParser (tokenStream, srcExecTerms, output_file_name);
+				int compileRetCode = generalParser.findKeyWordObjects();
 				output_stream.close();
 
-				// TODO: Open input file here; I don't know how to make an fstream member variable (might not be possible)
-				std::string input_file_name = output_file_name;
-	    	std::ifstream input_stream(input_file_name, input_stream.binary | input_stream.in);
-				if (!input_stream.is_open()) {
-					std::cout << "ERROR: Failed to open input file " << output_file_name << std::endl;
+				if (compileRetCode == OK)	{
+					// TODO: Open input file here; I don't know how to make an fstream member variable (might not be possible)
+					std::string interpretedFileName = output_file_name;
+		    	std::ifstream executableStream (interpretedFileName, executableStream.binary | executableStream.in);
+					if (!executableStream.is_open()) {
+						std::cout << "ERROR: Failed to open input file " << output_file_name << std::endl;
 
-				} else	{
-					InterpretedFileReader interpretedReader (input_stream, srcExecTerms);
-					std::vector<Token> exprTknList;
-					interpretedReader.readExprIntoList (exprTknList);
-					input_stream.close();
+					} else	{
+						// TODO: Will need to change this up since we'll be executing more than just 1 expression
+						InterpretedFileReader interpretedReader (executableStream, srcExecTerms);
+						std::vector<Token> exprTknList;
+						interpretedReader.readExprIntoList (exprTknList);
+						executableStream.close();
 
-					RunTimeInterpreter interpreter(srcExecTerms);
-					if (OK != interpreter.resolveExpression (exprTknList))	{
-						// TODO:
-						std::wcout << L"resolveExpression FAILED!" << std::endl;
+						RunTimeInterpreter interpreter(srcExecTerms);
+						if (OK != interpreter.resolveFlattenedExpr (exprTknList))	{
+							// TODO:
+							std::wcout << L"resolveExpression FAILED!" << std::endl;
+						}
 					}
 				}
 			}

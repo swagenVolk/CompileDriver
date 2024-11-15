@@ -8,15 +8,22 @@
 
 #include "InterpretedFileWriter.h"
 
-InterpretedFileWriter::InterpretedFileWriter(std::ofstream & interpreted_file, CompileExecTerms & inExecTerms) {
+InterpretedFileWriter::InterpretedFileWriter(std::string output_file_name, CompileExecTerms & inExecTerms) {
 	// TODO Auto-generated constructor stub
-	outputStream = & interpreted_file;
 	execTerms = & inExecTerms;
 
 	// TODO: Are these asserts even necessary when the & operator is used in parameter list?
-	assert (outputStream != NULL);
 	assert (execTerms != NULL);
 	thisSrcFile = util.getLastSegment(util.stringToWstring(__FILE__), L"/");
+
+	std::ofstream outputStream (output_file_name, outputStream.binary | outputStream.out);
+	// assert (outputStream != NULL);
+
+	if (!outputStream.is_open()) {
+		std::cout << "ERROR: Failed to open output file " << output_file_name << std::endl;
+	}
+
+	assert (outputStream.is_open());
 
 }
 
@@ -122,7 +129,7 @@ InterpretedFileWriter::~InterpretedFileWriter() {
  *
  *
  * ***************************************************************************/
-int InterpretedFileWriter::writeExpr_12_Opr8r (ExprTreeNode * currBranch)	{
+int InterpretedFileWriter::writeExpr_12_Opr8r (ExprTreeNode * currBranch, std::vector<Token> & flatExprTknList)	{
 	int ret_code = GENERAL_FAILURE;
 	bool isFailed = false;
 	bool isTernary1st = false;
@@ -143,19 +150,19 @@ int InterpretedFileWriter::writeExpr_12_Opr8r (ExprTreeNode * currBranch)	{
 
 
 		if (currBranch->_1stChild != NULL)	{
-			if (OK != writeExpr_12_Opr8r (currBranch->_1stChild))
+			if (OK != writeExpr_12_Opr8r (currBranch->_1stChild, flatExprTknList))
 				isFailed = true;
 
 
 			if (isTernary1or2)	{
 				// TODO: 'Splain yo self
 				std::wcout << "[" << currBranch->originalTkn->_string << "] ";
-				if (OK != writeToken(currBranch->originalTkn))
+				if (OK != writeToken(currBranch->originalTkn, flatExprTknList))
 					isFailed = true;
 			}
 
 			if (!isFailed && currBranch->_2ndChild != NULL)	{
-				if (OK != writeExpr_12_Opr8r (currBranch->_2ndChild))
+				if (OK != writeExpr_12_Opr8r (currBranch->_2ndChild, flatExprTknList))
 					isFailed = true;
 			}
 		}
@@ -163,7 +170,7 @@ int InterpretedFileWriter::writeExpr_12_Opr8r (ExprTreeNode * currBranch)	{
 		if (!isFailed)	{
 			if (!isTernary1or2)	{
 				std::wcout << "[" << currBranch->originalTkn->_string << "] ";
-				ret_code = writeToken(currBranch->originalTkn);
+				ret_code = writeToken(currBranch->originalTkn, flatExprTknList);
 
 			} else	{
 				ret_code = OK;
@@ -182,7 +189,7 @@ int InterpretedFileWriter::writeExpr_12_Opr8r (ExprTreeNode * currBranch)	{
  * Will need to be very aware of order dependent OPR8Rs
  * (a-b) vs. (b-a) typically have very different results
  * ***************************************************************************/
-int InterpretedFileWriter::writeExpressionToFile (ExprTreeNode * rootOfExpr)	{
+int InterpretedFileWriter::writeExpressionToFile (ExprTreeNode * rootOfExpr, std::vector<Token> & flatExprTknList)	{
 	int ret_code = GENERAL_FAILURE;
 
 	if (rootOfExpr == NULL)	{
@@ -207,7 +214,7 @@ int InterpretedFileWriter::writeExpressionToFile (ExprTreeNode * rootOfExpr)	{
 			// been completed.
 
 			std::wcout << L"********** writeExpr_12_Opr8r called from " << thisSrcFile << L":" << __LINE__ << L" **********" << std::endl;
-			if (OK == writeExpr_12_Opr8r (rootOfExpr))
+			if (OK == writeExpr_12_Opr8r (rootOfExpr, flatExprTknList))
 				ret_code = writeObjectLen (startFilePos, length_pos);
 
 			std::wcout << std::endl;
@@ -454,7 +461,7 @@ int InterpretedFileWriter::writeRawString (std::wstring tokenStr)	{
 /* ****************************************************************************
  *
  * ***************************************************************************/
-int InterpretedFileWriter::writeToken (Token * token)	{
+int InterpretedFileWriter::writeToken (Token * token, std::vector<Token> & flatExprTknList)	{
 	int ret_code = GENERAL_FAILURE;
 
 	uint8_t tkn8Val;
@@ -522,4 +529,14 @@ int InterpretedFileWriter::writeToken (Token * token)	{
 	}
 
 	return (ret_code);
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+uint32_t InterpretedFileWriter::getWriteFilePos ()	{
+
+	uint32_t currFilePos = outputStream->tellp();
+	return (currFilePos);
+
 }

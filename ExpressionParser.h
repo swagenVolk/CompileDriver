@@ -21,6 +21,7 @@
 #include "Operator.h"
 #include "Utilities.h"
 #include "InterpretedFileWriter.h"
+#include "ErrorInfo.h"
 
 // Values below used in a bit mask variable that indicates
 // allowable next states.
@@ -38,20 +39,24 @@
 #define FXN_CALL_NXT_OK							0x800
 #define STATEMENT_ENDER_NXT_OK			0x1000
 
+#define END_COMMA_IS_EXPECTED				true
+#define END_COMMA_NOT_EXPECTED			false
+
 class ExpressionParser {
 public:
-	ExpressionParser(TokenPtrVector & inTknStream, CompileExecTerms & inUsrSrcTerms);
+	ExpressionParser(CompileExecTerms & inUsrSrcTerms, TokenPtrVector & inTknStream);
 	virtual ~ExpressionParser();
-	int parseExpression (InterpretedFileWriter & intrprtrWriter);
+	int parseExpression (ExprTreeNode ** expressionTree, Token & enderTkn, bool isEndedByComma);
+
 
 private:
   TokenPtrVector tknStream;
   std::vector<NestedScopeExpr *> exprScopeStack;
-  std::wstring errorMsg;
   std::wstring thisSrcFile;
-  int errOnOurSrcLineNum;
+  ErrorInfo errorInfo;
   CompileExecTerms usrSrcTerms;
   Utilities util;
+
   void cleanScopeStack();
   std::wstring makeExpectedTknTypesStr (uint32_t expected_tkn_types);
   bool isExpectedTknType (uint32_t allowed_tkn_types, uint32_t & next_legal_tkn_types, Token * curr_tkn);
@@ -60,7 +65,7 @@ private:
   bool isTernaryOpen();
   int get2ndTernaryCnt ();
   int turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope);
-  int getExpectedEndToken (Token * startTkn, uint32_t & _1stTknTypMsk, Token & expectedEndTkn);
+  int getExpectedEndToken (Token * startTkn, uint32_t & _1stTknTypMsk, Token & expectedEndTkn, bool isEndedByComma);
   void printScopeStack(std::wstring fileName, int lineNumber);
 
 };

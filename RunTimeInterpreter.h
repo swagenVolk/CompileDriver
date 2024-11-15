@@ -21,7 +21,7 @@ public:
   void dumpTokenPtrStream (TokenPtrVector tokenStream, std::wstring callersSrcFile, int lineNum);
   void dumpTokenList (std::vector<Token> & tokenList, std::wstring callersSrcFile, int lineNum);
   int consumeUnifiedStream (TokenPtrVector & unifiedStream, int startIdx);
-  int resolveExpression(std::vector<Token> & exprTknStream);
+  int resolveFlattenedExpr(std::vector<Token> & exprTknStream);
 
 protected:
 

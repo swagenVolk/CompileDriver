@@ -15,40 +15,40 @@
 #include <memory>
 #include "common.h"
 #include "ExprTreeNode.h"
+#include "ExpressionParser.h"
 #include "Utilities.h"
 #include "OpCodes.h"
 #include "Operator.h"
 #include "CompileExecTerms.h"
 
-#define TMP_STR_BFFR_NUM_BYTES	200
-
 class InterpretedFileWriter {
 public:
-	InterpretedFileWriter(std::ofstream & interpreted_file, CompileExecTerms & inExecTerms);
+	InterpretedFileWriter(std::string output_file_name, CompileExecTerms & inExecTerms);
 	virtual ~InterpretedFileWriter();
-	int writeExpressionToFile(ExprTreeNode * rootOfExp);
+	int writeExpressionToFile(ExprTreeNode * rootOfExp, std::vector<Token> & flatExprTknList);
+
+	// TODO: Is making these "public" legit?
+	int writeFlexLenOpCode (uint8_t op_code);
+	int writeObjectLen (uint32_t objStartPos, uint32_t objLengthPos);
+	int writeRawUnsigned (uint64_t  payload, int payloadBitSize);
+	int writeString (uint8_t op_code, std::wstring tokenStr);
+	uint32_t getWriteFilePos ();
 
 private:
 	std::wstring thisSrcFile;
 	std::wstring outFileName;
-	std::ofstream * outputStream;
 	Utilities util;
 	CompileExecTerms * execTerms;
-	int writeExpr_12_Opr8r (ExprTreeNode * currBranch);
+	std::unique_ptr<std::ofstream> outputStream;
+	int writeExpr_12_Opr8r (ExprTreeNode * currBranch, std::vector<Token> & flatExprTknList);
 	int writeAtomicOpCode (uint8_t op_code);
-	int writeFlexLenOpCode (uint8_t op_code);
-	int writeObjectLen (uint32_t objStartPos, uint32_t objLengthPos);
 
 	int write8BitOpCode (uint8_t op_code, uint8_t payload);
 	int write16BitOpCode (uint8_t op_code, uint16_t payload);
 	int write32BitOpCode (uint8_t op_code, uint32_t payload);
 	int write64BitOpCode (uint8_t op_code, uint64_t payload);
-	int writeString (uint8_t op_code, std::wstring tokenStr);
 	int writeRawString (std::wstring tokenStr);
-	int writeToken (Token * token);
-
-	int writeRawUnsigned (uint64_t  payload, int payloadBitSize);
-
+	int writeToken (Token * token, std::vector<Token> & flatExprTknList);
 };
 
 #endif /* INTERPRETEDFILEWRITER_H_ */
