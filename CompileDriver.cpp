@@ -5,6 +5,7 @@
  * Look for opportunities to clarify (ie #defines -> enums?) to make debugging easier
  *
  * TODO:
+ * Propogate use of ErrorInfo, and bubble info up to the code responsible for displaying info to user
  * Add variable declaration logic
  * 	Initialization expressions are allowed!
  * 	Will need an isInitialized var of some kind
@@ -96,16 +97,22 @@ int main(int argc, const char * argv[])
 
 					} else	{
 						// TODO: Will need to change this up since we'll be executing more than just 1 expression
+#if 0
 						InterpretedFileReader interpretedReader (executableStream, srcExecTerms);
 						std::vector<Token> exprTknList;
 						interpretedReader.readExprIntoList (exprTknList);
 						executableStream.close();
+						ErrorInfo errorInfo;
 
 						RunTimeInterpreter interpreter(srcExecTerms);
-						if (OK != interpreter.resolveFlattenedExpr (exprTknList))	{
+						// TODO: Right now, there's just variable declarations and I'm expecting an expression!
+						// Could just check for an op_code
+						// INTERNAL_ERROR: Encountered on RunTimeInterpreter.cpp:1260. Token stream unexpectedly EMPTY!
+						if (OK != interpreter.resolveFlattenedExpr (exprTknList, errorInfo))	{
 							// TODO:
-							std::wcout << L"resolveExpression FAILED!" << std::endl;
+							std::wcout << errorInfo.getFormattedMsg() << std::endl;
 						}
+#endif
 					}
 				}
 			}

@@ -10,46 +10,25 @@
 
 #include "ExprTreeNode.h"
 
-ExprTreeNode::ExprTreeNode(Token * startOpr8rTkn) {
-	// TODO Auto-generated constructor stub
-  originalTkn = startOpr8rTkn;
-  // Storage place for bubbled-up result of resolving ExpressionTree
-  // resultTkn = Token (START_UNDEF_TKN, L"", startOpr8rTkn != NULL ? startOpr8rTkn->line_number : 0, startOpr8rTkn != NULL ? startOpr8rTkn->column_pos : 0);
-	resultTkn = new Token (START_UNDEF_TKN, L"", 0, 0);
+ExprTreeNode::ExprTreeNode(std::shared_ptr<Token> startOpr8rTkn) {
+	// Attach this shared_ptr to an already existing shared_ptr of type Token
+	originalTkn = { startOpr8rTkn };
   myParent = NULL;
   _1stChild = NULL;
   _2ndChild = NULL;
-
 }
 
 ExprTreeNode::~ExprTreeNode() {
-	// TODO Auto-generated destructor stub
 	// Clean up our allocated memory
-	if (originalTkn != NULL)	{
-		delete (originalTkn);
-		originalTkn = NULL;
-	}
-
-	if (resultTkn != NULL)	{
-		delete (resultTkn);
-		resultTkn = NULL;
-	}
-
-	if (_1stChild != NULL)	{
-		delete (_1stChild);
-		_1stChild = NULL;
-	}
-
-	if (_2ndChild != NULL)	{
-		delete (_2ndChild);
-		_2ndChild = NULL;
-	}
+	originalTkn.reset();
+	_1stChild.reset();
+	_2ndChild.reset();
 }
 
 /* ****************************************************************************
  * Recursive proc to fill in Token descriptions at corresponding tree levels
  * ***************************************************************************/
-void ExprTreeNode::buildTreeGraph (ExprTreeNode * treeNode, std::vector<std::wstring> & treeGraph, int scopeDepth, int _1stOr2ndChild)	{
+void ExprTreeNode::buildTreeGraph (std::shared_ptr<ExprTreeNode> treeNode, std::vector<std::wstring> & treeGraph, int scopeDepth, int _1stOr2ndChild)	{
 
 	if (treeNode != NULL)	{
 		// If we don't have a string at this depth|level yet, add one
@@ -102,7 +81,7 @@ void ExprTreeNode::buildTreeGraph (ExprTreeNode * treeNode, std::vector<std::wst
  * graphical tree representation so I can see if the tree matches what I
  * expected to happen.
  * ***************************************************************************/
-void ExprTreeNode::showTree (ExprTreeNode * treeNode, std::wstring fileName, int lineNumber)	{
+void ExprTreeNode::showTree (std::shared_ptr<ExprTreeNode> treeNode, std::wstring fileName, int lineNumber)	{
 
 	std::vector<std::wstring> treeGraph;
 

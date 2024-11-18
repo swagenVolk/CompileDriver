@@ -370,17 +370,38 @@ std::wstring BaseLanguageTerms::getUniqExecOpr8rStr (std::wstring srcStr, uint8_
 	return (execOpr8rStr);
 }
 
+
+
 /* ****************************************************************************
- * If the passed in KEYWORD is a valid data type, a valid op_code will be returned
- * Otherwise, return INVALID_OPCODE
+ * If the passed in KEYWORD is a valid data type, return the associated Token type
+ * enum and op_code. Otherwise, return an obviously invalid (hopefully)l pair
  * ***************************************************************************/
-uint8_t BaseLanguageTerms::getDataTypeOpCode (std::wstring keyword)	{
-	uint8_t dataTypeOpCode = INVALID_OPCODE;
+std::pair<TokenTypeEnum, uint8_t> BaseLanguageTerms::getDataType_tknEnum_opCode (std::wstring keyword)	{
+	std::pair ret_info {START_UNDEF_TKN, INVALID_OPCODE};
 
 	if (auto search = valid_data_types.find(keyword); search != valid_data_types.end())	{
-		dataTypeOpCode = search->second;
+		std::pair tknEnum_opCode = search->second;
+		ret_info = tknEnum_opCode;
 	}
 
+	return (ret_info);
+}
 
-	return (dataTypeOpCode);
+/* ****************************************************************************
+ * If the passed in op_code represents a valid data type, a valid datatype string
+ * will be returned. Otherwise, return an empty string.
+ * ***************************************************************************/
+std::wstring BaseLanguageTerms::getDataTypeForOpCode (uint8_t op_code)	{
+	std::wstring dataType;
+
+	for (auto itr8r = valid_data_types.begin(); itr8r != valid_data_types.end(); itr8r++)	{
+		std::pair tknEnum_opCode = itr8r->second;
+		if (tknEnum_opCode.second == op_code)	{
+			dataType = itr8r->first;
+			break;
+		}
+	}
+
+	return (dataType);
+
 }

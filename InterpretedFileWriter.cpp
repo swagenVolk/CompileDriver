@@ -8,16 +8,16 @@
 
 #include "InterpretedFileWriter.h"
 
-InterpretedFileWriter::InterpretedFileWriter(std::string output_file_name, CompileExecTerms & inExecTerms) {
+InterpretedFileWriter::InterpretedFileWriter(std::string output_file_name, CompileExecTerms & inExecTerms)
+	: outputStream (output_file_name, outputStream.binary | outputStream.out)
+{
 	// TODO Auto-generated constructor stub
 	execTerms = & inExecTerms;
 
 	// TODO: Are these asserts even necessary when the & operator is used in parameter list?
 	assert (execTerms != NULL);
 	thisSrcFile = util.getLastSegment(util.stringToWstring(__FILE__), L"/");
-
-	std::ofstream outputStream (output_file_name, outputStream.binary | outputStream.out);
-	// assert (outputStream != NULL);
+	errorInfo.set1stInSrcStack (thisSrcFile);
 
 	if (!outputStream.is_open()) {
 		std::cout << "ERROR: Failed to open output file " << output_file_name << std::endl;
@@ -29,6 +29,8 @@ InterpretedFileWriter::InterpretedFileWriter(std::string output_file_name, Compi
 
 InterpretedFileWriter::~InterpretedFileWriter() {
 	// TODO Auto-generated destructor stub
+	if (outputStream.is_open())
+		outputStream.close();
 }
 
 /* ****************************************************************************
@@ -129,7 +131,7 @@ InterpretedFileWriter::~InterpretedFileWriter() {
  *
  *
  * ***************************************************************************/
-int InterpretedFileWriter::writeExpr_12_Opr8r (ExprTreeNode * currBranch, std::vector<Token> & flatExprTknList)	{
+int InterpretedFileWriter::writeExpr_12_Opr8r (std::shared_ptr<ExprTreeNode> currBranch, std::vector<Token> & flatExprTknList)	{
 	int ret_code = GENERAL_FAILURE;
 	bool isFailed = false;
 	bool isTernary1st = false;
@@ -189,25 +191,20 @@ int InterpretedFileWriter::writeExpr_12_Opr8r (ExprTreeNode * currBranch, std::v
  * Will need to be very aware of order dependent OPR8Rs
  * (a-b) vs. (b-a) typically have very different results
  * ***************************************************************************/
-int InterpretedFileWriter::writeExpressionToFile (ExprTreeNode * rootOfExpr, std::vector<Token> & flatExprTknList)	{
+int InterpretedFileWriter::writeExpressionToFile (std::shared_ptr<ExprTreeNode> rootOfExpr, std::vector<Token> & flatExprTknList, ErrorInfo & callersErrInfo)	{
 	int ret_code = GENERAL_FAILURE;
 
 	if (rootOfExpr == NULL)	{
-		// TODO: Some kind of error message capture?
-		// Who is responsible for reporting out to the user?
-  	std::wcout << "INTERNAL ERROR encountered on " << thisSrcFile << ":" << __LINE__ << std::endl;
-
-	} else if (outputStream == NULL)	{
-  	std::wcout << "INTERNAL ERROR encountered on " << thisSrcFile << ":" << __LINE__ << std::endl;
+  	errorInfo.set (INTERNAL_ERROR, thisSrcFile, __LINE__, L"rootOfExpr is NULL!");
 
 	} else	{
 		// Make sure we're at END of our output file
 		// TODO: Account for nested expressions (???)
-		outputStream->seekp(0, std::fstream::end);
+		outputStream.seekp(0, std::fstream::end);
 
-		uint32_t startFilePos = outputStream->tellp();
+		uint32_t startFilePos = outputStream.tellp();
 
-		uint32_t length_pos = writeFlexLenOpCode (EXPRESSION_OPCODE);
+		uint32_t length_pos = writeFlexLenOpCode (EXPRESSION_OPCODE, errorInfo);
 		if (0 != length_pos)	{
 			// Save off the position where the expression's total length is stored and
 			// write 0s to it. It will get filled in later when writing the entire expression out has
@@ -215,11 +212,14 @@ int InterpretedFileWriter::writeExpressionToFile (ExprTreeNode * rootOfExpr, std
 
 			std::wcout << L"********** writeExpr_12_Opr8r called from " << thisSrcFile << L":" << __LINE__ << L" **********" << std::endl;
 			if (OK == writeExpr_12_Opr8r (rootOfExpr, flatExprTknList))
-				ret_code = writeObjectLen (startFilePos, length_pos);
+				ret_code = writeObjectLen (startFilePos, length_pos, errorInfo);
 
 			std::wcout << std::endl;
 		}
 	}
+
+	if (OK != ret_code)
+		callersErrInfo = errorInfo;
 
 	return (ret_code);
 }
@@ -227,28 +227,28 @@ int InterpretedFileWriter::writeExpressionToFile (ExprTreeNode * rootOfExpr, std
 /* ****************************************************************************
  *
  * ***************************************************************************/
-int InterpretedFileWriter::writeObjectLen (uint32_t objStartPos, uint32_t objLengthPos)	{
+int InterpretedFileWriter::writeObjectLen (uint32_t objStartPos, uint32_t objLengthPos, ErrorInfo & callersErrInfo)	{
 	int ret_code = GENERAL_FAILURE;
 	bool isFailed = false;
 
-	if (outputStream != NULL)	{
 
-		// Need fill in now known length of this expression
-		uint32_t currFilePos = outputStream->tellp();
-		uint32_t exprLen = (currFilePos - objStartPos);
+	// Need fill in now known length of this expression
+	uint32_t currFilePos = outputStream.tellp();
+	uint32_t exprLen = (currFilePos - objStartPos);
 
-		// Write the current object's length
-		outputStream->seekp(objLengthPos, std::fstream::beg);
-		if (OK != writeRawUnsigned(exprLen, NUM_BITS_IN_DWORD))
-			isFailed = true;
+	// Write the current object's length
+	outputStream.seekp(objLengthPos, std::fstream::beg);
+	if (OK != writeRawUnsigned(exprLen, NUM_BITS_IN_DWORD, errorInfo))
+		isFailed = true;
 
-		// Now reset file pointer to pos at fxn begin, after the object was entirely written out
-		outputStream->seekp(0, std::fstream::end);
+	// Now reset file pointer to pos at fxn begin, after the object was entirely written out
+	outputStream.seekp(0, std::fstream::end);
 
-		if (currFilePos == outputStream->tellp() && !isFailed)
-			ret_code = OK;
+	if (currFilePos == outputStream.tellp() && !isFailed)
+		ret_code = OK;
 
-	}
+	if (OK != ret_code)
+		callersErrInfo = errorInfo;
 
 	return (ret_code);
 }
@@ -260,14 +260,12 @@ int InterpretedFileWriter::writeObjectLen (uint32_t objStartPos, uint32_t objLen
 int InterpretedFileWriter::writeAtomicOpCode (uint8_t op_code)	{
 	int ret_code = GENERAL_FAILURE;
 
-	if (outputStream != NULL)	{
-		if (op_code >= ATOMIC_OPCODE_RANGE_BEGIN && op_code <= ATOMIC_OPCODE_RANGE_END)	{
-			if (op_code <= LAST_VALID_OPR8R_OPCODE)	{
-				ret_code = writeRawUnsigned (op_code, NUM_BITS_IN_BYTE);
+	if (op_code >= ATOMIC_OPCODE_RANGE_BEGIN && op_code <= ATOMIC_OPCODE_RANGE_END)	{
+		if (op_code <= LAST_VALID_OPR8R_OPCODE)	{
+			ret_code = writeRawUnsigned (op_code, NUM_BITS_IN_BYTE, errorInfo);
 
-			} else if (op_code >= FIRST_VALID_DATA_TYPE_OPCODE && op_code <= LAST_VALID_DATA_TYPE_OPCODE)	{
-				ret_code = writeRawUnsigned (op_code, NUM_BITS_IN_BYTE);
-			}
+		} else if (op_code >= FIRST_VALID_DATA_TYPE_OPCODE && op_code <= LAST_VALID_DATA_TYPE_OPCODE)	{
+			ret_code = writeRawUnsigned (op_code, NUM_BITS_IN_BYTE, errorInfo);
 		}
 	}
 
@@ -277,20 +275,21 @@ int InterpretedFileWriter::writeAtomicOpCode (uint8_t op_code)	{
 /* ****************************************************************************
  *
  * ***************************************************************************/
-int InterpretedFileWriter::writeFlexLenOpCode (uint8_t op_code)	{
+int InterpretedFileWriter::writeFlexLenOpCode (uint8_t op_code, ErrorInfo & callersErrInfo)	{
 	int lengthPos = 0;
 	int tmpLenPos = 0;
 	uint32_t tempLen = 0x0;
 
-	if (outputStream != NULL)	{
-		if (op_code >= FIRST_VALID_FLEX_LEN_OPCODE && op_code <= LAST_VALID_FLEX_LEN_OPCODE)	{
-			if (OK == writeRawUnsigned (op_code, NUM_BITS_IN_BYTE))	{
-				tmpLenPos = outputStream->tellp();
-				if (OK == writeRawUnsigned (tempLen, NUM_BITS_IN_DWORD))
-				lengthPos = tmpLenPos;
-			}
+	if (op_code >= FIRST_VALID_FLEX_LEN_OPCODE && op_code <= LAST_VALID_FLEX_LEN_OPCODE)	{
+		if (OK == writeRawUnsigned (op_code, NUM_BITS_IN_BYTE, errorInfo))	{
+			tmpLenPos = outputStream.tellp();
+			if (OK == writeRawUnsigned (tempLen, NUM_BITS_IN_DWORD, errorInfo))
+			lengthPos = tmpLenPos;
 		}
 	}
+
+	if (lengthPos == 0)
+		callersErrInfo = errorInfo;
 
 	return (lengthPos);
 }
@@ -301,13 +300,11 @@ int InterpretedFileWriter::writeFlexLenOpCode (uint8_t op_code)	{
 int InterpretedFileWriter::write8BitOpCode (uint8_t op_code, uint8_t  payload)	{
 	int ret_code = GENERAL_FAILURE;
 
-	if (outputStream != NULL)	{
-		if (op_code >= FIXED_OPCODE_RANGE_BEGIN && op_code <= FIXED_OPCODE_RANGE_END)	{
-			if (op_code == UINT8_OPCODE || op_code == INT8_OPCODE)	{
-				// Write op_code followed by payload out to file
-				if (OK == writeRawUnsigned (op_code, NUM_BITS_IN_BYTE) && OK == writeRawUnsigned (payload, NUM_BITS_IN_BYTE))
-					ret_code = OK;
-			}
+	if (op_code >= FIXED_OPCODE_RANGE_BEGIN && op_code <= FIXED_OPCODE_RANGE_END)	{
+		if (op_code == UINT8_OPCODE || op_code == INT8_OPCODE)	{
+			// Write op_code followed by payload out to file
+			if (OK == writeRawUnsigned (op_code, NUM_BITS_IN_BYTE, errorInfo) && OK == writeRawUnsigned (payload, NUM_BITS_IN_BYTE, errorInfo))
+				ret_code = OK;
 		}
 	}
 
@@ -320,16 +317,14 @@ int InterpretedFileWriter::write8BitOpCode (uint8_t op_code, uint8_t  payload)	{
 int InterpretedFileWriter::write16BitOpCode (uint8_t op_code, uint16_t  payload)	{
 	int ret_code = GENERAL_FAILURE;
 
-	if (outputStream != NULL)	{
-
-		if (op_code >= FIXED_OPCODE_RANGE_BEGIN && op_code <= FIXED_OPCODE_RANGE_END)	{
-			if (op_code == UINT16_OPCODE || op_code == INT16_OPCODE)	{
-				// Write op_code followed by payload out to file
-				if (OK == writeRawUnsigned (op_code, NUM_BITS_IN_BYTE) && OK == writeRawUnsigned (payload, NUM_BITS_IN_WORD))
-					ret_code = OK;
-			}
+	if (op_code >= FIXED_OPCODE_RANGE_BEGIN && op_code <= FIXED_OPCODE_RANGE_END)	{
+		if (op_code == UINT16_OPCODE || op_code == INT16_OPCODE)	{
+			// Write op_code followed by payload out to file
+			if (OK == writeRawUnsigned (op_code, NUM_BITS_IN_BYTE, errorInfo) && OK == writeRawUnsigned (payload, NUM_BITS_IN_WORD, errorInfo))
+				ret_code = OK;
 		}
 	}
+
 	return (ret_code);
 }
 
@@ -339,13 +334,11 @@ int InterpretedFileWriter::write16BitOpCode (uint8_t op_code, uint16_t  payload)
 int InterpretedFileWriter::write32BitOpCode (uint8_t op_code, uint32_t  payload)	{
 	int ret_code = GENERAL_FAILURE;
 
-	if (outputStream != NULL)	{
-		if (op_code >= FIXED_OPCODE_RANGE_BEGIN && op_code <= FIXED_OPCODE_RANGE_END)	{
-			if (op_code == UINT32_OPCODE || op_code == INT32_OPCODE)	{
-				// Write op_code followed by payload out to file
-				if (OK == writeRawUnsigned (op_code, NUM_BITS_IN_BYTE) && OK == writeRawUnsigned(payload, NUM_BITS_IN_DWORD))
-					ret_code = OK;
-			}
+	if (op_code >= FIXED_OPCODE_RANGE_BEGIN && op_code <= FIXED_OPCODE_RANGE_END)	{
+		if (op_code == UINT32_OPCODE || op_code == INT32_OPCODE)	{
+			// Write op_code followed by payload out to file
+			if (OK == writeRawUnsigned (op_code, NUM_BITS_IN_BYTE, errorInfo) && OK == writeRawUnsigned(payload, NUM_BITS_IN_DWORD, errorInfo))
+				ret_code = OK;
 		}
 	}
 
@@ -358,13 +351,11 @@ int InterpretedFileWriter::write32BitOpCode (uint8_t op_code, uint32_t  payload)
 int InterpretedFileWriter::write64BitOpCode (uint8_t op_code, uint64_t  payload)	{
 	int ret_code = GENERAL_FAILURE;
 
-	if (outputStream != NULL)	{
-		if (op_code >= FIXED_OPCODE_RANGE_BEGIN && op_code <= FIXED_OPCODE_RANGE_END)	{
-			if (op_code == UINT64_OPCODE || op_code == INT64_OPCODE)	{
-				// Write op_code followed by payload out to file
-				if (OK == writeRawUnsigned (op_code, NUM_BITS_IN_BYTE) && OK == writeRawUnsigned (payload, NUM_BITS_IN_QWORD))
-					ret_code = OK;
-			}
+	if (op_code >= FIXED_OPCODE_RANGE_BEGIN && op_code <= FIXED_OPCODE_RANGE_END)	{
+		if (op_code == UINT64_OPCODE || op_code == INT64_OPCODE)	{
+			// Write op_code followed by payload out to file
+			if (OK == writeRawUnsigned (op_code, NUM_BITS_IN_BYTE, errorInfo) && OK == writeRawUnsigned (payload, NUM_BITS_IN_QWORD, errorInfo))
+				ret_code = OK;
 		}
 	}
 
@@ -374,7 +365,7 @@ int InterpretedFileWriter::write64BitOpCode (uint8_t op_code, uint64_t  payload)
 /* ****************************************************************************
  * TODO: Any kind of check for success?
  * ***************************************************************************/
-int InterpretedFileWriter::writeRawUnsigned (uint64_t  payload, int payloadBitSize)	{
+int InterpretedFileWriter::writeRawUnsigned (uint64_t  payload, int payloadBitSize, ErrorInfo & callersErrInfo)	{
 	int ret_code = GENERAL_FAILURE;
 	uint64_t shift_mask = 0xFF << (payloadBitSize - NUM_BITS_IN_BYTE);
 	uint64_t maskedQword;
@@ -383,16 +374,17 @@ int InterpretedFileWriter::writeRawUnsigned (uint64_t  payload, int payloadBitSi
 	assert (payloadBitSize == NUM_BITS_IN_BYTE || payloadBitSize == NUM_BITS_IN_WORD || payloadBitSize == NUM_BITS_IN_DWORD || payloadBitSize == NUM_BITS_IN_QWORD);
 
 	// TODO: Endian-ness is accounted for now; Make this work in other Raw* fxns
-	if (outputStream != NULL)	{
-		for (int idx = payloadBitSize/NUM_BITS_IN_BYTE; idx > 0; idx--)	{
-			maskedQword = (payload & shift_mask);
-			maskedQword >>= ((idx - 1) * NUM_BITS_IN_BYTE);
-			nextByte = maskedQword;
-			outputStream->write(reinterpret_cast<char*>(&nextByte), 1);
-			shift_mask >>= NUM_BITS_IN_BYTE;
-		}
-		ret_code = OK;
+	for (int idx = payloadBitSize/NUM_BITS_IN_BYTE; idx > 0; idx--)	{
+		maskedQword = (payload & shift_mask);
+		maskedQword >>= ((idx - 1) * NUM_BITS_IN_BYTE);
+		nextByte = maskedQword;
+		outputStream.write(reinterpret_cast<char*>(&nextByte), 1);
+		shift_mask >>= NUM_BITS_IN_BYTE;
 	}
+	ret_code = OK;
+
+	if (OK != ret_code)
+		callersErrInfo = errorInfo;
 
 	return (ret_code);
 }
@@ -400,24 +392,24 @@ int InterpretedFileWriter::writeRawUnsigned (uint64_t  payload, int payloadBitSi
 /* ****************************************************************************
  * TODO: Any kind of check for success?
  * ***************************************************************************/
-int InterpretedFileWriter::writeString (uint8_t op_code, std::wstring tokenStr)	{
+int InterpretedFileWriter::writeString (uint8_t op_code, std::wstring tokenStr, ErrorInfo & callersErrInfo)	{
 	int ret_code = GENERAL_FAILURE;
 
-	if (outputStream != NULL)	{
+	uint32_t startFilePos = outputStream.tellp();
 
-		uint32_t startFilePos = outputStream->tellp();
+	uint32_t length_pos = writeFlexLenOpCode (op_code, errorInfo);
+	if (0 != length_pos)	{
+		// Save off the position where the expression's total length is stored and
+		// write 0s to it. It will get filled in later when writing the entire expression out has
+		// been completed.
 
-		uint32_t length_pos = writeFlexLenOpCode (op_code);
-		if (0 != length_pos)	{
-			// Save off the position where the expression's total length is stored and
-			// write 0s to it. It will get filled in later when writing the entire expression out has
-			// been completed.
-
-			if (OK == writeRawString (tokenStr))	{
-				ret_code = writeObjectLen (startFilePos, length_pos);
-			}
+		if (OK == writeRawString (tokenStr))	{
+			ret_code = writeObjectLen (startFilePos, length_pos, errorInfo);
 		}
 	}
+
+	if (OK != ret_code)
+		callersErrInfo = errorInfo;
 
 	return (ret_code);
 }
@@ -431,27 +423,24 @@ int InterpretedFileWriter::writeRawString (std::wstring tokenStr)	{
 	int ret_code = GENERAL_FAILURE;
 	bool isFailed = false;
 
-	if (outputStream != NULL)	{
+	if (!tokenStr.empty())	{
+		int numBytes = tokenStr.size() * 2;
+		const wchar_t * strBffr = tokenStr.data();
+		uint16_t nxtWord;
+		int idx;
 
-		if (!tokenStr.empty())	{
-			int numBytes = tokenStr.size() * 2;
-			const wchar_t * strBffr = tokenStr.data();
-			uint16_t nxtWord;
-			int idx;
-
-			for (idx = 0; idx < tokenStr.size() && !isFailed; idx++)	{
-				nxtWord = strBffr[idx];
-				if (OK != writeRawUnsigned (strBffr[idx], NUM_BITS_IN_WORD))
-					isFailed = true;
-				// outputStream->write(reinterpret_cast<char*>(&nxtWord), NUM_BYTES_IN_WORD);
-			}
-
-			if (idx == tokenStr.size() && !isFailed)
-				ret_code = OK;
-
-		} else	{
-			ret_code = OK;
+		for (idx = 0; idx < tokenStr.size() && !isFailed; idx++)	{
+			nxtWord = strBffr[idx];
+			if (OK != writeRawUnsigned (strBffr[idx], NUM_BITS_IN_WORD, errorInfo))
+				isFailed = true;
+			// outputStream.write(reinterpret_cast<char*>(&nxtWord), NUM_BYTES_IN_WORD);
 		}
+
+		if (idx == tokenStr.size() && !isFailed)
+			ret_code = OK;
+
+	} else	{
+		ret_code = OK;
 	}
 
 	return (ret_code);
@@ -461,18 +450,18 @@ int InterpretedFileWriter::writeRawString (std::wstring tokenStr)	{
 /* ****************************************************************************
  *
  * ***************************************************************************/
-int InterpretedFileWriter::writeToken (Token * token, std::vector<Token> & flatExprTknList)	{
+int InterpretedFileWriter::writeToken (std::shared_ptr<Token> token, std::vector<Token> & flatExprTknList)	{
 	int ret_code = GENERAL_FAILURE;
 
 	uint8_t tkn8Val;
 
-	if (outputStream != NULL && token != NULL)	{
+	if (token != NULL)	{
 		switch(token->tkn_type)	{
 		case KEYWORD_TKN :
-			ret_code = writeString (VAR_NAME_OPCODE, token->_string);
+			ret_code = writeString (VAR_NAME_OPCODE, token->_string, errorInfo);
 			break;
 		case STRING_TKN :
-			ret_code = writeString (STRING_OPCODE, token->_string);
+			ret_code = writeString (STRING_OPCODE, token->_string, errorInfo);
 			break;
 		case DATETIME_TKN :
 			if (OK == writeAtomicOpCode(DATETIME_OPCODE))
@@ -480,52 +469,66 @@ int InterpretedFileWriter::writeToken (Token * token, std::vector<Token> & flatE
 			break;
 		case UINT8_TKN :
 			tkn8Val = token->_unsigned;
-			if (OK == writeRawUnsigned (UINT8_OPCODE, NUM_BITS_IN_BYTE))
-				ret_code = writeRawUnsigned (tkn8Val, NUM_BITS_IN_BYTE);
+			if (OK == writeRawUnsigned (UINT8_OPCODE, NUM_BITS_IN_BYTE, errorInfo))
+				ret_code = writeRawUnsigned (tkn8Val, NUM_BITS_IN_BYTE, errorInfo);
 			break;
 		case UINT16_TKN :
-			if (OK == writeRawUnsigned (UINT16_OPCODE, NUM_BITS_IN_BYTE))
-				ret_code = writeRawUnsigned (token->_unsigned, NUM_BITS_IN_WORD);
+			if (OK == writeRawUnsigned (UINT16_OPCODE, NUM_BITS_IN_BYTE, errorInfo))
+				ret_code = writeRawUnsigned (token->_unsigned, NUM_BITS_IN_WORD, errorInfo);
 			break;
 		case UINT32_TKN :
-			if (OK == writeRawUnsigned (UINT32_OPCODE, NUM_BITS_IN_BYTE))
-				ret_code = writeRawUnsigned (token->_unsigned, NUM_BITS_IN_DWORD);
+			if (OK == writeRawUnsigned (UINT32_OPCODE, NUM_BITS_IN_BYTE, errorInfo))
+				ret_code = writeRawUnsigned (token->_unsigned, NUM_BITS_IN_DWORD, errorInfo);
 			break;
 		case UINT64_TKN :
-			if (OK == writeRawUnsigned (UINT64_OPCODE, NUM_BITS_IN_BYTE))
-				ret_code = writeRawUnsigned (token->_unsigned, NUM_BITS_IN_QWORD);
+			if (OK == writeRawUnsigned (UINT64_OPCODE, NUM_BITS_IN_BYTE, errorInfo))
+				ret_code = writeRawUnsigned (token->_unsigned, NUM_BITS_IN_QWORD, errorInfo);
 			break;
 		case INT8_TKN :
 			// TODO: Check
-			if (OK == writeRawUnsigned (INT8_OPCODE, NUM_BITS_IN_BYTE))
-				ret_code = writeRawUnsigned (token->_signed, NUM_BITS_IN_BYTE);
+			if (OK == writeRawUnsigned (INT8_OPCODE, NUM_BITS_IN_BYTE, errorInfo))
+				ret_code = writeRawUnsigned (token->_signed, NUM_BITS_IN_BYTE, errorInfo);
 			break;
 		case INT16_TKN :
 			// TODO: Check
-			if (OK == writeRawUnsigned (INT16_OPCODE, NUM_BITS_IN_BYTE))
-				ret_code = writeRawUnsigned (token->_signed, NUM_BITS_IN_WORD);
+			if (OK == writeRawUnsigned (INT16_OPCODE, NUM_BITS_IN_BYTE, errorInfo))
+				ret_code = writeRawUnsigned (token->_signed, NUM_BITS_IN_WORD, errorInfo);
 			break;
 		case INT32_TKN :
 			// TODO: Check
-			if (OK == writeRawUnsigned (INT32_OPCODE, NUM_BITS_IN_BYTE))
-				ret_code = writeRawUnsigned (token->_signed, NUM_BITS_IN_DWORD);
+			if (OK == writeRawUnsigned (INT32_OPCODE, NUM_BITS_IN_BYTE, errorInfo))
+				ret_code = writeRawUnsigned (token->_signed, NUM_BITS_IN_DWORD, errorInfo);
 			break;
 		case INT64_TKN :
 			// TODO: Check
-			if (OK == writeRawUnsigned (INT64_OPCODE, NUM_BITS_IN_BYTE))
-				ret_code = writeRawUnsigned (token->_signed, NUM_BITS_IN_QWORD);
+			if (OK == writeRawUnsigned (INT64_OPCODE, NUM_BITS_IN_BYTE, errorInfo))
+				ret_code = writeRawUnsigned (token->_signed, NUM_BITS_IN_QWORD, errorInfo);
 			break;
 		case DOUBLE_TKN :
-				ret_code = writeString (DOUBLE_OPCODE, token->_string);
+				ret_code = writeString (DOUBLE_OPCODE, token->_string, errorInfo);
 			break;
 		case SRC_OPR8R_TKN :
-			ret_code = writeRawUnsigned (execTerms->getOpCodeFor (token->_string), NUM_BITS_IN_BYTE);
+			ret_code = writeRawUnsigned (execTerms->getOpCodeFor (token->_string), NUM_BITS_IN_BYTE, errorInfo);
 			break;
 		case SPR8R_TKN :
 		default:
 			break;
 
 		}
+
+		if (token->tkn_type == SRC_OPR8R_TKN || token->tkn_type == EXEC_OPR8R_TKN)	{
+			// Prior to putting OPR8Rs in flattened list, make them EXEC_OPR8R_TKNs
+			// since the caller is expected to use the RunTimeInterpreter to resolve
+			// the expression
+			uint8_t op_code = execTerms->getOpCodeFor (token->_string);
+			token->resetToken();
+			token->tkn_type = EXEC_OPR8R_TKN;
+			token->_unsigned = op_code;
+		}
+
+		// Store a copy of this Token in the flattened list
+		flatExprTknList.push_back (*token);
+		token.reset();
 	}
 
 	return (ret_code);
@@ -536,7 +539,7 @@ int InterpretedFileWriter::writeToken (Token * token, std::vector<Token> & flatE
  * ***************************************************************************/
 uint32_t InterpretedFileWriter::getWriteFilePos ()	{
 
-	uint32_t currFilePos = outputStream->tellp();
+	uint32_t currFilePos = outputStream.tellp();
 	return (currFilePos);
 
 }

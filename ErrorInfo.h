@@ -11,6 +11,8 @@
 #include "common.h"
 #include <string>
 
+#define STACK_SPR8R		L"->"
+
 
 enum error_type_enum	{
 	UNKNOWN_ERROR
@@ -23,9 +25,11 @@ typedef error_type_enum errorType;
 
 class ErrorInfo {
 public:
-	ErrorInfo ();
+	ErrorInfo();
 	virtual ~ErrorInfo();
+	void set1stInSrcStack(std::wstring srcFileName);
 	bool isEmpty();
+	ErrorInfo& operator= (const ErrorInfo & srcErrorInfo);
 	void set (errorType type, std::wstring srcFileName, int srcLineNum, std::wstring msgForUser);
 	std::wstring getErrorTypeStr();
 	std::wstring getSrcFileName();
@@ -36,6 +40,7 @@ public:
 private:
 	errorType typeOfError;
 	std::wstring ourSrcFileName;
+	std::wstring srcFileStack;
 	int	ourSrcLineNum;
 	std::wstring userMsg;
 };

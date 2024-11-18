@@ -5,11 +5,13 @@
 #include "TokenCompareResult.h"
 #include <string>
 #include <stdint.h>
-#include <assert.h>
+#include <cassert>
 #include <stdexcept>
 #include <vector>
 #include <iostream>
 #include <sstream>
+#include <memory>
+#include <cmath>
 
 #define END_OF_STREAM_STR L"END_OF_STREAM"
 
@@ -78,12 +80,13 @@ class Token {
     void resetToSigned (int64_t newValue);
     void resetToDouble (double newValue);
     void resetToString (std::wstring newValue);
+    int convertTo (Token newValTkn);
 
   private:
 
 
 };
 
-typedef std::vector<Token*> TokenPtrVector;
+typedef std::vector<std::shared_ptr<Token>> TokenPtrVector;
 
 #endif

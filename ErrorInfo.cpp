@@ -2,7 +2,7 @@
  * ErrorInfo.cpp
  *
  *  Created on: Nov 14, 2024
- *      Author: mike
+ *      Author: Mike Volk
  */
 
 #include "ErrorInfo.h"
@@ -12,10 +12,45 @@ ErrorInfo::ErrorInfo() {
 	ourSrcLineNum = 0;
 }
 
+
+
 ErrorInfo::~ErrorInfo() {
 	ourSrcFileName.clear();
 	userMsg.clear();
 }
+
+void ErrorInfo::set1stInSrcStack(std::wstring srcFileName) {
+	if (srcFileStack.empty())
+		srcFileStack = srcFileName;
+}
+
+
+ErrorInfo& ErrorInfo::operator= (const ErrorInfo & srcErrInfo)
+{
+	// self-assignment check
+	if (this == &srcErrInfo)
+		return (*this);
+
+	// if data exists in the current string, delete it
+	typeOfError = srcErrInfo.typeOfError;
+
+	if (std::string::npos == srcFileStack.find (srcErrInfo.ourSrcFileName))	{
+		// Check for existence 1st...really don't want cycles and unbound growth!
+		srcFileStack.append (STACK_SPR8R);
+		srcFileStack.append (srcErrInfo.ourSrcFileName);
+	}
+
+	ourSrcFileName = srcErrInfo.ourSrcFileName;
+	ourSrcLineNum = srcErrInfo.ourSrcLineNum;
+	userMsg.clear();
+	userMsg = srcErrInfo.userMsg;
+
+
+	// TODO: I don't understand the comment below
+	// return the existing object so we can chain this operator
+	return (*this);
+}
+
 
 void ErrorInfo::set(errorType type, std::wstring srcFileName, int srcLineNum, std::wstring msgForUser) {
 	typeOfError = type;
@@ -48,6 +83,9 @@ std::wstring ErrorInfo::getFormattedMsg ()	{
 			msg.append (std::to_wstring(ourSrcLineNum));
 			msg.append (L". ");
 			msg.append (userMsg);
+			msg.append (L"\n");
+			msg.append (L"Source stack (-cycles): ");
+			msg.append (srcFileStack);
 
 			break;
 		default:

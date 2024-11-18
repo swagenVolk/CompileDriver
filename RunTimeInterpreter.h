@@ -12,26 +12,27 @@
 #include <map>
 #include "CompileExecTerms.h"
 #include "Utilities.h"
+#include "ErrorInfo.h"
 
 class RunTimeInterpreter {
 public:
+	RunTimeInterpreter();
 	RunTimeInterpreter(CompileExecTerms & execTerms);
 	virtual ~RunTimeInterpreter();
-	int execOperation (Token * opr8r, TokenPtrVector & operands, Token & resultTkn);
+	int execOperation (std::shared_ptr <Token> opr8r, TokenPtrVector & operands, Token & resultTkn);
   void dumpTokenPtrStream (TokenPtrVector tokenStream, std::wstring callersSrcFile, int lineNum);
   void dumpTokenList (std::vector<Token> & tokenList, std::wstring callersSrcFile, int lineNum);
-  int consumeUnifiedStream (TokenPtrVector & unifiedStream, int startIdx);
-  int resolveFlattenedExpr(std::vector<Token> & exprTknStream);
+  int resolveFlattenedExpr(std::vector<Token> & exprTknStream, ErrorInfo & callersErrInfo);
 
 protected:
 
 private:
-  Token * oneTkn;
-  Token * zeroTkn;
+  std::shared_ptr <Token> oneTkn;
+  std::shared_ptr <Token> zeroTkn;
   CompileExecTerms execTerms;
 	std::wstring thisSrcFile;
 	Utilities util;
-	int failedOnLineNum;
+	ErrorInfo errorInfo;
 
 	int execUnaryOp (std::vector<Token> & exprTknStream, int & callersIdx);
 	int execAssignmentOp(std::vector<Token> & exprTknStream, int & callersIdx);

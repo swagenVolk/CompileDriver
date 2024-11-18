@@ -10,9 +10,10 @@
 
 #include <string>
 #include <stdint.h>
-#include <assert.h>
+#include <cassert>
 #include <stdexcept>
 #include <stack>
+#include <memory>
 #include "common.h"
 #include "CompileExecTerms.h"
 #include "Token.h"
@@ -49,13 +50,13 @@ private:
   ErrorInfo errorInfo;
   CompileExecTerms usrSrcTerms;
   Utilities util;
-  std::vector<ScopeFrame> scopeStack;
+  std::vector<std::shared_ptr<ScopeFrame>> scopeStack;
   std::ofstream interpretedFile;
-  std::shared_ptr<InterpretedFileWriter> interpretedFileWriter;
-  std::shared_ptr<RunTimeInterpreter> interpreter;
-  std::unique_ptr<ExpressionParser> exprParser;
+  InterpretedFileWriter interpretedFileWriter;
+  RunTimeInterpreter interpreter;
+  ExpressionParser exprParser;
 
-  int parseVarDeclaration (uint8_t dataTypeOpCode);
+  int parseVarDeclaration (std::wstring dataTypeStr, std::pair<TokenTypeEnum, uint8_t> tknType_opCode);
 
 
 };

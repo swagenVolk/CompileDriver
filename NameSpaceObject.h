@@ -26,7 +26,7 @@ public:
 
 	// IF, ELSE IF, ELSE, WHILE, FOR, DO WHILE blocks all have a conditional expression
 	// Fxn call definitions may have [0-MANY] parameters (conditionals?) passed
-	std::list<ExprTreeNode *> myConditions;
+	std::list<std::shared_ptr<ExprTreeNode>> myConditions;
 };
 
 #endif /* NAMESPACEOBJECT_H_ */

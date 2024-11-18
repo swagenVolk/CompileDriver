@@ -21,7 +21,8 @@ NameSpaceObject::~NameSpaceObject() {
 	}
 
 	while (!myConditions.empty())	{
-		delete (myConditions.front());
+		std::shared_ptr<ExprTreeNode> delTree = myConditions.front();
+		delTree.reset();
 	}
 }
 

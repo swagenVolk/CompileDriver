@@ -40,11 +40,11 @@
 #include "CompileExecTerms.h"
 #include "Operator.h"
 
-ExpressionParser::ExpressionParser(CompileExecTerms & inUsrSrcTerms, TokenPtrVector & inTknStream) {
+ExpressionParser::ExpressionParser(CompileExecTerms & inUsrSrcTerms) {
 	// TODO Auto-generated constructor stub
 	thisSrcFile = util.getLastSegment(util.stringToWstring(__FILE__), L"/");
+	errorInfo.set1stInSrcStack (thisSrcFile);
 	usrSrcTerms = inUsrSrcTerms;
-	tknStream = inTknStream;
 }
 
 
@@ -58,17 +58,21 @@ ExpressionParser::~ExpressionParser() {
  * the interpreted stream. If it's not well formed, generated a clear error
  * message to the user.
  * ***************************************************************************/
-int ExpressionParser::parseExpression (ExprTreeNode ** expressionTree, Token & enderTkn, bool isEndedByComma)  {
+int ExpressionParser::parseExpression (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree, Token & enderTkn, bool isEndedByComma, ErrorInfo & callersErrInfo)  {
   int ret_code = GENERAL_FAILURE;
 
-  if (*expressionTree != NULL)	{
+  if (expressionTree == NULL)	{
+  	errorInfo.set (INTERNAL_ERROR, thisSrcFile, __LINE__, L"Passed parameter expressionTree is NULL!");
 
-		NestedScopeExpr * rootScope = new NestedScopeExpr (reinterpret_cast<ExprTreeNode *>(NULL));
+  } else	{
+
+		std::shared_ptr<NestedScopeExpr> rootScope = std::make_shared<NestedScopeExpr>();
 		exprScopeStack.push_back (rootScope);
 
 		bool isWholeExprClosed = false;
 		bool isFailed = false;
 		bool is1stTkn = true;
+		int top;
 		uint32_t curr_legal_tkn_types;
 		uint32_t next_legal_tkn_types;
 		uint32_t prev_tkn_type = 0;
@@ -84,7 +88,8 @@ int ExpressionParser::parseExpression (ExprTreeNode ** expressionTree, Token & e
 			// Consume flat stream of Tokens in current expression; attach each to an ExprTreeNode for tree transformation
 			while (!isFailed && !isWholeExprClosed)	{
 				if (!tknStream.empty())	{
-					Token *currTkn = tknStream.front();
+					// TODO: I'm losing currTkn somewhere along the line!
+					std::shared_ptr<Token> currTkn = { tknStream.front() };
 
 					if (is1stTkn)	{
 						// Token that starts expression will determine how we end the expression
@@ -96,9 +101,37 @@ int ExpressionParser::parseExpression (ExprTreeNode ** expressionTree, Token & e
 						is1stTkn = false;
 					}
 
-					// TODO: Check here for non-OPR8R types of expectedEndTkn e.g. [,]
+					if (currTkn->tkn_type != SRC_OPR8R_TKN && expectedEndTkn.tkn_type == currTkn->tkn_type && currTkn->_string == expectedEndTkn._string)	{
+						// Check here for non-OPR8R types of expectedEndTkn e.g. [,]
+						// Remove Token from stream without destroying - move to flat expression in current scope
+						tknStream.erase(tknStream.begin());
 
-					if (!isExpectedTknType (curr_legal_tkn_types, next_legal_tkn_types, currTkn))	{
+						if (0 == (curr_legal_tkn_types & (VAR_NAME_NXT_OK|LITERAL_NXT_OK|OPEN_PAREN_NXT_OK)))	{
+							// Check if expression is in a closeable state
+							isWholeExprClosed = true;
+							enderTkn = *currTkn;
+
+							top = exprScopeStack.size() - 1;
+							if (exprScopeStack[top]->scopedKids.size() == 0)	{
+								errorInfo.set (INTERNAL_ERROR, thisSrcFile, __LINE__, L"Expression ender " + currTkn->description() + L" closed an empty express!");
+								isFailed = true;
+
+							} else if (exprScopeStack[top]->scopedKids.size() > 1)	{
+								turnClosedScopeIntoTree (exprScopeStack[top]->scopedKids);
+							}
+
+						} else	{
+							errorInfo.set (USER_ERROR, thisSrcFile, __LINE__, L"Expression ender " + currTkn->description() + L" not used validly.");
+							isFailed = true;
+						}
+
+					} else if (currTkn->tkn_type == SRC_OPR8R_TKN && currTkn->_string == usrSrcTerms.get_statement_ender())	{
+						// TODO: Recursively wrap up the expression scope stack (Put ; at the root and what should be a single ExprTreeNode as the 1st child
+						tknStream.erase(tknStream.begin());
+						isWholeExprClosed = true;
+						enderTkn = *currTkn;
+
+					} else if (!isExpectedTknType (curr_legal_tkn_types, next_legal_tkn_types, currTkn))	{
 						errorInfo.set (USER_ERROR, thisSrcFile, __LINE__
 								,L"Unexpected token type! Expected " + makeExpectedTknTypesStr(curr_legal_tkn_types) + L" but got " + currTkn->description());
 						isFailed = true;
@@ -118,14 +151,14 @@ int ExpressionParser::parseExpression (ExprTreeNode ** expressionTree, Token & e
 					} else if ((currTkn->tkn_type == SPR8R_TKN && currTkn->_string == L"(")
 							|| (currTkn->tkn_type == SRC_OPR8R_TKN && (TERNARY_1ST & usrSrcTerms.get_type_mask(currTkn->_string))))	{
 						// Open parenthesis or 1st ternary
-						if (OK != openSubExprScope())	{
+						if (OK != openSubExprScope(tknStream))	{
 							isFailed = true;
 						}
 
 					} else if (currTkn->tkn_type == SPR8R_TKN && currTkn->_string == L")")	{
 						// Close parenthesis - syntactic sugar that just melts away
+						// Remove Token from stream without destroying - move to flat expression in current scope
 						tknStream.erase(tknStream.begin());
-						currTkn = NULL;
 						bool isOpenParenFndYet = false;
 
 						if (OK != closeParenClosesScope(isOpenParenFndYet))	{
@@ -151,8 +184,11 @@ int ExpressionParser::parseExpression (ExprTreeNode ** expressionTree, Token & e
 									}
 								}
 
-								if (!isFailed)	{
+								if (!isFailed && expectedEndTkn.tkn_type == SPR8R_TKN && expectedEndTkn._string == L")")	{
 									// Check if the expression has been collapsed down to a single ExprTreeNode
+									// If it was ended by a comma
+									// uint32 numFruits = 3 + 4, numVeggies = (3 * (1 + 2)), numPizzas = (4 + (2 * 3));
+									//                                                    ^ then we can't close it out yet
 									if (exprScopeStack.size() == 1 && exprScopeStack[0]->scopedKids.size() == 1)	{
 										// TODO: Double check tree health before calling it a day?
 										isWholeExprClosed = true;
@@ -160,55 +196,47 @@ int ExpressionParser::parseExpression (ExprTreeNode ** expressionTree, Token & e
 									}
 								}
 							}
-						} else	{
-							// Check if this also completes our expression
-							if (exprScopeStack.size() == 1)	{
-								// isExprScope TODO
-								if (1 == exprScopeStack[0]->scopedKids.size())
-									// TODO: Double check tree health before calling it a day?
-									isWholeExprClosed = true;
-									enderTkn = *currTkn;
-							}
 						}
-						delete currTkn;
+						currTkn.reset();
 
 					} else if (currTkn->tkn_type == END_OF_STREAM_TKN) {
 						errorInfo.set (INTERNAL_ERROR, thisSrcFile, __LINE__, L"parseExpression should never hit END_OF_STREAM_TKN!");
 						isFailed = true;
+						tknStream.erase(tknStream.begin());
 
 					} else	{
 						// Remove Token from stream without destroying - move to flat expression in current scope
 						tknStream.erase(tknStream.begin());
-						ExprTreeNode * treeNode = new ExprTreeNode (currTkn);
+						std::shared_ptr<ExprTreeNode> treeNode = std::make_shared<ExprTreeNode> (currTkn);
+						top = exprScopeStack.size() - 1;
+						std::shared_ptr<NestedScopeExpr> topScope = exprScopeStack[top];
+						topScope->scopedKids.push_back (treeNode);
 
-						if (currTkn->tkn_type == SRC_OPR8R_TKN && currTkn->_string == usrSrcTerms.get_statement_ender())	{
-							// TODO: Recursively wrap up the expression scope stack (Put ; at the root and what should be a single ExprTreeNode as the 1st child
-							isWholeExprClosed = true;
-							enderTkn = *currTkn;
-
-						} else if (expectedEndTkn.tkn_type == currTkn->tkn_type && currTkn->_string == expectedEndTkn._string)	{
-							isWholeExprClosed = true;
-							enderTkn = *currTkn;
-
-						} else	{
-							exprScopeStack[exprScopeStack.size() - 1]->scopedKids.push_back (treeNode);
-
-							if (currTkn->tkn_type == SRC_OPR8R_TKN && (TERNARY_2ND & usrSrcTerms.get_type_mask(currTkn->_string)))
-								// Keep track of secondary ternary operators; expecting only 1 paired with 1st ternary, which
-								// opened a new scope inside the expression
-								exprScopeStack[exprScopeStack.size() - 1]->ternary2ndCnt++;
-						}
+						if (currTkn->tkn_type == SRC_OPR8R_TKN && (TERNARY_2ND & usrSrcTerms.get_type_mask(currTkn->_string)))
+							// Keep track of secondary ternary operators; expecting only 1 paired with 1st ternary, which
+							// opened a new scope inside the expression
+							exprScopeStack[top]->ternary2ndCnt++;
+						// TODO: Don't accumulate junk. We've moved|shared what was in this pointer by now
+						treeNode.reset();
 					}
 
 					curr_legal_tkn_types = next_legal_tkn_types;
 					// Only reason to look back at previous Token is for a postfix opr8r; must be a VAR_NAME to be valid.  Can't have been converted to an lvalue
 					prev_tkn_type = curr_tkn_type;
+
+					// TODO: Don't accumulate junk. We've moved|shared what was in this pointer by now
+					currTkn.reset();
 				}
 			}
 
 			if (isWholeExprClosed && !isFailed)	{
-				ret_code = OK;
-				*expressionTree = exprScopeStack[0]->scopedKids[0];
+				if (exprScopeStack.size() == 1 && 1 == exprScopeStack[0]->scopedKids.size())	{
+						// TODO: Double check tree health before calling it a day?
+						ret_code = OK;
+						expressionTree = { exprScopeStack[0]->scopedKids[0] };
+				} else	{
+					errorInfo.set (INTERNAL_ERROR, thisSrcFile, __LINE__, L"Expression was closed but could not be made into a tree!");
+				}
 			}
 		}
 
@@ -216,12 +244,13 @@ int ExpressionParser::parseExpression (ExprTreeNode ** expressionTree, Token & e
 		if (ret_code != OK) {
 			if (errorInfo.isEmpty())
 				errorInfo.set (INTERNAL_ERROR, thisSrcFile, __LINE__, L"Error Info not logged!");
-
-			std::wcout << errorInfo.getFormattedMsg() << std::endl;
 		}
 
 		cleanScopeStack();
   }
+
+  if (ret_code != OK)
+  	callersErrInfo = errorInfo;
 
   return (ret_code);
 }
@@ -253,11 +282,12 @@ int ExpressionParser::closeParenClosesScope (bool & isOpenParenFndYet)  {
 	// Get pointer to ExprTreeNode that contains the '(' or [?] that opened the top scope
 	// This fxn was called when we encountered a ')', but the corresponding '(' could be
 	// several scope levels deep if we've got nested TERNARY OPR8Rs
-	ExprTreeNode * scopener = NULL;
+	std::shared_ptr<ExprTreeNode> scopener = NULL;
 	std::wstring scopenerDesc;
 
+	int top = exprScopeStack.size() - 1;
 	if (exprScopeStack.size() >= 2)	{
-		scopener = (ExprTreeNode *)(exprScopeStack[exprScopeStack.size() - 1]->myParentScopener);
+		scopener = (std::shared_ptr<ExprTreeNode>)(exprScopeStack[top]->myParentScopener);
 
 	}
 	if (scopener == NULL)	{
@@ -286,11 +316,11 @@ int ExpressionParser::closeParenClosesScope (bool & isOpenParenFndYet)  {
 			if (OK == turnClosedScopeIntoTree (exprScopeStack[exprScopeStack.size() - 1]->scopedKids))	{
 				// Update the placeholder "(" ExprTreeNode so that it now points to the parent ExprTreeNode
 				// TODO: After expression is completed, then remove the intermediary "(" objects ???????
-				NestedScopeExpr * stackTop = exprScopeStack[exprScopeStack.size() - 1];
+				std::shared_ptr<NestedScopeExpr> stackTop = exprScopeStack[exprScopeStack.size() - 1];
 
-				ExprTreeNode * subExpr = stackTop->scopedKids[0];
+				std::shared_ptr<ExprTreeNode> subExpr = stackTop->scopedKids[0];
 				exprScopeStack.erase(exprScopeStack.end());
-				delete stackTop;
+				stackTop.reset();
 
 				int stackSize = exprScopeStack.size();
 
@@ -301,9 +331,9 @@ int ExpressionParser::closeParenClosesScope (bool & isOpenParenFndYet)  {
 					ExprTreeNodePtrVector & childList = exprScopeStack[currStackIdx]->scopedKids;
 
 					for (nodeR8r = childList.begin(); nodeR8r != childList.end() && !isScopenerFound && !isFailed; nodeR8r++)	{
-						ExprTreeNode * currNode = *nodeR8r;
+						std::shared_ptr<ExprTreeNode> currNode = *nodeR8r;
 
-						if ((void *)currNode == (void *)scopener)	{
+						if (currNode.get() == scopener.get())	{
 							// Found the branch that opened the previous scope. Now attach subExpr to it
 							isScopenerFound = true;
 
@@ -337,8 +367,8 @@ int ExpressionParser::closeParenClosesScope (bool & isOpenParenFndYet)  {
 								isExprAttached = true;
 								ret_code = OK;
 
-								ExprTreeNode * child1 = subExpr->_1stChild;
-								ExprTreeNode * child2 = subExpr->_2ndChild;
+								std::shared_ptr<ExprTreeNode> child1 = subExpr->_1stChild;
+								std::shared_ptr<ExprTreeNode> child2 = subExpr->_2ndChild;
 								if (child2 != NULL && child2->originalTkn != NULL && child2->originalTkn->_string == usrSrcTerms.get_ternary_1st())	{
 									// TODO: Is there any reason to check child1?
 									scopener->_2ndChild = subExpr;
@@ -361,10 +391,10 @@ int ExpressionParser::closeParenClosesScope (bool & isOpenParenFndYet)  {
 						ExprTreeNodePtrVector::iterator delR8r;
 
 						for (delR8r = childList.begin(); delR8r != childList.end() && !isVestigeDeleted; delR8r++)	{
-							ExprTreeNode * currBranch = (ExprTreeNode *)*delR8r;
+							std::shared_ptr<ExprTreeNode> currBranch = (std::shared_ptr<ExprTreeNode>)*delR8r;
 							if (currBranch == scopener)	{
 								delR8r = childList.erase(delR8r);
-								delete ((ExprTreeNode *)scopener);
+								scopener.reset();
 								scopener = NULL;
 								isVestigeDeleted = true;
 								ret_code = OK;
@@ -440,9 +470,9 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
   ExprTreeNodePtrVector::iterator prevNodeR8r;
   ExprTreeNodePtrVector::iterator currNodeR8r;
   ExprTreeNodePtrVector::iterator nextNodeR8r;
-  ExprTreeNode * prevNode = NULL;
-  ExprTreeNode * currNode = NULL;
-  ExprTreeNode * nextNode = NULL;
+  std::shared_ptr<ExprTreeNode> prevNode = NULL;
+  std::shared_ptr<ExprTreeNode> currNode = NULL;
+  std::shared_ptr<ExprTreeNode> nextNode = NULL;
 
   std::list<Opr8rPrecedenceLvl>::iterator outr8r;
   std::list<Operator>::iterator innr8r;
@@ -469,7 +499,7 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 
 				currNode = *currNodeR8r;
 				// Make an alias variable for code readability
-				Token * currTkn = currNode->originalTkn;
+				std::shared_ptr <Token> currTkn = currNode->originalTkn;
 
 				if (currNode == NULL)	{
 					errorInfo.set (INTERNAL_ERROR, thisSrcFile, __LINE__, L"ExprTreeNode pointer is NULL! ");
@@ -571,10 +601,11 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 								ExprTreeNodePtrVector::iterator delR8r;
 								for (delR8r = currScope.begin(); delR8r != currScope.end();)	{
 									// For moved nodes, remove from list in reverse order
-									if (nextNode != NULL && (void *)*delR8r == (void *)nextNode)	{
+									std::shared_ptr<ExprTreeNode> delNode = *delR8r;
+									if (nextNode != NULL && delNode.get() == nextNode.get())	{
 										currScope.erase (delR8r);
 									}
-									else if (prevNode != NULL && (void *)*delR8r == (void *)prevNode)	{
+									else if (prevNode != NULL && delNode.get() == prevNode.get())	{
 										currScope.erase (delR8r);
 									} else {
 										delR8r++;
@@ -593,12 +624,12 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 									//       (2nd)[Third, ==]			            (2nd)[four, MANY]
 									//                  (2nd)[count, 4]
 									// and move the other ExprTreeNode underneath ? _1stChild
-									Token * branch0Tkn = currScope[0]->originalTkn;
-									Token * branch1Tkn = currScope[1]->originalTkn;
+									std::shared_ptr <Token> branch0Tkn = currScope[0]->originalTkn;
+									std::shared_ptr <Token> branch1Tkn = currScope[1]->originalTkn;
 									if (branch1Tkn->_string == usrSrcTerms.get_ternary_1st() && currScope[1]->_1stChild == NULL)	{
 
 										delR8r = currScope.begin();
-										ExprTreeNode * kidToMove = NULL;
+										std::shared_ptr<ExprTreeNode> kidToMove = NULL;
 										kidToMove = *delR8r;
 										currScope.erase(delR8r);
 										currScope[0]->_1stChild = kidToMove;
@@ -631,7 +662,7 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 				ExprTreeNodePtrVector & childList = exprScopeStack[exprScopeStack.size() - 1]->scopedKids;
 
 				for (nodeR8r = childList.begin(); nodeR8r != childList.end(); nodeR8r++)	{
-					ExprTreeNode * currNode = *nodeR8r;
+					std::shared_ptr<ExprTreeNode> currNode = *nodeR8r;
 					currNode->showTree(currNode, thisSrcFile, __LINE__);
 				}
 			}
@@ -741,9 +772,10 @@ bool ExpressionParser::isTernaryOpen ()  {
 
 	int stackSize = exprScopeStack.size();
 	if (stackSize >= 1)	{
-		NestedScopeExpr * currScope = exprScopeStack[stackSize - 1];
-		if (currScope->myParentScopener != NULL)	{
-			ExprTreeNode * scopener = (ExprTreeNode *)currScope->myParentScopener;
+		std::shared_ptr<NestedScopeExpr> currScope = { exprScopeStack[stackSize - 1] };
+
+		if (currScope->myParentScopener != 0)	{
+			std::shared_ptr<ExprTreeNode> scopener = (std::shared_ptr<ExprTreeNode>)currScope->myParentScopener;
 
 			if (scopener->originalTkn->tkn_type == SRC_OPR8R_TKN
 					&& (TERNARY_1ST & usrSrcTerms.get_type_mask(scopener->originalTkn->_string)))
@@ -751,7 +783,7 @@ bool ExpressionParser::isTernaryOpen ()  {
 		}
 	}
 
-	return isT3rnOpen;
+	return (isT3rnOpen);
 }
 
 /* ****************************************************************************
@@ -763,7 +795,7 @@ int ExpressionParser::get2ndTernaryCnt ()  {
 
 	int stackSize = exprScopeStack.size();
 	if (stackSize > 0)	{
-		NestedScopeExpr * currScope = exprScopeStack[exprScopeStack.size() - 1];
+		std::shared_ptr<NestedScopeExpr> currScope = exprScopeStack[exprScopeStack.size() - 1];
 		count = currScope->ternary2ndCnt;
 	}
 
@@ -774,7 +806,7 @@ int ExpressionParser::get2ndTernaryCnt ()  {
  * Centralized logic determines if the current Token is legal given the allowed
  * Token types. If legal, sets the type(s) the legal types for the next Token.
  * ***************************************************************************/
-bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t & next_legal_tkn_types, Token * curr_tkn)  {
+bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t & next_legal_tkn_types, std::shared_ptr<Token> curr_tkn)  {
   bool isTknTypeOK = false;
 
   if (curr_tkn != NULL)	{
@@ -831,18 +863,18 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   			&& (TERNARY_2ND & usrSrcTerms.get_type_mask(curr_tkn->_string)))	{
   		isTknTypeOK = true;
   		// TODO: Is PREFIX_OPR8R legit here?
-  		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
+  		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|OPEN_PAREN_NXT_OK);
 
   	} else if ((allowed_tkn_types & TERNARY_OPR8R_1ST_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN
   			&& (TERNARY_1ST & usrSrcTerms.get_type_mask(curr_tkn->_string)))	{
     	// TERNARY_OPR8R
   		isTknTypeOK = true;
-  		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
+  		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|OPEN_PAREN_NXT_OK);
 
   	} else if ((allowed_tkn_types & BINARY_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN && !execBinaryOpr8rStr.empty())	{
     	// BINARY_OPR8R
  			curr_tkn->_string = execBinaryOpr8rStr;
-			next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
+			next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|OPEN_PAREN_NXT_OK);
 			isTknTypeOK = true;
 
   	} else if ((allowed_tkn_types & OPEN_PAREN_NXT_OK) && SPR8R_TKN == curr_tkn->tkn_type && 0 == curr_tkn->_string.compare(L"("))	{
@@ -874,23 +906,23 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
  *
  * ***************************************************************************/
 void ExpressionParser::cleanScopeStack()	{
-	std::vector<NestedScopeExpr *>::reverse_iterator scopeR8r;
-	std::vector<ExprTreeNode *>::reverse_iterator kidR8r;
+	std::vector<std::shared_ptr<NestedScopeExpr>>::reverse_iterator scopeR8r;
+	std::vector<std::shared_ptr<ExprTreeNode>>::reverse_iterator kidR8r;
 	int lastKidIdx;
 
 	// Clean up our allocated memory
 	for (scopeR8r = exprScopeStack.rbegin(); scopeR8r != exprScopeStack.rend(); scopeR8r++)	{
-		NestedScopeExpr * currScope = *scopeR8r;
+		std::shared_ptr<NestedScopeExpr> currScope = *scopeR8r;
 
 		while (!currScope->scopedKids.empty())	{
 			lastKidIdx = currScope->scopedKids.size() - 1;
-			ExprTreeNode * lastKid = currScope->scopedKids[lastKidIdx];
+			std::shared_ptr<ExprTreeNode> lastKid = currScope->scopedKids[lastKidIdx];
 			currScope->scopedKids.pop_back();
-			delete (lastKid);
+			lastKid.reset();
 		}
 
 		exprScopeStack.pop_back();
-		delete (currScope);
+		currScope.reset();
 	}
 }
 
@@ -898,19 +930,19 @@ void ExpressionParser::cleanScopeStack()	{
  * Next Token is a opening parenthesis or an opening ternary (?)
  * Increase the current scope level of the expression
  * ***************************************************************************/
-int ExpressionParser::openSubExprScope ()  {
+int ExpressionParser::openSubExprScope (TokenPtrVector & tknStream)  {
   int ret_code = GENERAL_FAILURE;
 
-	Token *currTkn = tknStream.front();
+	std::shared_ptr <Token>currTkn = tknStream.front();
 	// Remove the Token from the stream without destroying it
 	tknStream.erase(tknStream.begin());
-	ExprTreeNode * branchNode = new ExprTreeNode (currTkn);
+	std::shared_ptr<ExprTreeNode> branchNode = std::make_shared<ExprTreeNode> (currTkn);
 	exprScopeStack[exprScopeStack.size() - 1]->scopedKids.push_back (branchNode);
 
 	// Create enclosed scope with pointer back to originating ExprTreeNode/Token (probably an open paren)
-	NestedScopeExpr * nextScope = new NestedScopeExpr (branchNode);
+	// Attach this shared_ptr to an already existing shared_ptr of type NestedScopeExpr
+	std::shared_ptr<NestedScopeExpr> nextScope (std::make_shared<NestedScopeExpr> (branchNode));
 	// We need to point back to the node that opened this new scope
-	nextScope->myParentScopener = branchNode;
 	exprScopeStack.push_back (nextScope);
 	ret_code = OK;
 
@@ -932,52 +964,67 @@ int ExpressionParser::openSubExprScope ()  {
  * 	TODO: Handle this via a different fxn to make life easier.
  *
  * ***************************************************************************/
-int ExpressionParser::getExpectedEndToken (Token * startTkn, uint32_t & _1stTknType, Token & expectedEndTkn, bool isEndedByComma)	{
+int ExpressionParser::getExpectedEndToken (std::shared_ptr<Token> startTkn, uint32_t & _1stTknType, Token & expectedEndTkn, bool isEndedByComma)	{
 	int ret_code = GENERAL_FAILURE;
+	bool isFailed = false;
 
 	if (startTkn != NULL)	{
+		expectedEndTkn.resetToken();
+
 		if (startTkn->tkn_type == SPR8R_TKN && startTkn->_string == L"(")	{
 			// TODO: What about uint32 someVar = (3 + 2 *5), <-- We could miss this in the caller
 			expectedEndTkn.tkn_type = SPR8R_TKN;
 			expectedEndTkn._string = L")";
 			_1stTknType = OPEN_PAREN_NXT_OK;
-			ret_code = OK;
-
-		}	else if (isEndedByComma)	{
-			expectedEndTkn.tkn_type = SPR8R_TKN;
-			expectedEndTkn._string = L",";
-			_1stTknType = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
-			ret_code = OK;
 
 		} else if (startTkn->tkn_type == KEYWORD_TKN)	{
-			// Must be [VAR_NAME|FXN_CALL] that currently exists in the NameSpace
+			// TODO: Must be [VAR_NAME|FXN_CALL] that currently exists in the NameSpace
+			_1stTknType = (VAR_NAME_NXT_OK);
 
-		} else if ((startTkn->tkn_type == SRC_OPR8R_TKN && ((PREFIX|UNARY) & usrSrcTerms.get_type_mask(startTkn->_string)))
-			// TODO: I don't remember what I was trying to accomplish here...
-			|| startTkn->tkn_type == STRING_TKN
+		} else if (startTkn->tkn_type == SRC_OPR8R_TKN && ((PREFIX|UNARY) & usrSrcTerms.get_type_mask(startTkn->_string)))	{
+			_1stTknType = (PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK);
+
+		} else if (startTkn->tkn_type == STRING_TKN
 			|| startTkn->tkn_type == DATETIME_TKN
+			|| startTkn->tkn_type == UINT8_TKN
 			|| startTkn->tkn_type == UINT16_TKN
 			|| startTkn->tkn_type == UINT32_TKN
 			|| startTkn->tkn_type == UINT64_TKN
+			|| startTkn->tkn_type == INT8_TKN
 			|| startTkn->tkn_type == INT16_TKN
 			|| startTkn->tkn_type == INT32_TKN
 			|| startTkn->tkn_type == INT64_TKN
 			|| startTkn->tkn_type == DOUBLE_TKN)	{
 			expectedEndTkn.tkn_type = SRC_OPR8R_TKN;
+			_1stTknType = LITERAL_NXT_OK;
 
+		} else	{
+			isFailed = true;
+  		errorInfo.set (INTERNAL_ERROR, thisSrcFile, __LINE__, L"Could not determine _1stTknType! ");
+		}
+
+		if (!isFailed && isEndedByComma)	{
+			expectedEndTkn.tkn_type = SPR8R_TKN;
+			expectedEndTkn._string = L",";
+		}
+
+		if (!isFailed && expectedEndTkn.tkn_type == START_UNDEF_TKN)	{
 			std::wstring statementEnder = usrSrcTerms.get_statement_ender();
 			if (statementEnder.length() > 0)	{
+				expectedEndTkn.tkn_type = SRC_OPR8R_TKN;
 				expectedEndTkn._string = statementEnder;
-		  	ret_code = OK;
-		  }
 
-		  if (ret_code != OK)	{
+			} else	{
+				isFailed = true;
 	  		errorInfo.set (INTERNAL_ERROR, thisSrcFile, __LINE__, L"Could not find STATEMENT_ENDER operator! ");
-		  }
+			}
 		}
+
+	  if (!isFailed)
+	  	ret_code = OK;
 	}
 
-	return ret_code;
+	return (ret_code);
 }
 
 /* ****************************************************************************
@@ -985,16 +1032,16 @@ int ExpressionParser::getExpectedEndToken (Token * startTkn, uint32_t & _1stTknT
  * ***************************************************************************/
 void ExpressionParser::printScopeStack (std::wstring fileName, int lineNumber)	{
 
-	std::vector<NestedScopeExpr *>::reverse_iterator scopeR8r;
-	std::vector<ExprTreeNode *>::iterator kidR8r;
+	std::vector<std::shared_ptr<NestedScopeExpr>>::reverse_iterator scopeR8r;
+	std::vector<std::shared_ptr<ExprTreeNode>>::iterator kidR8r;
 	int scopeLvl = exprScopeStack.size() - 1;
 
 	std::wcout << L"********** ExpressionParser::printScopeStack called from " << fileName << L":" << lineNumber << L" **********" << std::endl;
 	for (scopeR8r = exprScopeStack.rbegin(); scopeR8r != exprScopeStack.rend(); scopeR8r++)	{
 		std::wcout << L"Scope Level " << scopeLvl << L":";
-		NestedScopeExpr * currScope = *scopeR8r;
+		std::shared_ptr<NestedScopeExpr> currScope = *scopeR8r;
 		for (kidR8r = currScope->scopedKids.begin(); kidR8r != currScope->scopedKids.end(); kidR8r++)	{
-			ExprTreeNode * currKid = *kidR8r;
+			std::shared_ptr<ExprTreeNode> currKid = *kidR8r;
 			std::wcout << L" " << currKid->originalTkn->_string;
 		}
 

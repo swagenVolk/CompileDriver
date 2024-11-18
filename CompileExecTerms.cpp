@@ -142,17 +142,18 @@ CompileExecTerms::CompileExecTerms() {
   _1char_spr8rs = L"()[]{},";
   // TODO: Is a comma a spr8r?  What about the '\' character, for paths?
 
-  valid_data_types.insert (std::pair {L"uint8", DATA_TYPE_UINT8_OPCODE});
-  valid_data_types.insert (std::pair {L"uint16", DATA_TYPE_UINT16_OPCODE});
-  valid_data_types.insert (std::pair {L"uint32", DATA_TYPE_UINT32_OPCODE});
-  valid_data_types.insert (std::pair {L"uint64", DATA_TYPE_UINT64_OPCODE});
-  valid_data_types.insert (std::pair {L"int8", DATA_TYPE_INT8_OPCODE});
-  valid_data_types.insert (std::pair {L"int16", DATA_TYPE_INT16_OPCODE});
-  valid_data_types.insert (std::pair {L"int32", DATA_TYPE_INT32_OPCODE});
-  valid_data_types.insert (std::pair {L"int64", DATA_TYPE_INT64_OPCODE});
-  valid_data_types.insert (std::pair {L"string", DATA_TYPE_STRING_OPCODE});
-  valid_data_types.insert (std::pair {L"datetime", DATA_TYPE_DATETIME_OPCODE});
-  valid_data_types.insert (std::pair {L"double", DATA_TYPE_DOUBLE_OPCODE});
+  valid_data_types.insert (std::pair {L"uint8", std::pair {UINT8_TKN, DATA_TYPE_UINT8_OPCODE}});
+  valid_data_types.insert (std::pair {L"uint16", std::pair {UINT16_TKN, DATA_TYPE_UINT16_OPCODE}});
+  valid_data_types.insert (std::pair {L"uint32", std::pair {UINT32_TKN , DATA_TYPE_UINT32_OPCODE}});
+  valid_data_types.insert (std::pair {L"uint64", std::pair {UINT64_TKN, DATA_TYPE_UINT64_OPCODE}});
+  valid_data_types.insert (std::pair {L"int8", std::pair {INT8_TKN, DATA_TYPE_INT8_OPCODE}});
+  valid_data_types.insert (std::pair {L"int16", std::pair {INT16_TKN, DATA_TYPE_INT16_OPCODE}});
+  valid_data_types.insert (std::pair {L"int32", std::pair {INT32_TKN, DATA_TYPE_INT32_OPCODE}});
+  valid_data_types.insert (std::pair {L"int64", std::pair {INT64_TKN, DATA_TYPE_INT64_OPCODE}});
+  valid_data_types.insert (std::pair {L"string", std::pair {STRING_TKN, DATA_TYPE_STRING_OPCODE}});
+  valid_data_types.insert (std::pair {L"datetime", std::pair {DATETIME_TKN, DATA_TYPE_DATETIME_OPCODE}});
+  valid_data_types.insert (std::pair {L"double", std::pair {DOUBLE_TKN, DATA_TYPE_DOUBLE_OPCODE}});
+
 
   // TODO: What is the right way to do this?
   validityCheck();

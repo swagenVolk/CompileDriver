@@ -152,7 +152,7 @@ int FileParser::peek_next_char (std::fstream & input_stream, wchar_t & peeked_ch
 /* ****************************************************************************
  * Convert this string Token into a datetime, if possible.
  * ***************************************************************************/
-void FileParser::cnvrt_tkn_if_datetime (Token * pssbl_datetime_tkn) {
+void FileParser::cnvrt_tkn_if_datetime (std::shared_ptr<Token> pssbl_datetime_tkn) {
 
   if (pssbl_datetime_tkn != NULL) {
     std::wstring date_time_str = pssbl_datetime_tkn->_string;
@@ -439,7 +439,7 @@ void FileParser::cnvrt_tkn_if_datetime (Token * pssbl_datetime_tkn) {
 /* ****************************************************************************
  * Now that the Token wstring has ended, ensure that it's of the right type
  * ***************************************************************************/
-void FileParser::resolve_final_tkn_type (Token * tkn_of_ambiguity)  {
+void FileParser::resolve_final_tkn_type (std::shared_ptr<Token>  tkn_of_ambiguity)  {
 
   std::wstring::iterator str_r8r;
   int idx;
@@ -610,14 +610,14 @@ tkn_type_enum FileParser::start_new_tkn_get_type (std::fstream & input_stream, T
     if (oppoSpr8rs.is_sngl_char_spr8r(curr_char))  {
       // Consume this Token right away by adding it to the Token stream
       curr_file_pos = input_stream.tellg();
-      Token *tkn = new Token(SPR8R_TKN, sngl_char_symbol, curr_tkn_starts_on_line_num, num_chars_chomped_this_line);
+      std::shared_ptr<Token> tkn = std::make_shared<Token> (SPR8R_TKN, sngl_char_symbol, curr_tkn_starts_on_line_num, num_chars_chomped_this_line);
       token_stream.push_back(tkn);
       tkn_type = START_UNDEF_TKN;
 
     } else if (oppoSpr8rs.is_atomic_opr8r(curr_char)) {
       // Consume this Token right away by adding it to the Token stream
       curr_file_pos = input_stream.tellg();
-      Token *tkn = new Token(SRC_OPR8R_TKN, sngl_char_symbol, curr_tkn_starts_on_line_num, num_chars_chomped_this_line);
+      std::shared_ptr<Token> tkn = std::make_shared<Token> (SRC_OPR8R_TKN, sngl_char_symbol, curr_tkn_starts_on_line_num, num_chars_chomped_this_line);
       token_stream.push_back(tkn);
       tkn_type = START_UNDEF_TKN;
 
@@ -798,7 +798,7 @@ int FileParser::gnr8_token_stream(std::string file_name, TokenPtrVector & token_
         case KEYWORD_TKN             :
           if (iswspace(curr_char) || oppoSpr8rs.is_sngl_char_spr8r(curr_char) || (iswpunct(curr_char) && curr_char != '_') )  {
             // Space, spr8r or punctuation (except _) ends a keyword
-            Token *tkn = new Token(curr_tkn_type, curr_str, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
+            std::shared_ptr<Token> tkn = std::make_shared<Token>(curr_tkn_type, curr_str, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
             token_stream.push_back(tkn);
             curr_str.clear();
 
@@ -832,7 +832,7 @@ int FileParser::gnr8_token_stream(std::string file_name, TokenPtrVector & token_
           // TODO: Can strings cross multiple lines? ???
           if (curr_char == '"' && this->prev_char != '\\') {
             // We got our closing quote and it was *NOT* escaped
-            Token *tkn = new Token(curr_tkn_type, curr_str, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
+            std::shared_ptr<Token> tkn = std::make_shared <Token> (curr_tkn_type, curr_str, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
             resolve_final_tkn_type (tkn);
             token_stream.push_back(tkn);
             curr_str.clear();
@@ -887,7 +887,7 @@ int FileParser::gnr8_token_stream(std::string file_name, TokenPtrVector & token_
         case INT32_TKN		       :
         case INT64_TKN		       :
           if (iswpunct(curr_char) || iswspace (curr_char) || oppoSpr8rs.is_sngl_char_spr8r(curr_char))  {
-            Token *tkn = new Token(curr_tkn_type, curr_str, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
+            std::shared_ptr<Token> tkn = std::make_shared <Token> (curr_tkn_type, curr_str, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
             resolve_final_tkn_type (tkn);
             token_stream.push_back(tkn);
             curr_str.clear();
@@ -911,7 +911,7 @@ int FileParser::gnr8_token_stream(std::string file_name, TokenPtrVector & token_
           // A single character OPR8R (e.g. ;) will end the currently accumulating OPR8R, and
           // both will be added to the Token stream in order
           if (!iswpunct(curr_char) || oppoSpr8rs.is_sngl_char_spr8r(curr_char) || oppoSpr8rs.is_atomic_opr8r(curr_char) || curr_char == '"')  {
-            Token *opr8r = new Token (curr_tkn_type, curr_str, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
+            std::shared_ptr<Token> opr8r = std::make_shared <Token> (curr_tkn_type, curr_str, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
             resolve_final_tkn_type (opr8r);
             token_stream.push_back (opr8r);
             curr_str.clear();
@@ -942,7 +942,7 @@ int FileParser::gnr8_token_stream(std::string file_name, TokenPtrVector & token_
     }
 
     if (!curr_str.empty() && failed_on_src_line_num == 0) {
-      Token *tkn = new Token(curr_tkn_type, curr_str, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
+      std::shared_ptr<Token> tkn = std::make_shared <Token> (curr_tkn_type, curr_str, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
       resolve_final_tkn_type (tkn);
       token_stream.push_back(tkn);
       curr_str.clear();
@@ -950,7 +950,7 @@ int FileParser::gnr8_token_stream(std::string file_name, TokenPtrVector & token_
 
     input_stream.close();
 
-    Token *eos_tkn = new Token(END_OF_STREAM_TKN, END_OF_STREAM_STR, 0, 0);
+    std::shared_ptr<Token> eos_tkn = std::make_shared <Token> (END_OF_STREAM_TKN, END_OF_STREAM_STR, 0, 0);
     token_stream.push_back (eos_tkn);
 
     if (failed_on_src_line_num == 0)

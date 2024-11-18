@@ -497,3 +497,82 @@ void Token::resetToString (std::wstring newValue)	{
 	_string = newValue;
 	tkn_type = STRING_TKN;
 }
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+int Token::convertTo (Token newValTkn)	{
+	int ret_code = GENERAL_FAILURE;
+
+	if (tkn_type == newValTkn.tkn_type)	{
+		*this = newValTkn;
+		ret_code = OK;
+
+	} else if (isUnsigned() && newValTkn.isUnsigned())	{
+		// Both are UNSIGNED
+		if (tkn_type >= newValTkn.tkn_type)
+			// Keep the user declared larger data_type size
+			_unsigned = newValTkn._unsigned;
+		else
+			this->resetToUnsigned (newValTkn._unsigned);
+		ret_code = OK;
+
+	}	else if (isSigned() && newValTkn.isSigned())	{
+		// Both are SIGNED
+		if (tkn_type >= newValTkn.tkn_type)
+			// Keep the user declared larger data_type size
+			_signed = newValTkn._signed;
+		else
+			this->resetToSigned (newValTkn._signed);
+		ret_code = OK;
+
+	} else if (tkn_type == DOUBLE_TKN && newValTkn.isSigned())	{
+		// DOUBLE SIGNED
+		_double = newValTkn._signed;
+		ret_code = OK;
+
+	} else if (tkn_type == DOUBLE_TKN && newValTkn.isUnsigned())	{
+		// DOUBLE UNSIGNED
+		_double = newValTkn._unsigned;
+		ret_code = OK;
+
+	} else if (isSigned() && newValTkn.tkn_type == DOUBLE_TKN)	{
+		// SIGNED DOUBLE
+    double beforeDecPt;
+    double afterDecPt = std::modf(newValTkn._double, &beforeDecPt);
+    if (afterDecPt == 0.0 && beforeDecPt <= INT64_MAX)	{
+			_signed = floor(beforeDecPt);
+    	ret_code = OK;
+    }
+
+	} else if (isSigned() && newValTkn.isUnsigned())	{
+		// SIGNED UNSIGNED
+		if (newValTkn.tkn_type <= UINT32_TKN)	{
+			_signed = (int64_t)newValTkn._unsigned;
+			ret_code = OK;
+		}
+
+	} else if (isUnsigned() && newValTkn.tkn_type == DOUBLE_TKN)	{
+		// UNSIGNED DOUBLE
+		if (newValTkn._double >= 0)	{
+			double beforeDecPt;
+			double afterDecPt = std::modf(newValTkn._double, &beforeDecPt);
+			if (afterDecPt == 0.0 && beforeDecPt <= UINT64_MAX)	{
+				_unsigned = floor(beforeDecPt);
+				ret_code = OK;
+			}
+		}
+
+	} else if (isUnsigned() && newValTkn.isSigned())	{
+		// UNSIGNED SIGNED
+		if (newValTkn._signed >= 0)	{
+			_unsigned = newValTkn._signed;
+			ret_code = OK;
+		}
+	}
+
+
+
+	return (ret_code);
+
+}

@@ -10,7 +10,7 @@
 
 #include <string>
 #include <stdint.h>
-#include <assert.h>
+#include <cassert>
 #include <stdexcept>
 #include <stack>
 #include "common.h"
@@ -44,14 +44,14 @@
 
 class ExpressionParser {
 public:
-	ExpressionParser(CompileExecTerms & inUsrSrcTerms, TokenPtrVector & inTknStream);
+	ExpressionParser(CompileExecTerms & inUsrSrcTerms);
 	virtual ~ExpressionParser();
-	int parseExpression (ExprTreeNode ** expressionTree, Token & enderTkn, bool isEndedByComma);
+	int parseExpression (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree, Token & enderTkn, bool isEndedByComma, ErrorInfo & callersErrInfo);
 
 
 private:
   TokenPtrVector tknStream;
-  std::vector<NestedScopeExpr *> exprScopeStack;
+  std::vector<std::shared_ptr<NestedScopeExpr>> exprScopeStack;
   std::wstring thisSrcFile;
   ErrorInfo errorInfo;
   CompileExecTerms usrSrcTerms;
@@ -59,13 +59,13 @@ private:
 
   void cleanScopeStack();
   std::wstring makeExpectedTknTypesStr (uint32_t expected_tkn_types);
-  bool isExpectedTknType (uint32_t allowed_tkn_types, uint32_t & next_legal_tkn_types, Token * curr_tkn);
-  int openSubExprScope ();
+  bool isExpectedTknType (uint32_t allowed_tkn_types, uint32_t & next_legal_tkn_types, std::shared_ptr<Token> curr_tkn);
+  int openSubExprScope (TokenPtrVector & tknStream);
   int closeParenClosesScope (bool & isOpenParenFndYet);
   bool isTernaryOpen();
   int get2ndTernaryCnt ();
   int turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope);
-  int getExpectedEndToken (Token * startTkn, uint32_t & _1stTknTypMsk, Token & expectedEndTkn, bool isEndedByComma);
+  int getExpectedEndToken (std::shared_ptr<Token> startTkn, uint32_t & _1stTknTypMsk, Token & expectedEndTkn, bool isEndedByComma);
   void printScopeStack(std::wstring fileName, int lineNumber);
 
 };
