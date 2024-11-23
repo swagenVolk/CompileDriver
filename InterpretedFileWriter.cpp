@@ -4,20 +4,22 @@
  *  Created on: Oct 14, 2024
  *      Author: Mike Volk
  *
+ *	TODO: Make sure error messages are captured
  */
 
 #include "InterpretedFileWriter.h"
 
-InterpretedFileWriter::InterpretedFileWriter(std::string output_file_name, CompileExecTerms & inExecTerms)
+InterpretedFileWriter::InterpretedFileWriter(std::string output_file_name, CompileExecTerms & inExecTerms
+		, UserMessages & userMessages)
 	: outputStream (output_file_name, outputStream.binary | outputStream.out)
 {
 	// TODO Auto-generated constructor stub
 	execTerms = & inExecTerms;
+	this->userMessages = userMessages;
 
 	// TODO: Are these asserts even necessary when the & operator is used in parameter list?
 	assert (execTerms != NULL);
 	thisSrcFile = util.getLastSegment(util.stringToWstring(__FILE__), L"/");
-	errorInfo.set1stInSrcStack (thisSrcFile);
 
 	if (!outputStream.is_open()) {
 		std::cout << "ERROR: Failed to open output file " << output_file_name << std::endl;
@@ -38,97 +40,73 @@ InterpretedFileWriter::~InterpretedFileWriter() {
  * [1st child][2nd child][current] order to create a flat stream of op_code
  * Tokens the Interpreter can use to resolve the expression at execution time.
  *
+ * **************************************************************************************************************************************************************
  * Example C expression
  * (1 + 2 * (3 + 4 * (5 + 6 * 7 * (8 + 9))))
  *
  * And how it will get written to interpreted file.
- * NOTE that we'll go R2L through this list until we find an OPR8R followed by the
+ * NOTE that we'll go L2R through this list until we find an OPR8R *preceded* by the
  * required # of operands; in this case [8] [9] [+]. Note that in the above C expression,
  * 8 + 9 is in the most deeply nested parentheses and therefore has the highest precedence
- * [1]  [2]  [3]  [4]  [5]  [6]  [7]  [*]  [8]  [9]  [+]  [*]  [+]  [*]  [+]  [*]  [+]
- * [1]  [2]  [3]  [4]  [5]           [42]           [17]  [*]  [+]  [*]  [+]  [*]  [+]
- * [1]  [2]  [3]  [4]  [5]                              [714]  [+]  [*]  [+]  [*]  [+]
- * [1]  [2]  [3]  [4]                                        [719]  [*]  [+]  [*]  [+]
- * [1]  [2]  [3]                                                 [2876]  [+]  [*]  [+]
- * [1]  [2]                                                           [2879]  [*]  [+]
- * [1]                                                                     [5758]  [+]
- *                                                                              [5759]
- *
- * Example nested ternary C expression
- * (count == 1 ? "one" : count == 2 ? "two" : count == 3 ? "three" : count == 4 ? "four" : "MANY")
- *
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [count]  [1]  [==]  [?]
+ * [1] [2] [3] [4] [5] [42] [8] [9] [+] [*] [+] [*] [+] [*] [+]
+ * [1] [2] [3] [4] [5] [42] [17] [*] [+] [*] [+] [*] [+]
+ * [1] [2] [3] [4] [5] [714] [+] [*] [+] [*] [+]
+ * [1] [2] [3] [4] [719] [*] [+] [*] [+]
+ * [1] [2] [3] [2876] [+] [*] [+]
+ * [1] [2] [2879] [*] [+]
+ * [1] [5758] [+]
+ * [5759]
  *
  * **************************************************************************************************************************************************************
+ * NOTE the position of the [?] and [:] ternary OPR8Rs; their placement differs from other OPR8Rs. At run time, [?] is treated more like a UNARY in that the
+ * conditional expression will have already been resolved as [TRUE|FALSE] ahead of time.  The [:] is placed BETWEEN the TRUE and FALSE path expressions as a hint
+ * for the Interpreter to know where each path begins and ends. Normal OPR8Rs would be placed AFTER the two expressions. The Interpreter probably *could* execute
+ * both expressions but only commit results on the chosen path, but that seems performative and not especially useful.
+ *
+ * Example nested ternary C expression - TRUE path taken
+ * (1 + 2 * (3 + 4 * (5 + 6 * 7 * (count == 1 ? 10 : count == 2 ? 11 : count == 3 ? 12 : count == 4 ? 13 : 33))))
+ *
  * count = 1;
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [count]  [1]  [==]  [?]
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [1]  [?]
+ * [1] [2] [3] [4] [5] [6] [7] [*] [count] [1] [==] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
+ *                      ^^ 1st ^^^ ^^^ 2nd ^^^^^^^^
+ * [1] [2] [3] [4] [5] [42] [1] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
+ *                      1st 2nd
+ * [1] [2] [3] [4] [5] [42] [1] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
+ *                           ^^^1st - TRUE path; leave expression before [:] (e.g. [10]) in the stream and consume the FALSE path (1 complete sub-expression within)
+ * [1] [2] [3] [4] [5] [42] [1] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
+ *                              numOperands: 1       2   1    1(?) - but need to consume this nested TERNARY - if this was a BINARY OPR8R (UNARY? POSTFIX? PREFIX? STATEMENT_ENDER?)
+ *                                                                   then we'd be done with it. Consume everything up to and including the [:] OPR8R, then consume the next expression
  *
- * Somehow we've got to skip over all the junk to get to the [one] at the end
- * We're moving BACKWARDS through the list, so L&R for the [:] OPR8R are in reverse order.
- *
- * [one]  [two]  [three]  [four]  [MANY]
- * [:]  [count]  [4]  [==]  [?]  -> pulls off [four] [MANY] because this branch was never reached
- * [:]  [count]  [3]  [==]  [?]  -> pulls off [three] because the false branch was already pulled off above
- * [:]  [count]  [2]  [==]  [?]  -> pulls off [two] because the false branch was already pulled off above
- * [:]  [1]  [?] -> this is finally resolved as [one]
- *
- *
+ * [1] [2] [3] [4] [5] [42] [1] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
+ *                                                             numOprands: 1       2   1    1(?) ^^^ ^^^  1       2   1   1(?) ^^^ ^^^ 1    ^ Not enough operands for this OPR8R, so
+ *                                                                                                                                            we've closed off the nested TERNARYs
+ *                                                                                                                                            and need to preserve these OPR8Rs
+
  * **************************************************************************************************************************************************************
- * count = 2;
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [count]  [1]  [==]  [?]
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [0]  [?]
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [1]  [?]
+ * Example nested ternary C expression - All FALSE paths taken
+ * (1 + 2 * (3 + 4 * (5 + 6 * 7 * (count == 1 ? 10 : count == 2 ? 11 : count == 3 ? 12 : count == 4 ? 13 : 33))))
  *
- * [one]  [two]  [three]  [four]  [MANY]
- * [:]  [count]  [4]  [==]  [?]  -> pulls off [four] [MANY] because this branch was never reached
- * [:]  [count]  [3]  [==]  [?]  -> pulls off [three] because the false branch was already pulled off above
- * [:]  [1]  [?]  -> After previous scopes popped, we grab the 1st available -> [two]
- *
- *
- * **************************************************************************************************************************************************************
- * count = 3;
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [count]  [1]  [==]  [?]
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [0]  [?]
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [0]  [?]
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [1]  [?]
- *
- * [one]  [two]  [three]  [four]  [MANY]
- * [:]  [count]  [4]  [==]  [?]  -> pulls off [four] [MANY] because this branch was never reached
- * [:]  [1]  [?]  -> After previous scopes popped, we grab the 1st available -> [three]
- *
- *
- * **************************************************************************************************************************************************************
- * count = 4;
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [count]  [1]  [==]  [?]
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [0]  [?]
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [0]  [?]
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [0]  [?]
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [1]  [?]
- *
- * [one]  [two]  [three]  [four]  [MANY]
- * [:]  [1]  [?] -> There are 2 possibilities for us to grab; Since it's the TRUE path and we're running in REVERSE, pick the 2nd* resolved token [four]
- * 2nd going from R2L, which would in turn be 1st in L2R order for that expression 2-tuple
- *
- *
- * **************************************************************************************************************************************************************
  * count = 5;
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [count]  [1]  [==]  [?]
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [count]  [2]  [==]  [?]  [:]  [0]  [?]
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]  [:]  [0]  [?]
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [count]  [3]  [==]  [?]
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]  [:]  [0]  [?]
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [count]  [4]  [==]  [?]
- * [one]  [two]  [three]  [four]  [MANY]  [:]  [0]  [?]
- *
- * [one]  [two]  [three]  [four]  [MANY]
- * [:]  [0]  [?] -> There are 2 possibilities for us to grab; Since the FALSE path is valid and we're running in REVERSE, pick the 1st* resolved token [MANY]
- * 1st going from R2L, which would in turn be 2nd in L2R order for that expression 2-tuple
- *
+ * [1] [2] [3] [4] [5] [6] [7] [*] [count] [1] [==] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
+ * [1] [2] [3] [4] [5]        [42]              [0] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
+ * [1] [2] [3] [4] [5]        [42]              [0] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
+ *                                              ^ FALSE; remove^
+ * [1] [2] [3] [4] [5] [42] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
+ * [1] [2] [3] [4] [5] [42]              [0] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
+ *                                       ^ FALSE; remove^
+ * [1] [2] [3] [4] [5] [42] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
+ * [1] [2] [3] [4] [5] [42] [0] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
+ *                          ^ FALSE; remove^
+ * [1] [2] [3] [4] [5] [42] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
+ * [1] [2] [3] [4] [5] [42]             [0] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
+ *                                      ^ FALSE; remove^
+ * [1] [2] [3] [4] [5] [42] [33] [*] [+] [*] [+] [*] [+]
+ * [1] [2] [3] [4] [5]           [1386] [+] [*] [+] [*] [+]
+ * [1] [2] [3] [4]            		 [1391] [*] [+] [*] [+]
+ * [1] [2] [3]             		 		 [5564] [+] [*] [+]
+ * [1] [2]              		 		 	 [5567] [*] [+]
+ * [1]               		 		 	        [11134] [+]
+ * [11135]
  *
  * ***************************************************************************/
 int InterpretedFileWriter::writeExpr_12_Opr8r (std::shared_ptr<ExprTreeNode> currBranch, std::vector<Token> & flatExprTknList)	{
@@ -140,21 +118,14 @@ int InterpretedFileWriter::writeExpr_12_Opr8r (std::shared_ptr<ExprTreeNode> cur
 
 	if (currBranch != NULL)	{
 
-//		if (currBranch->originalTkn->tkn_type == OPR8R_TKN && currBranch->originalTkn->_string == execTerms->get_ternary_1st())
-//			isTernary1st = true;
-//
-//		else if (currBranch->originalTkn->tkn_type == OPR8R_TKN && currBranch->originalTkn->_string == execTerms->get_ternary_2nd())
-//			isTernary2nd = true;
 		if (currBranch->originalTkn->tkn_type == SRC_OPR8R_TKN && (currBranch->originalTkn->_string == execTerms->get_ternary_1st()
 				|| currBranch->originalTkn->_string == execTerms->get_ternary_2nd()))	{
 			isTernary1or2 = true;
 		}
 
-
 		if (currBranch->_1stChild != NULL)	{
 			if (OK != writeExpr_12_Opr8r (currBranch->_1stChild, flatExprTknList))
 				isFailed = true;
-
 
 			if (isTernary1or2)	{
 				// TODO: 'Splain yo self
@@ -191,11 +162,11 @@ int InterpretedFileWriter::writeExpr_12_Opr8r (std::shared_ptr<ExprTreeNode> cur
  * Will need to be very aware of order dependent OPR8Rs
  * (a-b) vs. (b-a) typically have very different results
  * ***************************************************************************/
-int InterpretedFileWriter::writeExpressionToFile (std::shared_ptr<ExprTreeNode> rootOfExpr, std::vector<Token> & flatExprTknList, ErrorInfo & callersErrInfo)	{
+int InterpretedFileWriter::flattenExprTreeWriteToFile (std::shared_ptr<ExprTreeNode> rootOfExpr, std::vector<Token> & flatExprTknList, UserMessages & userMessages)	{
 	int ret_code = GENERAL_FAILURE;
 
 	if (rootOfExpr == NULL)	{
-  	errorInfo.set (INTERNAL_ERROR, thisSrcFile, __LINE__, L"rootOfExpr is NULL!");
+  	userMessages.logMsg (INTERNAL_ERROR, L"rootOfExpr is NULL!", thisSrcFile, __LINE__, 0);
 
 	} else	{
 		// Make sure we're at END of our output file
@@ -204,7 +175,7 @@ int InterpretedFileWriter::writeExpressionToFile (std::shared_ptr<ExprTreeNode> 
 
 		uint32_t startFilePos = outputStream.tellp();
 
-		uint32_t length_pos = writeFlexLenOpCode (EXPRESSION_OPCODE, errorInfo);
+		uint32_t length_pos = writeFlexLenOpCode (EXPRESSION_OPCODE, userMessages);
 		if (0 != length_pos)	{
 			// Save off the position where the expression's total length is stored and
 			// write 0s to it. It will get filled in later when writing the entire expression out has
@@ -212,14 +183,11 @@ int InterpretedFileWriter::writeExpressionToFile (std::shared_ptr<ExprTreeNode> 
 
 			std::wcout << L"********** writeExpr_12_Opr8r called from " << thisSrcFile << L":" << __LINE__ << L" **********" << std::endl;
 			if (OK == writeExpr_12_Opr8r (rootOfExpr, flatExprTknList))
-				ret_code = writeObjectLen (startFilePos, length_pos, errorInfo);
+				ret_code = writeObjectLen (startFilePos, length_pos, userMessages);
 
-			std::wcout << std::endl;
+			std::wcout << std::endl << L"********** </writeExpr_12_Opr8r> **********" << std::endl;
 		}
 	}
-
-	if (OK != ret_code)
-		callersErrInfo = errorInfo;
 
 	return (ret_code);
 }
@@ -227,7 +195,7 @@ int InterpretedFileWriter::writeExpressionToFile (std::shared_ptr<ExprTreeNode> 
 /* ****************************************************************************
  *
  * ***************************************************************************/
-int InterpretedFileWriter::writeObjectLen (uint32_t objStartPos, uint32_t objLengthPos, ErrorInfo & callersErrInfo)	{
+int InterpretedFileWriter::writeObjectLen (uint32_t objStartPos, uint32_t objLengthPos, UserMessages & userMessages)	{
 	int ret_code = GENERAL_FAILURE;
 	bool isFailed = false;
 
@@ -238,7 +206,7 @@ int InterpretedFileWriter::writeObjectLen (uint32_t objStartPos, uint32_t objLen
 
 	// Write the current object's length
 	outputStream.seekp(objLengthPos, std::fstream::beg);
-	if (OK != writeRawUnsigned(exprLen, NUM_BITS_IN_DWORD, errorInfo))
+	if (OK != writeRawUnsigned(exprLen, NUM_BITS_IN_DWORD, userMessages))
 		isFailed = true;
 
 	// Now reset file pointer to pos at fxn begin, after the object was entirely written out
@@ -246,9 +214,6 @@ int InterpretedFileWriter::writeObjectLen (uint32_t objStartPos, uint32_t objLen
 
 	if (currFilePos == outputStream.tellp() && !isFailed)
 		ret_code = OK;
-
-	if (OK != ret_code)
-		callersErrInfo = errorInfo;
 
 	return (ret_code);
 }
@@ -262,10 +227,10 @@ int InterpretedFileWriter::writeAtomicOpCode (uint8_t op_code)	{
 
 	if (op_code >= ATOMIC_OPCODE_RANGE_BEGIN && op_code <= ATOMIC_OPCODE_RANGE_END)	{
 		if (op_code <= LAST_VALID_OPR8R_OPCODE)	{
-			ret_code = writeRawUnsigned (op_code, NUM_BITS_IN_BYTE, errorInfo);
+			ret_code = writeRawUnsigned (op_code, NUM_BITS_IN_BYTE, userMessages);
 
 		} else if (op_code >= FIRST_VALID_DATA_TYPE_OPCODE && op_code <= LAST_VALID_DATA_TYPE_OPCODE)	{
-			ret_code = writeRawUnsigned (op_code, NUM_BITS_IN_BYTE, errorInfo);
+			ret_code = writeRawUnsigned (op_code, NUM_BITS_IN_BYTE, userMessages);
 		}
 	}
 
@@ -275,21 +240,18 @@ int InterpretedFileWriter::writeAtomicOpCode (uint8_t op_code)	{
 /* ****************************************************************************
  *
  * ***************************************************************************/
-int InterpretedFileWriter::writeFlexLenOpCode (uint8_t op_code, ErrorInfo & callersErrInfo)	{
+int InterpretedFileWriter::writeFlexLenOpCode (uint8_t op_code, UserMessages & userMessages)	{
 	int lengthPos = 0;
 	int tmpLenPos = 0;
 	uint32_t tempLen = 0x0;
 
 	if (op_code >= FIRST_VALID_FLEX_LEN_OPCODE && op_code <= LAST_VALID_FLEX_LEN_OPCODE)	{
-		if (OK == writeRawUnsigned (op_code, NUM_BITS_IN_BYTE, errorInfo))	{
+		if (OK == writeRawUnsigned (op_code, NUM_BITS_IN_BYTE, userMessages))	{
 			tmpLenPos = outputStream.tellp();
-			if (OK == writeRawUnsigned (tempLen, NUM_BITS_IN_DWORD, errorInfo))
+			if (OK == writeRawUnsigned (tempLen, NUM_BITS_IN_DWORD, userMessages))
 			lengthPos = tmpLenPos;
 		}
 	}
-
-	if (lengthPos == 0)
-		callersErrInfo = errorInfo;
 
 	return (lengthPos);
 }
@@ -303,7 +265,8 @@ int InterpretedFileWriter::write8BitOpCode (uint8_t op_code, uint8_t  payload)	{
 	if (op_code >= FIXED_OPCODE_RANGE_BEGIN && op_code <= FIXED_OPCODE_RANGE_END)	{
 		if (op_code == UINT8_OPCODE || op_code == INT8_OPCODE)	{
 			// Write op_code followed by payload out to file
-			if (OK == writeRawUnsigned (op_code, NUM_BITS_IN_BYTE, errorInfo) && OK == writeRawUnsigned (payload, NUM_BITS_IN_BYTE, errorInfo))
+			if (OK == writeRawUnsigned (op_code, NUM_BITS_IN_BYTE, userMessages)
+					&& OK == writeRawUnsigned (payload, NUM_BITS_IN_BYTE, userMessages))
 				ret_code = OK;
 		}
 	}
@@ -320,7 +283,8 @@ int InterpretedFileWriter::write16BitOpCode (uint8_t op_code, uint16_t  payload)
 	if (op_code >= FIXED_OPCODE_RANGE_BEGIN && op_code <= FIXED_OPCODE_RANGE_END)	{
 		if (op_code == UINT16_OPCODE || op_code == INT16_OPCODE)	{
 			// Write op_code followed by payload out to file
-			if (OK == writeRawUnsigned (op_code, NUM_BITS_IN_BYTE, errorInfo) && OK == writeRawUnsigned (payload, NUM_BITS_IN_WORD, errorInfo))
+			if (OK == writeRawUnsigned (op_code, NUM_BITS_IN_BYTE, userMessages)
+					&& OK == writeRawUnsigned (payload, NUM_BITS_IN_WORD, userMessages))
 				ret_code = OK;
 		}
 	}
@@ -337,7 +301,8 @@ int InterpretedFileWriter::write32BitOpCode (uint8_t op_code, uint32_t  payload)
 	if (op_code >= FIXED_OPCODE_RANGE_BEGIN && op_code <= FIXED_OPCODE_RANGE_END)	{
 		if (op_code == UINT32_OPCODE || op_code == INT32_OPCODE)	{
 			// Write op_code followed by payload out to file
-			if (OK == writeRawUnsigned (op_code, NUM_BITS_IN_BYTE, errorInfo) && OK == writeRawUnsigned(payload, NUM_BITS_IN_DWORD, errorInfo))
+			if (OK == writeRawUnsigned (op_code, NUM_BITS_IN_BYTE, userMessages)
+					&& OK == writeRawUnsigned(payload, NUM_BITS_IN_DWORD, userMessages))
 				ret_code = OK;
 		}
 	}
@@ -354,7 +319,8 @@ int InterpretedFileWriter::write64BitOpCode (uint8_t op_code, uint64_t  payload)
 	if (op_code >= FIXED_OPCODE_RANGE_BEGIN && op_code <= FIXED_OPCODE_RANGE_END)	{
 		if (op_code == UINT64_OPCODE || op_code == INT64_OPCODE)	{
 			// Write op_code followed by payload out to file
-			if (OK == writeRawUnsigned (op_code, NUM_BITS_IN_BYTE, errorInfo) && OK == writeRawUnsigned (payload, NUM_BITS_IN_QWORD, errorInfo))
+			if (OK == writeRawUnsigned (op_code, NUM_BITS_IN_BYTE, userMessages)
+					&& OK == writeRawUnsigned (payload, NUM_BITS_IN_QWORD, userMessages))
 				ret_code = OK;
 		}
 	}
@@ -365,7 +331,7 @@ int InterpretedFileWriter::write64BitOpCode (uint8_t op_code, uint64_t  payload)
 /* ****************************************************************************
  * TODO: Any kind of check for success?
  * ***************************************************************************/
-int InterpretedFileWriter::writeRawUnsigned (uint64_t  payload, int payloadBitSize, ErrorInfo & callersErrInfo)	{
+int InterpretedFileWriter::writeRawUnsigned (uint64_t  payload, int payloadBitSize, UserMessages & userMessages)	{
 	int ret_code = GENERAL_FAILURE;
 	uint64_t shift_mask = 0xFF << (payloadBitSize - NUM_BITS_IN_BYTE);
 	uint64_t maskedQword;
@@ -383,33 +349,27 @@ int InterpretedFileWriter::writeRawUnsigned (uint64_t  payload, int payloadBitSi
 	}
 	ret_code = OK;
 
-	if (OK != ret_code)
-		callersErrInfo = errorInfo;
-
 	return (ret_code);
 }
 
 /* ****************************************************************************
  * TODO: Any kind of check for success?
  * ***************************************************************************/
-int InterpretedFileWriter::writeString (uint8_t op_code, std::wstring tokenStr, ErrorInfo & callersErrInfo)	{
+int InterpretedFileWriter::writeString (uint8_t op_code, std::wstring tokenStr, UserMessages & userMessages)	{
 	int ret_code = GENERAL_FAILURE;
 
 	uint32_t startFilePos = outputStream.tellp();
 
-	uint32_t length_pos = writeFlexLenOpCode (op_code, errorInfo);
+	uint32_t length_pos = writeFlexLenOpCode (op_code, userMessages);
 	if (0 != length_pos)	{
 		// Save off the position where the expression's total length is stored and
 		// write 0s to it. It will get filled in later when writing the entire expression out has
 		// been completed.
 
 		if (OK == writeRawString (tokenStr))	{
-			ret_code = writeObjectLen (startFilePos, length_pos, errorInfo);
+			ret_code = writeObjectLen (startFilePos, length_pos, userMessages);
 		}
 	}
-
-	if (OK != ret_code)
-		callersErrInfo = errorInfo;
 
 	return (ret_code);
 }
@@ -431,7 +391,7 @@ int InterpretedFileWriter::writeRawString (std::wstring tokenStr)	{
 
 		for (idx = 0; idx < tokenStr.size() && !isFailed; idx++)	{
 			nxtWord = strBffr[idx];
-			if (OK != writeRawUnsigned (strBffr[idx], NUM_BITS_IN_WORD, errorInfo))
+			if (OK != writeRawUnsigned (strBffr[idx], NUM_BITS_IN_WORD, userMessages))
 				isFailed = true;
 			// outputStream.write(reinterpret_cast<char*>(&nxtWord), NUM_BYTES_IN_WORD);
 		}
@@ -456,79 +416,86 @@ int InterpretedFileWriter::writeToken (std::shared_ptr<Token> token, std::vector
 	uint8_t tkn8Val;
 
 	if (token != NULL)	{
-		switch(token->tkn_type)	{
-		case KEYWORD_TKN :
-			ret_code = writeString (VAR_NAME_OPCODE, token->_string, errorInfo);
-			break;
-		case STRING_TKN :
-			ret_code = writeString (STRING_OPCODE, token->_string, errorInfo);
-			break;
-		case DATETIME_TKN :
-			if (OK == writeAtomicOpCode(DATETIME_OPCODE))
-				ret_code = writeRawString(token->_string);
-			break;
-		case UINT8_TKN :
-			tkn8Val = token->_unsigned;
-			if (OK == writeRawUnsigned (UINT8_OPCODE, NUM_BITS_IN_BYTE, errorInfo))
-				ret_code = writeRawUnsigned (tkn8Val, NUM_BITS_IN_BYTE, errorInfo);
-			break;
-		case UINT16_TKN :
-			if (OK == writeRawUnsigned (UINT16_OPCODE, NUM_BITS_IN_BYTE, errorInfo))
-				ret_code = writeRawUnsigned (token->_unsigned, NUM_BITS_IN_WORD, errorInfo);
-			break;
-		case UINT32_TKN :
-			if (OK == writeRawUnsigned (UINT32_OPCODE, NUM_BITS_IN_BYTE, errorInfo))
-				ret_code = writeRawUnsigned (token->_unsigned, NUM_BITS_IN_DWORD, errorInfo);
-			break;
-		case UINT64_TKN :
-			if (OK == writeRawUnsigned (UINT64_OPCODE, NUM_BITS_IN_BYTE, errorInfo))
-				ret_code = writeRawUnsigned (token->_unsigned, NUM_BITS_IN_QWORD, errorInfo);
-			break;
-		case INT8_TKN :
-			// TODO: Check
-			if (OK == writeRawUnsigned (INT8_OPCODE, NUM_BITS_IN_BYTE, errorInfo))
-				ret_code = writeRawUnsigned (token->_signed, NUM_BITS_IN_BYTE, errorInfo);
-			break;
-		case INT16_TKN :
-			// TODO: Check
-			if (OK == writeRawUnsigned (INT16_OPCODE, NUM_BITS_IN_BYTE, errorInfo))
-				ret_code = writeRawUnsigned (token->_signed, NUM_BITS_IN_WORD, errorInfo);
-			break;
-		case INT32_TKN :
-			// TODO: Check
-			if (OK == writeRawUnsigned (INT32_OPCODE, NUM_BITS_IN_BYTE, errorInfo))
-				ret_code = writeRawUnsigned (token->_signed, NUM_BITS_IN_DWORD, errorInfo);
-			break;
-		case INT64_TKN :
-			// TODO: Check
-			if (OK == writeRawUnsigned (INT64_OPCODE, NUM_BITS_IN_BYTE, errorInfo))
-				ret_code = writeRawUnsigned (token->_signed, NUM_BITS_IN_QWORD, errorInfo);
-			break;
-		case DOUBLE_TKN :
-				ret_code = writeString (DOUBLE_OPCODE, token->_string, errorInfo);
-			break;
-		case SRC_OPR8R_TKN :
-			ret_code = writeRawUnsigned (execTerms->getOpCodeFor (token->_string), NUM_BITS_IN_BYTE, errorInfo);
-			break;
-		case SPR8R_TKN :
-		default:
-			break;
 
+		if (token->tkn_type == SRC_OPR8R_TKN && execTerms->get_statement_ender() == token->_string)
+			// TODO: Skip writing [;] out; not needed
+			ret_code = OK;
+
+		else {
+			switch(token->tkn_type)	{
+			case KEYWORD_TKN :
+				ret_code = writeString (VAR_NAME_OPCODE, token->_string, userMessages);
+				break;
+			case STRING_TKN :
+				ret_code = writeString (STRING_OPCODE, token->_string, userMessages);
+				break;
+			case DATETIME_TKN :
+				if (OK == writeAtomicOpCode(DATETIME_OPCODE))
+					ret_code = writeRawString(token->_string);
+				break;
+			case UINT8_TKN :
+				tkn8Val = token->_unsigned;
+				if (OK == writeRawUnsigned (UINT8_OPCODE, NUM_BITS_IN_BYTE, userMessages))
+					ret_code = writeRawUnsigned (tkn8Val, NUM_BITS_IN_BYTE, userMessages);
+				break;
+			case UINT16_TKN :
+				if (OK == writeRawUnsigned (UINT16_OPCODE, NUM_BITS_IN_BYTE, userMessages))
+					ret_code = writeRawUnsigned (token->_unsigned, NUM_BITS_IN_WORD, userMessages);
+				break;
+			case UINT32_TKN :
+				if (OK == writeRawUnsigned (UINT32_OPCODE, NUM_BITS_IN_BYTE, userMessages))
+					ret_code = writeRawUnsigned (token->_unsigned, NUM_BITS_IN_DWORD, userMessages);
+				break;
+			case UINT64_TKN :
+				if (OK == writeRawUnsigned (UINT64_OPCODE, NUM_BITS_IN_BYTE, userMessages))
+					ret_code = writeRawUnsigned (token->_unsigned, NUM_BITS_IN_QWORD, userMessages);
+				break;
+			case INT8_TKN :
+				// TODO: Check
+				if (OK == writeRawUnsigned (INT8_OPCODE, NUM_BITS_IN_BYTE, userMessages))
+					ret_code = writeRawUnsigned (token->_signed, NUM_BITS_IN_BYTE, userMessages);
+				break;
+			case INT16_TKN :
+				// TODO: Check
+				if (OK == writeRawUnsigned (INT16_OPCODE, NUM_BITS_IN_BYTE, userMessages))
+					ret_code = writeRawUnsigned (token->_signed, NUM_BITS_IN_WORD, userMessages);
+				break;
+			case INT32_TKN :
+				// TODO: Check
+				if (OK == writeRawUnsigned (INT32_OPCODE, NUM_BITS_IN_BYTE, userMessages))
+					ret_code = writeRawUnsigned (token->_signed, NUM_BITS_IN_DWORD, userMessages);
+				break;
+			case INT64_TKN :
+				// TODO: Check
+				if (OK == writeRawUnsigned (INT64_OPCODE, NUM_BITS_IN_BYTE, userMessages))
+					ret_code = writeRawUnsigned (token->_signed, NUM_BITS_IN_QWORD, userMessages);
+				break;
+			case DOUBLE_TKN :
+					ret_code = writeString (DOUBLE_OPCODE, token->_string, userMessages);
+				break;
+			case SRC_OPR8R_TKN :
+					ret_code = writeRawUnsigned (execTerms->getOpCodeFor (token->_string), NUM_BITS_IN_BYTE, userMessages);
+				break;
+			case SPR8R_TKN :
+			default:
+				break;
+
+			}
+
+			if (token->tkn_type == SRC_OPR8R_TKN || token->tkn_type == EXEC_OPR8R_TKN)	{
+				// Prior to putting OPR8Rs in flattened list, make them EXEC_OPR8R_TKNs
+				// since the caller is expected to use the RunTimeInterpreter to resolve
+				// the expression
+				uint8_t op_code = execTerms->getOpCodeFor (token->_string);
+				token->resetToken();
+				token->tkn_type = EXEC_OPR8R_TKN;
+				token->_unsigned = op_code;
+			}
+
+			// Store a copy of this Token in the flattened list
+			flatExprTknList.push_back (*token);
+			token.reset();
 		}
-
-		if (token->tkn_type == SRC_OPR8R_TKN || token->tkn_type == EXEC_OPR8R_TKN)	{
-			// Prior to putting OPR8Rs in flattened list, make them EXEC_OPR8R_TKNs
-			// since the caller is expected to use the RunTimeInterpreter to resolve
-			// the expression
-			uint8_t op_code = execTerms->getOpCodeFor (token->_string);
-			token->resetToken();
-			token->tkn_type = EXEC_OPR8R_TKN;
-			token->_unsigned = op_code;
-		}
-
-		// Store a copy of this Token in the flattened list
-		flatExprTknList.push_back (*token);
-		token.reset();
 	}
 
 	return (ret_code);

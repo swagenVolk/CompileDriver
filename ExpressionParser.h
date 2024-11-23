@@ -21,7 +21,8 @@
 #include "Operator.h"
 #include "Utilities.h"
 #include "InterpretedFileWriter.h"
-#include "ErrorInfo.h"
+#include "VariablesScope.h"
+#include "UserMessages.h"
 
 // Values below used in a bit mask variable that indicates
 // allowable next states.
@@ -44,29 +45,33 @@
 
 class ExpressionParser {
 public:
-	ExpressionParser(CompileExecTerms & inUsrSrcTerms);
+	ExpressionParser(CompileExecTerms & inUsrSrcTerms, std::shared_ptr<VariablesScope> inVarScopeStack, std::wstring userSrcFileName, UserMessages & userMessages);
 	virtual ~ExpressionParser();
-	int parseExpression (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree, Token & enderTkn, bool isEndedByComma, ErrorInfo & callersErrInfo);
-
+	int parseOfNoReturn (TokenPtrVector & tknStream, bool isEndedByComma, UserMessages & userMessages);
+	int makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree, Token & enderTkn, bool isEndedByComma, UserMessages & userMessages);
 
 private:
   TokenPtrVector tknStream;
+  std::wstring userSrcFileName;
   std::vector<std::shared_ptr<NestedScopeExpr>> exprScopeStack;
   std::wstring thisSrcFile;
-  ErrorInfo errorInfo;
   CompileExecTerms usrSrcTerms;
   Utilities util;
+  std::shared_ptr<VariablesScope> varScopeStack;
+  Token scratchTkn;
+  UserMessages userMessages;
 
-  void cleanScopeStack();
+  void cleanScopeStack ();
   std::wstring makeExpectedTknTypesStr (uint32_t expected_tkn_types);
   bool isExpectedTknType (uint32_t allowed_tkn_types, uint32_t & next_legal_tkn_types, std::shared_ptr<Token> curr_tkn);
   int openSubExprScope (TokenPtrVector & tknStream);
   int closeParenClosesScope (bool & isOpenParenFndYet);
-  bool isTernaryOpen();
+  bool isTernaryOpen ();
   int get2ndTernaryCnt ();
   int turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope);
   int getExpectedEndToken (std::shared_ptr<Token> startTkn, uint32_t & _1stTknTypMsk, Token & expectedEndTkn, bool isEndedByComma);
-  void printScopeStack(std::wstring fileName, int lineNumber);
+  void printScopeStack (std::wstring fileName, int lineNumber);
+  void showDebugInfo (std::wstring srcFileName, int lineNum);
 
 };
 

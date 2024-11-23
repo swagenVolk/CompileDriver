@@ -21,8 +21,9 @@ Token::Token()	{
 void Token::resetToken ()	{
   tkn_type = START_UNDEF_TKN;
   _string.clear();
-  line_number = 0;
-  column_pos = 0;
+  src.fileName.clear();
+  src.lineNumber = 0;
+  src.columnPos = 0;
   _unsigned = 0;
   _signed = 0;
   _double = 0.0;
@@ -34,25 +35,34 @@ void Token::resetToken ()	{
 /* ****************************************************************************
  *
  * ***************************************************************************/
-Token::Token (tkn_type_enum found_type, std::wstring tokenized_str, int line_num, int col_pos) {
+Token::Token(tkn_type_enum found_type, std::wstring tokenized_str)
+: src (L"", 0, 0)	{
+  tkn_type = found_type;
+  _string = tokenized_str;
+
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+Token::Token (tkn_type_enum found_type, std::wstring tokenized_str, std::wstring srcFileName, int line_num, int col_pos)
+	: src (srcFileName, line_num, col_pos){
 
   // TODO: Token value not automatically filled in, even though tokenized_str should contain enough info
 
-  this->tkn_type = found_type;
-  this->_string = tokenized_str;
-  this->line_number = line_num;
-  this->column_pos = col_pos;
-  this->_unsigned = 0;
-  this->_signed = 0;
-  this->_double = 0.0;
+  tkn_type = found_type;
+  _string = tokenized_str;
+  _unsigned = 0;
+  _signed = 0;
+  _double = 0.0;
   // A post-fix operator will turn an object into an rvalue, and it is considered to be a "temporary" object
   // during the evaluation of the current expression, and that temporary object can no longer be
   // modified.
   // The source code
   // while (someVal++ < 37 && otherVal++ < 43) {...}
-  // will generated underlying code like so:
-  // while (someVal < 37 && otherVal < 43) {someVal += 1; otherVal +=1; ...}
-  this->is_Rvalue = false;
+  // will generate underlying code like so:
+  // while (someVal < 37 && otherVal < 43) { someVal += 1; otherVal +=1; <user source code>}
+  is_Rvalue = false;
 
 
 }
@@ -77,8 +87,11 @@ Token& Token::operator= (const Token & srcTkn)
 	_unsigned = srcTkn._unsigned;
 	_signed = srcTkn._signed;
 	_double = srcTkn._double;
-	line_number = srcTkn.line_number;
-	column_pos = srcTkn.column_pos;
+
+	src.fileName = srcTkn.src.fileName;
+	src.lineNumber = srcTkn.src.lineNumber;
+	src.columnPos = srcTkn.src.columnPos;
+
 	is_Rvalue = srcTkn.is_Rvalue;
 
 
@@ -151,7 +164,10 @@ std::wstring Token::get_type_str()  {
         ret_string = L"DOUBLE_TKN";
         break;
     case SRC_OPR8R_TKN               :
-      ret_string = L"OPR8R_TKN";
+      ret_string = L"SRC_OPR8R_TKN";
+      break;
+    case EXEC_OPR8R_TKN               :
+      ret_string = L"EXEC_OPR8R_TKN";
       break;
     case SPR8R_TKN               :
       ret_string = L"SPR8R_TKN";
@@ -169,8 +185,11 @@ std::wstring Token::get_type_str()  {
 /* ****************************************************************************
  *
  * ***************************************************************************/
-std::wstring Token::description ()	{
+std::wstring Token::descr_sans_line_num_col ()	{
 	std::wstring desc = get_type_str();
+
+	desc.append(L"(");
+	desc.append (isInitialized ? L"I)" : L"U)");
 	desc.append (L" ");
 
 	// Give STRINGs, DATETIMEs and SPR8Rs some context clues
@@ -189,35 +208,112 @@ std::wstring Token::description ()	{
 	else if (this->tkn_type == SPR8R_TKN)
 		desc.append (L"'");
 
-	if (_unsigned != 0)	{
+	if (isUnsigned())	{
 		std::wstringstream wstream;
-		wstream << L"0x" << std::hex << _unsigned;
+		wstream << L"[0x" << std::hex << _unsigned;
 		desc.append (wstream.str());
-		desc.append (L";");
-	}
+		desc.append (L"]");
 
-	if (_signed != 0)	{
-		desc.append (L" _signed = ");
+	} else if (isSigned())	{
+		desc.append (L"[");
 		desc.append (std::to_wstring (_signed));
-		desc.append (L";");
+		desc.append (L"]");
 
-	}
-
-	if (_double != 0.0)	{
-		desc.append (L" _double = ");
+	} else if (tkn_type == DOUBLE_TKN)	{
+		desc.append (L"[");
 		desc.append (std::to_wstring (_double));
-		desc.append (L";");
+		desc.append (L"]");
 	}
 
-	// TODO: Filename?
-	desc.append (L" on line ");
-	desc.append (std::to_wstring(this->line_number));
-	desc.append (L" column ");
-	desc.append (std::to_wstring(this->column_pos));
+	desc.append (L";");
 
 	return (desc);
 }
 
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+std::wstring Token::descr_line_num_col ()	{
+	std::wstring desc = get_type_str();
+
+	desc.append(L"(");
+	desc.append (isInitialized ? L"I)" : L"U)");
+	desc.append (L" ");
+
+	// Give STRINGs, DATETIMEs and SPR8Rs some context clues
+	if (this->tkn_type == STRING_TKN || this->tkn_type == DATETIME_TKN)
+		desc.append (L"\"");
+	else if (this->tkn_type == SPR8R_TKN)
+		desc.append (L"'");
+
+	if (!_string.empty())	{
+		desc.append (this->_string);
+	}
+
+	// Give STRINGs, DATETIMEs and SPR8Rs some context clues
+	if (this->tkn_type == STRING_TKN || this->tkn_type == DATETIME_TKN)
+		desc.append (L"\"");
+	else if (this->tkn_type == SPR8R_TKN)
+		desc.append (L"'");
+
+	if (isUnsigned())	{
+		std::wstringstream wstream;
+		wstream << L"[0x" << std::hex << _unsigned;
+		desc.append (wstream.str());
+		desc.append (L"]");
+
+	} else if (isSigned())	{
+		desc.append (L"[");
+		desc.append (std::to_wstring (_signed));
+		desc.append (L"]");
+
+	} else if (tkn_type == DOUBLE_TKN)	{
+		desc.append (L"[");
+		desc.append (std::to_wstring (_double));
+		desc.append (L"]");
+	}
+
+	desc.append (L";");
+
+	// TODO: Filename?
+	desc.append (L" on line ");
+	desc.append (std::to_wstring(src.lineNumber));
+	desc.append (L" column ");
+	desc.append (std::to_wstring(src.columnPos));
+
+	return (desc);
+}
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+std::wstring Token::getValueStr ()	{
+	std::wstring value;
+
+	// Give STRINGs, DATETIMEs and SPR8Rs some context clues
+	if (this->tkn_type == STRING_TKN || this->tkn_type == DATETIME_TKN)	{
+		value.append (L"\"");
+		value.append (this->_string);
+		value.append (L"\"");
+	} else if (this->tkn_type == SPR8R_TKN) {
+		value.append (L"'");
+		value.append (this->_string);
+		value.append (L"'");
+	}
+
+	if (isUnsigned())	{
+		std::wstringstream wstream;
+		wstream << L"0x" << std::hex << _unsigned;
+		value.append (wstream.str());
+
+	} else if (isSigned())	{
+		value.append (std::to_wstring (_signed));
+
+	} else if (tkn_type == DOUBLE_TKN)	{
+		value.append (std::to_wstring (_double));
+	}
+
+	return (value);
+}
 /* ****************************************************************************
  *
  * ***************************************************************************/
@@ -575,4 +671,18 @@ int Token::convertTo (Token newValTkn)	{
 
 	return (ret_code);
 
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+int Token::get_line_number ()	{
+	return (src.lineNumber);
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+int Token::get_column_pos ()	{
+	return (src.columnPos);
 }

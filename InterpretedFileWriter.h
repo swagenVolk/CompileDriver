@@ -20,19 +20,19 @@
 #include "OpCodes.h"
 #include "Operator.h"
 #include "CompileExecTerms.h"
-#include "ErrorInfo.h"
+#include "UserMessages.h"
 
 class InterpretedFileWriter {
 public:
-	InterpretedFileWriter(std::string output_file_name, CompileExecTerms & inExecTerms);
+	InterpretedFileWriter(std::string output_file_name, CompileExecTerms & inExecTerms, UserMessages & userMessages);
 	virtual ~InterpretedFileWriter();
-	int writeExpressionToFile(std::shared_ptr<ExprTreeNode> rootOfExpr, std::vector<Token> & flatExprTknList, ErrorInfo & callersErrInfo);
+	int flattenExprTreeWriteToFile(std::shared_ptr<ExprTreeNode> rootOfExpr, std::vector<Token> & flatExprTknList, UserMessages & userMessages);
 
 	// TODO: Is making these "public" legit?
-	int writeFlexLenOpCode (uint8_t op_code, ErrorInfo & callersErrInfo);
-	int writeObjectLen (uint32_t objStartPos, uint32_t objLengthPos, ErrorInfo & callersErrInfo);
-	int writeRawUnsigned (uint64_t  payload, int payloadBitSize, ErrorInfo & callersErrInfo);
-	int writeString (uint8_t op_code, std::wstring tokenStr, ErrorInfo & callersErrInfo);
+	int writeFlexLenOpCode (uint8_t op_code, UserMessages & userMessages);
+	int writeObjectLen (uint32_t objStartPos, uint32_t objLengthPos, UserMessages & userMessages);
+	int writeRawUnsigned (uint64_t  payload, int payloadBitSize, UserMessages & userMessages);
+	int writeString (uint8_t op_code, std::wstring tokenStr, UserMessages & userMessages);
 	uint32_t getWriteFilePos ();
 
 private:
@@ -41,7 +41,7 @@ private:
 	Utilities util;
 	CompileExecTerms * execTerms;
 	std::ofstream outputStream;
-	ErrorInfo errorInfo;
+	UserMessages userMessages;
 
 	int writeExpr_12_Opr8r (std::shared_ptr<ExprTreeNode> currBranch, std::vector<Token> & flatExprTknList);
 	int writeAtomicOpCode (uint8_t op_code);

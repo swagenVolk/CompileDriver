@@ -12,17 +12,17 @@
 #include <map>
 #include "CompileExecTerms.h"
 #include "Utilities.h"
-#include "ErrorInfo.h"
+#include "VariablesScope.h"
+#include "UserMessages.h"
 
 class RunTimeInterpreter {
 public:
 	RunTimeInterpreter();
-	RunTimeInterpreter(CompileExecTerms & execTerms);
+	RunTimeInterpreter(CompileExecTerms & execTerms, std::shared_ptr<VariablesScope>, std::wstring userSrcFileName, UserMessages & userMessages);
 	virtual ~RunTimeInterpreter();
 	int execOperation (std::shared_ptr <Token> opr8r, TokenPtrVector & operands, Token & resultTkn);
   void dumpTokenPtrStream (TokenPtrVector tokenStream, std::wstring callersSrcFile, int lineNum);
-  void dumpTokenList (std::vector<Token> & tokenList, std::wstring callersSrcFile, int lineNum);
-  int resolveFlattenedExpr(std::vector<Token> & exprTknStream, ErrorInfo & callersErrInfo);
+  int resolveFlattenedExpr(std::vector<Token> & exprTknStream, UserMessages & userMessages);
 
 protected:
 
@@ -32,7 +32,10 @@ private:
   CompileExecTerms execTerms;
 	std::wstring thisSrcFile;
 	Utilities util;
-	ErrorInfo errorInfo;
+	Token scratchTkn;
+	std::shared_ptr<VariablesScope> varScopeStack;
+	UserMessages userMessages;
+	std::wstring userSrcFileName;
 
 	int execUnaryOp (std::vector<Token> & exprTknStream, int & callersIdx);
 	int execAssignmentOp(std::vector<Token> & exprTknStream, int & callersIdx);
@@ -47,6 +50,7 @@ private:
 	int execShift (std::vector<Token> & exprTknStream, int & callersIdx);
 	int execBitWiseOp (std::vector<Token> & exprTknStream, int & callersIdx);
 	int execStandardMath (std::vector<Token> & exprTknStream, int & callersIdx);
+	int resolveIfVariable (Token & originalTkn, Token & resolvedTkn, std::wstring & varName);
 };
 
 #endif /* RUNTIMEINTERPRETER_H_ */

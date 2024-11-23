@@ -11,6 +11,8 @@
 #include <string>
 #include <iterator>
 #include <iostream>
+#include "Token.h"
+#include "CompileExecTerms.h"
 
 class Utilities {
 public:
@@ -18,6 +20,8 @@ public:
 	virtual ~Utilities();
 	std::wstring stringToWstring (std::string skinnyStr);
 	std::wstring getLastSegment (std::wstring pluralSegments, std::wstring delimiter);
+	void dumpTokenList (std::vector<Token> & tokenStream, CompileExecTerms execTerms, std::wstring callersSrcFile, int lineNum);
+
 };
 
 #endif /* UTILITIES_H_ */

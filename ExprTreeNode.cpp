@@ -12,7 +12,7 @@
 
 ExprTreeNode::ExprTreeNode(std::shared_ptr<Token> startOpr8rTkn) {
 	// Attach this shared_ptr to an already existing shared_ptr of type Token
-	originalTkn = { startOpr8rTkn };
+	originalTkn = startOpr8rTkn;
   myParent = NULL;
   _1stChild = NULL;
   _2ndChild = NULL;

@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "TokenCompareResult.h"
+#include "FileLineCol.h"
 #include <string>
 #include <stdint.h>
 #include <cassert>
@@ -52,7 +53,8 @@ typedef tkn_type_enum TokenTypeEnum;
 class Token {
   public:
 		Token();
-    Token(tkn_type_enum found_type, std::wstring tokenized_str,  int line_num, int col_pos);
+		Token(tkn_type_enum found_type, std::wstring tokenized_str);
+    Token(tkn_type_enum found_type, std::wstring tokenized_str, std::wstring srcFileName, int line_num, int col_pos);
     ~Token();
     Token& operator= (const Token & srcTkn);
 
@@ -62,14 +64,15 @@ class Token {
     uint64_t    _unsigned;
     int64_t     _signed;
     double       _double;
-    int line_number;
-    int column_pos;
+    FileLineCol src;
     std::wstring get_type_str();
     bool is_Rvalue;
     bool isInitialized;
 
     std::wstring get_tkn_type_by_enum (tkn_type_enum tkn_type);
-    std::wstring description ();
+    std::wstring descr_sans_line_num_col ();
+    std::wstring descr_line_num_col ();
+    std::wstring getValueStr ();
     TokenCompareResult compare (Token & otherTkn);
     bool isOperand();
     bool evalResolvedTokenAsIf ();
@@ -81,6 +84,8 @@ class Token {
     void resetToDouble (double newValue);
     void resetToString (std::wstring newValue);
     int convertTo (Token newValTkn);
+    int get_line_number ();
+    int get_column_pos ();
 
   private:
 
@@ -88,5 +93,6 @@ class Token {
 };
 
 typedef std::vector<std::shared_ptr<Token>> TokenPtrVector;
+
 
 #endif

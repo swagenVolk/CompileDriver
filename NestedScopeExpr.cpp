@@ -13,7 +13,7 @@
 
 NestedScopeExpr::NestedScopeExpr() {
 	// Attach this shared_ptr to an already existing shared_ptr of type ExprTreeNode
-	myParentScopener = { NULL };
+	myParentScopener = NULL;
 	ternary2ndCnt = 0;
 	scopedKids.clear();
 
@@ -22,7 +22,7 @@ NestedScopeExpr::NestedScopeExpr() {
 
 NestedScopeExpr::NestedScopeExpr(std::shared_ptr<ExprTreeNode> openParenPtr) {
 	// Attach this shared_ptr to an already existing shared_ptr of type ExprTreeNode
-	myParentScopener = { openParenPtr };
+	myParentScopener = openParenPtr;
 	ternary2ndCnt = 0;
 	scopedKids.clear();
 

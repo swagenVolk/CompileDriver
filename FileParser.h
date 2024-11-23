@@ -31,12 +31,13 @@
 
 class FileParser {
   public:
-  	FileParser(BaseLanguageTerms & inOppoSpr8rs);
+  	FileParser(BaseLanguageTerms & inOppoSpr8rs, std::wstring fileName);
     int gnr8_token_stream(std::string file_name, TokenPtrVector & token_stream);
   
   private:
     void cnvrt_tkn_if_datetime (std::shared_ptr<Token> pssbl_datetime_tkn);
     void resolve_final_tkn_type (std::shared_ptr<Token> tkn_of_ambiguity);
+    std::wstring fileName;
     int line_num;
     int curr_tkn_starts_on_line_num;
     int curr_tkn_starts_on_col_pos;

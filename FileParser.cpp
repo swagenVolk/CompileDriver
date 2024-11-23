@@ -31,7 +31,7 @@ using namespace std;
 /* ****************************************************************************
  * file_parser constructor
  * ***************************************************************************/
-FileParser::FileParser (BaseLanguageTerms & inOppoSpr8rs) {
+FileParser::FileParser (BaseLanguageTerms & inOppoSpr8rs, std::wstring fileName) {
   curr_file_pos = 0;
 	line_num = 1;
   curr_line_start_pos = 0;
@@ -40,6 +40,7 @@ FileParser::FileParser (BaseLanguageTerms & inOppoSpr8rs) {
   num_chars_chomped_this_line = 0;
   num_lines_parsed = 0;
   oppoSpr8rs = inOppoSpr8rs;
+  this->fileName = fileName;
 }
 
 /* ****************************************************************************
@@ -610,14 +611,14 @@ tkn_type_enum FileParser::start_new_tkn_get_type (std::fstream & input_stream, T
     if (oppoSpr8rs.is_sngl_char_spr8r(curr_char))  {
       // Consume this Token right away by adding it to the Token stream
       curr_file_pos = input_stream.tellg();
-      std::shared_ptr<Token> tkn = std::make_shared<Token> (SPR8R_TKN, sngl_char_symbol, curr_tkn_starts_on_line_num, num_chars_chomped_this_line);
+      std::shared_ptr<Token> tkn = std::make_shared<Token> (SPR8R_TKN, sngl_char_symbol, fileName, curr_tkn_starts_on_line_num, num_chars_chomped_this_line);
       token_stream.push_back(tkn);
       tkn_type = START_UNDEF_TKN;
 
     } else if (oppoSpr8rs.is_atomic_opr8r(curr_char)) {
       // Consume this Token right away by adding it to the Token stream
       curr_file_pos = input_stream.tellg();
-      std::shared_ptr<Token> tkn = std::make_shared<Token> (SRC_OPR8R_TKN, sngl_char_symbol, curr_tkn_starts_on_line_num, num_chars_chomped_this_line);
+      std::shared_ptr<Token> tkn = std::make_shared<Token> (SRC_OPR8R_TKN, sngl_char_symbol, fileName, curr_tkn_starts_on_line_num, num_chars_chomped_this_line);
       token_stream.push_back(tkn);
       tkn_type = START_UNDEF_TKN;
 
@@ -798,7 +799,7 @@ int FileParser::gnr8_token_stream(std::string file_name, TokenPtrVector & token_
         case KEYWORD_TKN             :
           if (iswspace(curr_char) || oppoSpr8rs.is_sngl_char_spr8r(curr_char) || (iswpunct(curr_char) && curr_char != '_') )  {
             // Space, spr8r or punctuation (except _) ends a keyword
-            std::shared_ptr<Token> tkn = std::make_shared<Token>(curr_tkn_type, curr_str, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
+            std::shared_ptr<Token> tkn = std::make_shared<Token>(curr_tkn_type, curr_str, fileName, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
             token_stream.push_back(tkn);
             curr_str.clear();
 
@@ -832,7 +833,7 @@ int FileParser::gnr8_token_stream(std::string file_name, TokenPtrVector & token_
           // TODO: Can strings cross multiple lines? ???
           if (curr_char == '"' && this->prev_char != '\\') {
             // We got our closing quote and it was *NOT* escaped
-            std::shared_ptr<Token> tkn = std::make_shared <Token> (curr_tkn_type, curr_str, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
+            std::shared_ptr<Token> tkn = std::make_shared <Token> (curr_tkn_type, curr_str, fileName, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
             resolve_final_tkn_type (tkn);
             token_stream.push_back(tkn);
             curr_str.clear();
@@ -887,7 +888,7 @@ int FileParser::gnr8_token_stream(std::string file_name, TokenPtrVector & token_
         case INT32_TKN		       :
         case INT64_TKN		       :
           if (iswpunct(curr_char) || iswspace (curr_char) || oppoSpr8rs.is_sngl_char_spr8r(curr_char))  {
-            std::shared_ptr<Token> tkn = std::make_shared <Token> (curr_tkn_type, curr_str, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
+            std::shared_ptr<Token> tkn = std::make_shared <Token> (curr_tkn_type, curr_str, fileName, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
             resolve_final_tkn_type (tkn);
             token_stream.push_back(tkn);
             curr_str.clear();
@@ -911,7 +912,7 @@ int FileParser::gnr8_token_stream(std::string file_name, TokenPtrVector & token_
           // A single character OPR8R (e.g. ;) will end the currently accumulating OPR8R, and
           // both will be added to the Token stream in order
           if (!iswpunct(curr_char) || oppoSpr8rs.is_sngl_char_spr8r(curr_char) || oppoSpr8rs.is_atomic_opr8r(curr_char) || curr_char == '"')  {
-            std::shared_ptr<Token> opr8r = std::make_shared <Token> (curr_tkn_type, curr_str, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
+            std::shared_ptr<Token> opr8r = std::make_shared <Token> (curr_tkn_type, curr_str, fileName, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
             resolve_final_tkn_type (opr8r);
             token_stream.push_back (opr8r);
             curr_str.clear();
@@ -942,7 +943,7 @@ int FileParser::gnr8_token_stream(std::string file_name, TokenPtrVector & token_
     }
 
     if (!curr_str.empty() && failed_on_src_line_num == 0) {
-      std::shared_ptr<Token> tkn = std::make_shared <Token> (curr_tkn_type, curr_str, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
+      std::shared_ptr<Token> tkn = std::make_shared <Token> (curr_tkn_type, curr_str, fileName, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
       resolve_final_tkn_type (tkn);
       token_stream.push_back(tkn);
       curr_str.clear();
@@ -950,7 +951,7 @@ int FileParser::gnr8_token_stream(std::string file_name, TokenPtrVector & token_
 
     input_stream.close();
 
-    std::shared_ptr<Token> eos_tkn = std::make_shared <Token> (END_OF_STREAM_TKN, END_OF_STREAM_STR, 0, 0);
+    std::shared_ptr<Token> eos_tkn = std::make_shared <Token> (END_OF_STREAM_TKN, END_OF_STREAM_STR);
     token_stream.push_back (eos_tkn);
 
     if (failed_on_src_line_num == 0)

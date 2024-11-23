@@ -339,7 +339,7 @@ int InterpretedFileReader::readExprIntoList (std::vector<Token> & exprTknStream)
 					// Handle next Token
 					// TODO: Will this work without doing a malloc of some kind?  If so, what's
 					// happening behind the scenes?
-					Token nxtTkn (START_UNDEF_TKN, L"", 0, 0);
+					Token nxtTkn (START_UNDEF_TKN, L"");
 
 					if (op_code >= ATOMIC_OPCODE_RANGE_BEGIN && op_code <= LAST_VALID_OPR8R_OPCODE)	{
 						if (OK != snagOpr8r (op_code, nxtTkn, exprTknStream))

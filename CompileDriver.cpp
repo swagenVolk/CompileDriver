@@ -1,28 +1,35 @@
 /* ****************************************************************************
  * NEEDS TESTING:
- * SMRT pointers?
- * Tighten up type conversions
- * Look for opportunities to clarify (ie #defines -> enums?) to make debugging easier
  *
  * TODO:
- * Propogate use of ErrorInfo, and bubble info up to the code responsible for displaying info to user
- * Add variable declaration logic
- * 	Initialization expressions are allowed!
- * 	Will need an isInitialized var of some kind
- * 	Should a datatype KEYWORD perhaps open up a scope?
- * Add assignment OPR8R mechanics
- * Update explanation of how an expression is flattened and written out to interpreted file.
- * How many pointers/new(s) can I replace with essentially a copy?
+ * Figure out what changes to make to errorInfo.set
+ * Figure out how to keep progressing through compilation as much as reasonable on user errors
+ * 	Error logging
+ * 	Might need to separate out user line:col to make it easier to filter out - Single message, multiple instances
+ * 	isFailed vs. isFailedStop.....
+ * 	Delineate user failure types ???
+ * Look for opportunities to clarify (ie #defines -> enums?) to make debugging easier
+ * Add unseen mechanics for PREFIX and POSTFIX OPR8Rs
+ * How many pointers can I replace with essentially a copy? (grep -HEn "\bnew\b" *.cpp -> [0])
+ * How can I check for memory leaks|danglers?
  * Method to regression test lots of expressions and compare results against regular compiler
- * Compile variable declarations and put into NameSpace
- * Compile assignment and conditional statements
- * Use ExprTreeNode tree to resolve expression and check for any incompatible data types along the way
  * Compile fxn calls and put into NameSpace
  *
  * Directory/index for fxn calls so Interpreter doesn't have to search through the object
  * file for the location. It can do a quick(er) lookup
  *
  * RECENTLY DONE:
+ * Create UserMessages construct
+ * Add assignment OPR8R mechanics
+ * Break scopeStack out into its own class for sharing between GeneralParser and ExpressionParser?
+ * Update explanation of how an expression is flattened and written out to interpreted file.
+ * Declutter ExpressionParser, GeneralParser, RunTimeInterpreter
+ * Propagate use of InfoWarnError, and bubble info up to the code responsible for displaying info to user
+ * Compile variable declarations and put into NameSpace
+ * 	Initialization expressions are allowed!
+ * 	Will need an isInitialized var of some kind
+ * SMRT pointers
+ * Tighten up type conversions
  * Tested unary OPR8R mechanics
  * Dividing 2 SIGNED Tokens that should return a DOUBLE still returns a SIGNED
  * Should I re-visit the 1<->2 swapping of :'s operands? Probably not; at least for now
@@ -62,31 +69,34 @@ int main(int argc, const char * argv[])
   if (argc == 2)  {
     std::string input_file = argv[1];
 
-    std::wstring file_to_parse;
+    std::wstring userSrcFileName;
 
     // Prep our source code input file
     // TODO: This is hacky, but #include <codecvt> (for std::wstring_convert) can't be found
-    // TODO: Might not be necessary until we decide to support Unicode file names in the future
-    file_to_parse = util.stringToWstring(input_file);
+    // TODO: Might not be necessary until Unicode is supported for file names in the future
+    userSrcFileName = util.getLastSegment(util.stringToWstring(input_file), L"/");
 
     TokenPtrVector tokenStream;
     CompileExecTerms srcExecTerms;
-    FileParser fileParser (srcExecTerms);
+    FileParser fileParser (srcExecTerms, userSrcFileName);
     if (OK == fileParser.gnr8_token_stream(input_file, tokenStream))	{
 
     	std::string output_file_name = "interpreted_file.o";
 			std::wstring wide_output_file_name = util.stringToWstring(output_file_name);
 
 			// TODO: Open output file here; I don't know how to make an fstream member variable (might not be possible)
-    	std::ofstream output_stream(output_file_name, output_stream.binary | output_stream.out);
-			if (!output_stream.is_open()) {
-				std::cout << "ERROR: Failed to open output file " << output_file_name << std::endl;
-
-			} else {
+			// Can add it to
+//    	std::ofstream output_stream(output_file_name, output_stream.binary | output_stream.out);
+//			if (!output_stream.is_open()) {
+//				std::cout << "ERROR: Failed to open output file " << output_file_name << std::endl;
+//
+//			} else {
 				// Input & output files are ready to go
-				GeneralParser generalParser (tokenStream, srcExecTerms, output_file_name);
+				std::shared_ptr<VariablesScope> varScope = std::make_shared <VariablesScope> ();
+				UserMessages userMessages;
+				GeneralParser generalParser (tokenStream, userSrcFileName, srcExecTerms, userMessages, output_file_name, varScope);
 				int compileRetCode = generalParser.findKeyWordObjects();
-				output_stream.close();
+//				output_stream.close();
 
 				if (compileRetCode == OK)	{
 					// TODO: Open input file here; I don't know how to make an fstream member variable (might not be possible)
@@ -97,40 +107,40 @@ int main(int argc, const char * argv[])
 
 					} else	{
 						// TODO: Will need to change this up since we'll be executing more than just 1 expression
+						ret_code = OK;
 #if 0
 						InterpretedFileReader interpretedReader (executableStream, srcExecTerms);
 						std::vector<Token> exprTknList;
 						interpretedReader.readExprIntoList (exprTknList);
 						executableStream.close();
-						ErrorInfo errorInfo;
 
 						RunTimeInterpreter interpreter(srcExecTerms);
 						// TODO: Right now, there's just variable declarations and I'm expecting an expression!
 						// Could just check for an op_code
 						// INTERNAL_ERROR: Encountered on RunTimeInterpreter.cpp:1260. Token stream unexpectedly EMPTY!
-						if (OK != interpreter.resolveFlattenedExpr (exprTknList, errorInfo))	{
+						if (OK != interpreter.resolveFlattenedExpr (exprTknList, ))	{
 							// TODO:
-							std::wcout << errorInfo.getFormattedMsg() << std::endl;
+							std::wcout << ??? << std::endl;
 						}
 #endif
-					}
 				}
 			}
-    }
-
-    std::wcout << std::endl << "********** END OF MAIN **********" << std::endl;
-    // TODO testStreamInterpreter();
-
-  } else  {
-    std::wcout << "Wrong # of arguments!" << std::endl;
+		} else  {
+			std::wcout << "Wrong # of arguments!" << std::endl;
+		}
   }
 
-  int count = 1;
+  // TODO testStreamInterpreter();
 
+  int count = 1;
   std::wcout << L"Final answer for count = " << count << L": " << (1 + 2 * (3 + 4 * (5 + 6 * 7 * (count == 1 ? 10 : count == 2 ? 11 : count == 3 ? 12 : count == 4 ? 13 : 33)))) << std::endl;
 
   count = 2;
   std::wcout << L"Final answer for count = " << count << L": " << (1 + 2 * (3 + 4 * (5 + 6 * 7 * (count == 1 ? 10 : count == 2 ? 11 : count == 3 ? 12 : count == 4 ? 13 : 33)))) << std::endl;
 
+  count = 5;
+  std::wcout << L"Final answer for count = " << count << L": " << (1 + 2 * (3 + 4 * (5 + 6 * 7 * (count == 1 ? 10 : count == 2 ? 11 : count == 3 ? 12 : count == 4 ? 13 : 33)))) << std::endl;
+
+  std::wcout << std::endl << "********** END OF MAIN **********" << std::endl;
   return (ret_code);
 }

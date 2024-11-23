@@ -20,9 +20,6 @@
 #include "Opr8rPrecedenceLvl.h"
 #include "OpCodes.h"
 
-// typedef std::map <std::wstring, std::int> r8rKey_reqRandCntVal;
-
-
 class BaseLanguageTerms {
 public:
 	BaseLanguageTerms();

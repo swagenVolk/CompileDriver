@@ -52,3 +52,50 @@ std::wstring Utilities::getLastSegment (std::wstring pluralSegments, std::wstrin
 	return (lastSeg);
 }
 
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+void Utilities::dumpTokenList (std::vector<Token> & tokenStream, CompileExecTerms execTerms, std::wstring callersSrcFile, int lineNum)	{
+	std::wstring tknStrmStr = L"";
+
+	std::wcout << L"********** dumpTokenList called from " << callersSrcFile << L":" << lineNum << L" **********" << std::endl;
+	int idx;
+	for (idx = 0; idx < tokenStream.size(); idx++)	{
+		Token listTkn = tokenStream[idx];
+		std::wcout << L"[" ;
+
+		switch (listTkn.tkn_type)	{
+			case EXEC_OPR8R_TKN:
+				std::wcout << execTerms.getSrcOpr8rStrFor(listTkn._unsigned);
+				break;
+			case UINT8_TKN:
+			case UINT16_TKN:
+			case UINT32_TKN:
+			case UINT64_TKN:
+				std::wcout << listTkn._unsigned;
+				break;
+			case INT8_TKN:
+			case INT16_TKN:
+			case INT32_TKN:
+			case INT64_TKN:
+				std::wcout << listTkn._signed;
+				break;
+			case DOUBLE_TKN:
+				std::wcout << listTkn._double;
+				break;
+			case STRING_TKN:
+			case DATETIME_TKN:
+			case KEYWORD_TKN:
+			case SRC_OPR8R_TKN:
+				std::wcout << listTkn._string;
+				break;
+			default:
+				std::wcout << L"???";
+				break;
+		}
+		std::wcout << L"] ";
+	}
+
+	std::wcout << std::endl;
+
+}

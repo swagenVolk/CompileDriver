@@ -18,10 +18,10 @@ public:
 	ScopeFrame();
 	virtual ~ScopeFrame();
 
-	uint8_t type;																// [if] [else if] [else] [for] [while] [function]?
-	uint32_t begin_file_pos;										// Where does this scope object begin in the interpreted file?
-	uint32_t end_file_pos;											// Where does this scope object END in the interpreted file?
-	std::map <std::wstring, Token> variables;		// List of variables defined at this scope
+	uint8_t type;																									// [if] [else if] [else] [for] [while] [function]?
+	uint32_t begin_file_pos;																			// Where does this scope object begin in the interpreted file?
+	uint32_t end_file_pos;																				// Where does this scope object END in the interpreted file?
+	std::map <std::wstring, std::shared_ptr<Token>> variables;		// List of variables defined at this scope
 
 };
 
