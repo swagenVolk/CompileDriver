@@ -3,6 +3,8 @@
 
 /* ****************************************************************************
  * Holds commonly used #defines used for uniformity and code readability
+ * For any custom error codes, start high (e.g. 0xFFFFFFFF) and work down to
+ * reduce the probability of overlapping return codes.
  * ***************************************************************************/
 
 #define OK                      0

@@ -26,7 +26,7 @@ class InterpretedFileWriter {
 public:
 	InterpretedFileWriter(std::string output_file_name, CompileExecTerms & inExecTerms, UserMessages & userMessages);
 	virtual ~InterpretedFileWriter();
-	int flattenExprTreeWriteToFile(std::shared_ptr<ExprTreeNode> rootOfExpr, std::vector<Token> & flatExprTknList, UserMessages & userMessages);
+	int writeFlatExprToFile(std::shared_ptr<ExprTreeNode> rootOfExpr, std::vector<Token> & flatExprTknList, UserMessages & userMessages);
 
 	// TODO: Is making these "public" legit?
 	int writeFlexLenOpCode (uint8_t op_code, UserMessages & userMessages);
@@ -34,6 +34,7 @@ public:
 	int writeRawUnsigned (uint64_t  payload, int payloadBitSize, UserMessages & userMessages);
 	int writeString (uint8_t op_code, std::wstring tokenStr, UserMessages & userMessages);
 	uint32_t getWriteFilePos ();
+	int flattenExprTree (std::shared_ptr<ExprTreeNode> rootOfExpr, std::vector<Token> & flatExprTknList, std::wstring userSrcFileName);
 
 private:
 	std::wstring thisSrcFile;
@@ -43,7 +44,6 @@ private:
 	std::ofstream outputStream;
 	UserMessages userMessages;
 
-	int writeExpr_12_Opr8r (std::shared_ptr<ExprTreeNode> currBranch, std::vector<Token> & flatExprTknList);
 	int writeAtomicOpCode (uint8_t op_code);
 	int write8BitOpCode (uint8_t op_code, uint8_t payload);
 	int write16BitOpCode (uint8_t op_code, uint16_t payload);
@@ -51,6 +51,8 @@ private:
 	int write64BitOpCode (uint8_t op_code, uint64_t payload);
 	int writeRawString (std::wstring tokenStr);
 	int writeToken (std::shared_ptr<Token>, std::vector<Token> & flatExprTknList);
+  int makeFlatExpr_12_Opr8r (std::shared_ptr<ExprTreeNode> currBranch, std::vector<Token> & flatExprTknList);
+	int addTokenToFlatList (std::shared_ptr<Token> token, std::vector<Token> & flatExprTknList);
 };
 
 #endif /* INTERPRETEDFILEWRITER_H_ */

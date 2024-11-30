@@ -170,6 +170,9 @@ void UserMessages::displayGroupMessages (std::map<std::wstring, std::shared_ptr<
 	std::wcout << std::endl;
 }
 
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
 void UserMessages::getUserErrorCnt (int & numUnique, int & numTotal)	{
 
 	std::pair <int, int> uniq_total_pair = getUniqueTotalMsgCnt (userErrorMessages);
@@ -178,6 +181,16 @@ void UserMessages::getUserErrorCnt (int & numUnique, int & numTotal)	{
 
 }
 
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+void UserMessages::getInternalErrorCnt (int & numUnique, int & numTotal)	{
+
+	std::pair <int, int> uniq_total_pair = getUniqueTotalMsgCnt (internalErrorMessages);
+	numUnique = uniq_total_pair.first;
+	numTotal = uniq_total_pair.second;
+
+}
 
 /* ****************************************************************************
  *

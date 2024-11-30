@@ -8,6 +8,7 @@
 
 #include "Utilities.h"
 #include <stdint.h>
+#include <string>
 
 Utilities::Utilities() {
 	// TODO Auto-generated constructor stub
@@ -52,6 +53,29 @@ std::wstring Utilities::getLastSegment (std::wstring pluralSegments, std::wstrin
 	return (lastSeg);
 }
 
+/* ****************************************************************************
+ * Take the contents of a vector of strings and concatenate them
+ * ***************************************************************************/
+std::wstring Utilities::joinStrings (std::vector<std::wstring> & strVector, std::wstring spr8r, bool ignoreBlankEntries)	{
+	std::wstring concatStr;
+	std::wstring nextStr;
+
+	for (int idx = 0; idx < strVector.size(); idx++)	{
+		nextStr = strVector[idx];
+		if (!ignoreBlankEntries)	{
+			if (idx > 0)
+				concatStr.append(spr8r);
+			concatStr.append(nextStr);
+	
+		} else if (!nextStr.empty()) {
+			if (!concatStr.empty())
+				concatStr.append(spr8r);
+			concatStr.append(nextStr);
+		}
+	}
+
+	return (concatStr);
+}
 /* ****************************************************************************
  *
  * ***************************************************************************/

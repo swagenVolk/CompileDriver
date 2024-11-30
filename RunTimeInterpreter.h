@@ -1,5 +1,5 @@
 /*
- * RunTimeExecutor.h
+ * RunTimeInterpreter.h
  *
  *  Created on: Jan 4, 2024
  *      Author: Mike Volk
@@ -14,6 +14,7 @@
 #include "Utilities.h"
 #include "VariablesScope.h"
 #include "UserMessages.h"
+#include "ExprTreeNode.h"
 
 class RunTimeInterpreter {
 public:
@@ -51,6 +52,7 @@ private:
 	int execBitWiseOp (std::vector<Token> & exprTknStream, int & callersIdx);
 	int execStandardMath (std::vector<Token> & exprTknStream, int & callersIdx);
 	int resolveIfVariable (Token & originalTkn, Token & resolvedTkn, std::wstring & varName);
+
 };
 
 #endif /* RUNTIMEINTERPRETER_H_ */

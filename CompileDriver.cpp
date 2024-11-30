@@ -2,12 +2,15 @@
  * NEEDS TESTING:
  *
  * TODO:
- * Figure out what changes to make to errorInfo.set
+ * Type check operand of [PRE|POST]FIX OPR8Rs
+ * Be clear & consistent about where type checking happens!
+ * Write out [PRE|POST]FIX part of expression
+ * Interpreter act on [PRE|POST]FIX OPR8Rs when doing an expression
  * Figure out how to keep progressing through compilation as much as reasonable on user errors
- * 	Error logging
- * 	Might need to separate out user line:col to make it easier to filter out - Single message, multiple instances
  * 	isFailed vs. isFailedStop.....
- * 	Delineate user failure types ???
+ * 	How many user errors before we quit outright?
+ * 	Fxn to look for end of currently busticated expression
+ * 	Post INFO message so that user knows when we went speculative
  * Look for opportunities to clarify (ie #defines -> enums?) to make debugging easier
  * Add unseen mechanics for PREFIX and POSTFIX OPR8Rs
  * How many pointers can I replace with essentially a copy? (grep -HEn "\bnew\b" *.cpp -> [0])
@@ -19,6 +22,9 @@
  * file for the location. It can do a quick(er) lookup
  *
  * RECENTLY DONE:
+ * Figure out what changes to make to errorInfo.set
+ * 	Error logging
+ * 	Might need to separate out user line:col to make it easier to filter out - Single message, multiple instances
  * Create UserMessages construct
  * Add assignment OPR8R mechanics
  * Break scopeStack out into its own class for sharing between GeneralParser and ExpressionParser?
@@ -117,7 +123,6 @@ int main(int argc, const char * argv[])
 						RunTimeInterpreter interpreter(srcExecTerms);
 						// TODO: Right now, there's just variable declarations and I'm expecting an expression!
 						// Could just check for an op_code
-						// INTERNAL_ERROR: Encountered on RunTimeInterpreter.cpp:1260. Token stream unexpectedly EMPTY!
 						if (OK != interpreter.resolveFlattenedExpr (exprTknList, ))	{
 							// TODO:
 							std::wcout << ??? << std::endl;

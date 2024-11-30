@@ -20,6 +20,7 @@ public:
 	virtual ~Utilities();
 	std::wstring stringToWstring (std::string skinnyStr);
 	std::wstring getLastSegment (std::wstring pluralSegments, std::wstring delimiter);
+	std::wstring joinStrings (std::vector<std::wstring> & strVector, std::wstring spr8r, bool ignoreBlankEntries);
 	void dumpTokenList (std::vector<Token> & tokenStream, CompileExecTerms execTerms, std::wstring callersSrcFile, int lineNum);
 
 };

@@ -29,6 +29,8 @@
 #include "VariablesScope.h"
 #include "UserMessages.h"
 
+#define RESUME_COMPILATION	L"Continuing compilation after "
+
 enum var_declaration_states_enum {
   GET_VAR_NAME
 	,CHECK_FOR_INIT_EXPR
@@ -60,11 +62,14 @@ private:
   std::shared_ptr<VariablesScope> varScopeStack;
   Token scratchTkn;
   UserMessages userMessages;
+  int userErrorLimit;
+  std::vector<std::wstring> ender_list;
+  std::vector<std::wstring> ender_comma_list;
 
-  int parseVarDeclaration (std::wstring dataTypeStr, std::pair<TokenTypeEnum, uint8_t> tknType_opCode);
-  int resolveVarInitExpr (Token & varTkn, Token currTkn, varDeclarationState & parserState, bool & isDeclarationEnded);
-
-
+  int parseVarDeclaration (std::wstring dataTypeStr, std::pair<TokenTypeEnum, uint8_t> tknType_opCode, bool & isDeclarationEnded);
+  int resolveVarInitExpr (Token & varTkn, Token currTkn, Token & exprCloser, bool & isDeclarationEnded);
+  bool isProgressBlocked ();
+  int chompUntil_infoMsgAfter (std::vector<std::wstring> searchStrings, Token & closerTkn);
 
 };
 

@@ -23,26 +23,28 @@
 #define ATOMIC_OPCODE_RANGE_BEGIN				0x1
 #define ATOMIC_OPCODE_RANGE_END					0x2F
 
-#define	POST_INCR_OPR8R_OPCODE					0x1
-#define	POST_DECR_OPR8R_OPCODE					0x2
-#define	PRE_INCR_OPR8R_OPCODE						0x3
-#define	PRE_DECR_OPR8R_OPCODE						0x4
-#define UNARY_PLUS_OPR8R_OPCODE					0x5			// TODO: Not currently in use
+
+#define	POST_INCR_NO_OP_OPCODE					0x1			// PREFIX & POSTFIX OPR8Rs are executed before|after the expression
+#define	POST_DECR_NO_OP_OPCODE					0x2			// that contains them. We still want to keep a reference in the Interpreted
+#define	PRE_INCR_NO_OP_OPCODE					  0x3			// expression stream for when the Interpreted file get disassembled.
+#define	PRE_DECR_NO_OP_OPCODE					  0x4
+
+#define UNARY_PLUS_OPR8R_OPCODE					0x5
 #define	UNARY_MINUS_OPR8R_OPCODE				0x6
 #define	LOGICAL_NOT_OPR8R_OPCODE				0x7			// "!"
 #define	BITWISE_NOT_OPR8R_OPCODE				0x8			// "~"
-#define	MULTIPLY_OPR8R_OPCODE						0x9			// "*"
-#define	DIV_OPR8R_OPCODE								0xA			// "/"
-#define	MOD_OPR8R_OPCODE								0xB			// "%"
-#define	BINARY_PLUS_OPR8R_OPCODE				0xC			// "+"
-#define	BINARY_MINUS_OPR8R_OPCODE				0xD			// "-"
-#define	LEFT_SHIFT_OPR8R_OPCODE					0xE			// "<<"
-#define	RIGHT_SHIFT_OPR8R_OPCODE				0xF			// ">>"
+#define	MULTIPLY_OPR8R_OPCODE					  0x9			// "*"
+#define	DIV_OPR8R_OPCODE						    0xA			// "/"
+#define	MOD_OPR8R_OPCODE						    0xB			// "%"
+#define	BINARY_PLUS_OPR8R_OPCODE				0xC 		// "+"
+#define	BINARY_MINUS_OPR8R_OPCODE				0xD 		// "-"
+#define	LEFT_SHIFT_OPR8R_OPCODE					0xE 		// "<<"
+#define	RIGHT_SHIFT_OPR8R_OPCODE				0xF 		// ">>"
 #define	LESS_THAN_OPR8R_OPCODE					0x10		// "<"
 #define	LESS_EQUALS_OPR8R8_OPCODE				0x11		// "<="
 #define	GREATER_THAN_OPR8R_OPCODE				0x12		// ">"
 #define	GREATER_EQUALS_OPR8R8_OPCODE		0x13		// ">="
-#define	EQUALITY_OPR8R_OPCODE						0x14		// "=="
+#define	EQUALITY_OPR8R_OPCODE					  0x14		// "=="
 #define	NOT_EQUALS_OPR8R_OPCODE					0x15		// "!="
 #define	BITWISE_AND_OPR8R_OPCODE				0x16		// "&"
 #define	BITWISE_XOR_OPR8R_OPCODE				0x17		// "^"
@@ -111,23 +113,27 @@
 // TODO: Should I store doubles as something other than a literal string?
 #define DATETIME_OPCODE									0x62	// [op_code][total_length][datetime string]
 #define DOUBLE_OPCODE										0x63	// [op_code][total_length][double string]
+#define	POST_INCR_OPR8R_OPCODE					0x64	// [op_code][total_length][string of comma separated var names]
+#define	POST_DECR_OPR8R_OPCODE					0x65	// [op_code][total_length][string of comma separated var names]
+#define	PRE_INCR_OPR8R_OPCODE						0x66	// [op_code][total_length][string of comma separated var names]
+#define	PRE_DECR_OPR8R_OPCODE						0x67	// [op_code][total_length][string of comma separated var names]
 
 // TODO: Should code_blocks also have their own total_length field?
 // TODO: Could these code_blocks be considered unnamed scopes instead?
 // TODO: Should scope openers and closers also contain the line # and column of the Token that opened or closed them?
 
-#define EXPRESSION_OPCODE								0x64	// [op_code][total_length][expression stream]
-#define IF_BLOCK_OPCODE									0x65	// [op_code][total_length][conditional -> [op_code][total_length][expression stream]][code_block]
-#define ELSE_IF_BLOCK_OPCODE						0x66	// [op_code][total_length][conditional -> [op_code][total_length][expression stream]][code_block]
-#define ELSE_BLOCK_OPCODE								0x67	// [op_code][total_length][code_block]
-#define WHILE_LOOP_OPCODE								0x68	// [op_code][total_length][conditional -> [op_code][total_length][expression stream]][code_block]
-#define FOR_LOOP_OPCODE									0x69	// [op_code][total_length][init_expression][conditional_expression][last_expression][code_block]
-#define SCOPE_OPEN_OPCODE								0x6A	// [op_code][total_length][]
-#define VARIABLES_DECLARATION_OPCODE		0x6B	// [op_code][total_length][datatype op_code][[string var_name][init_expression]]+
-#define FXN_DECLARATION_OPCODE					0x6C	// [op_code][total_length][string fxn_name][parameter type list][parameter name list]
-#define FXN_CALL_OPCODE									0x6D	// [op_code][total_length][string fxn_name][expression list]
-#define SYSTEM_CALL_OPCODE							0x6E	// [op_code][total_length][string fxn_name][expression list]
-#define LAST_VALID_FLEX_LEN_OPCODE			0x6E	// Change this value if new flexible length op_codes in this range are created
+#define EXPRESSION_OPCODE								0x68	// [op_code][total_length][expression stream]
+#define IF_BLOCK_OPCODE									0x69	// [op_code][total_length][conditional -> [op_code][total_length][expression stream]][code_block]
+#define ELSE_IF_BLOCK_OPCODE						0x6A	// [op_code][total_length][conditional -> [op_code][total_length][expression stream]][code_block]
+#define ELSE_BLOCK_OPCODE								0x6B	// [op_code][total_length][code_block]
+#define WHILE_LOOP_OPCODE								0x6C	// [op_code][total_length][conditional -> [op_code][total_length][expression stream]][code_block]
+#define FOR_LOOP_OPCODE									0x6D	// [op_code][total_length][init_expression][conditional_expression][last_expression][code_block]
+#define SCOPE_OPEN_OPCODE								0x6E	// [op_code][total_length][]
+#define VARIABLES_DECLARATION_OPCODE		0x6F	// [op_code][total_length][datatype op_code][[string var_name][init_expression]]+
+#define FXN_DECLARATION_OPCODE					0x70	// [op_code][total_length][string fxn_name][parameter type list][parameter name list]
+#define FXN_CALL_OPCODE									0x71	// [op_code][total_length][string fxn_name][expression list]
+#define SYSTEM_CALL_OPCODE							0x72	// [op_code][total_length][string fxn_name][expression list]
+#define LAST_VALID_FLEX_LEN_OPCODE			0x72	// Change this value if new flexible length op_codes in this range are created
 
 // TODO: What about SPR8Rs?
 // this->_1char_spr8rs = L"()[]{}"; [ASCII - 0x28,0x29,0x5B,0x5D,0x7B,0x7D]

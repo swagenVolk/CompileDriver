@@ -1,5 +1,5 @@
 /*
- * UserSourceTerms.cpp
+ * CompileExecTerms.cpp
  * Overrides BaseLanguageTerms class and additionally holds OPR8R definitions and their
  * precedence in relation to one another.
  *
@@ -19,17 +19,17 @@ CompileExecTerms::CompileExecTerms() {
 	grouped_opr8rs.push_back(Opr8rPrecedenceLvl ());
 	grouped_opr8rs.back().opr8rs.push_back( Operator (L"++", POSTFIX, USR_SRC, 1, 0, INVALID_OPCODE));   // NOTE: Pre-fix and post-fix precedence is different
 	grouped_opr8rs.back().opr8rs.push_back ( Operator (L"--", POSTFIX, USR_SRC, 1, 0, INVALID_OPCODE));
-	grouped_opr8rs.back().opr8rs.push_back ( Operator (POST_INCR_OPR8R, POSTFIX, GNR8D_SRC, 1, 1, POST_INCR_OPR8R_OPCODE));
+	grouped_opr8rs.back().opr8rs.push_back ( Operator (POST_INCR_OPR8R, POSTFIX, GNR8D_SRC, 1, 1, POST_INCR_NO_OP_OPCODE));
 	execToSrcOpr8rMap.insert (std::pair {POST_INCR_OPR8R, L"++"});
-	grouped_opr8rs.back().opr8rs.push_back ( Operator (POST_DECR_OPR8R, POSTFIX, GNR8D_SRC, 1, 1, POST_DECR_OPR8R_OPCODE));   // NOTE: Pre-fix and post-fix precedence is different
+	grouped_opr8rs.back().opr8rs.push_back ( Operator (POST_DECR_OPR8R, POSTFIX, GNR8D_SRC, 1, 1, POST_DECR_NO_OP_OPCODE));   // NOTE: Pre-fix and post-fix precedence is different
 	execToSrcOpr8rMap.insert (std::pair {POST_DECR_OPR8R, L"--"});
 
 	grouped_opr8rs.push_back(Opr8rPrecedenceLvl ());
 	grouped_opr8rs.back().opr8rs.push_back ( Operator (L"++", PREFIX, USR_SRC, 1, 0, INVALID_OPCODE));
 	grouped_opr8rs.back().opr8rs.push_back ( Operator (L"--", PREFIX, USR_SRC, 1, 0, INVALID_OPCODE));
-	grouped_opr8rs.back().opr8rs.push_back ( Operator (PRE_INCR_OPR8R, PREFIX, GNR8D_SRC, 1, 1, PRE_INCR_OPR8R_OPCODE));   // NOTE: Pre-fix and post-fix precedence is different
+	grouped_opr8rs.back().opr8rs.push_back ( Operator (PRE_INCR_OPR8R, PREFIX, GNR8D_SRC, 1, 1, PRE_INCR_NO_OP_OPCODE));   // NOTE: Pre-fix and post-fix precedence is different
 	execToSrcOpr8rMap.insert (std::pair {PRE_INCR_OPR8R, L"++"});
-	grouped_opr8rs.back().opr8rs.push_back ( Operator (PRE_DECR_OPR8R, PREFIX, GNR8D_SRC, 1, 1, PRE_DECR_OPR8R_OPCODE));   // NOTE: Pre-fix and post-fix precedence is different
+	grouped_opr8rs.back().opr8rs.push_back ( Operator (PRE_DECR_OPR8R, PREFIX, GNR8D_SRC, 1, 1, PRE_DECR_NO_OP_OPCODE));   // NOTE: Pre-fix and post-fix precedence is different
 	execToSrcOpr8rMap.insert (std::pair {PRE_DECR_OPR8R, L"++"});
 
   grouped_opr8rs.back().opr8rs.push_back ( Operator (L"+", UNARY, USR_SRC, 1, 0, INVALID_OPCODE));

@@ -1,5 +1,5 @@
 /*
- * BaseOperators.cpp
+ * BaseLanguageTerms.cpp
  * Base class to hold common fxns that check internal lists for separator, operator and datatype
  * info. Note that the internal lists will have different contents based on what the derived
  * class puts in or removes from the list.

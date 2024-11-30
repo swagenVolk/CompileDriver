@@ -47,8 +47,8 @@ class ExpressionParser {
 public:
 	ExpressionParser(CompileExecTerms & inUsrSrcTerms, std::shared_ptr<VariablesScope> inVarScopeStack, std::wstring userSrcFileName, UserMessages & userMessages);
 	virtual ~ExpressionParser();
-	int parseOfNoReturn (TokenPtrVector & tknStream, bool isEndedByComma, UserMessages & userMessages);
-	int makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree, Token & enderTkn, bool isEndedByComma, UserMessages & userMessages);
+	int makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree, Token & enderTkn
+			, bool isEndedByComma, bool & isExprClosed, UserMessages & userMessages);
 
 private:
   TokenPtrVector tknStream;
