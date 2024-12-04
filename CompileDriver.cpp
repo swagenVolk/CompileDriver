@@ -2,7 +2,7 @@
  * NEEDS TESTING:
  *
  * TODO:
- * Type check operand of [PRE|POST]FIX OPR8Rs
+ * Type check operand of [PRE|POST]FIX OPR8Rs - this should already happen via exprParser
  * Be clear & consistent about where type checking happens!
  * Write out [PRE|POST]FIX part of expression
  * Interpreter act on [PRE|POST]FIX OPR8Rs when doing an expression
@@ -47,18 +47,13 @@
  * Mechanics of writing expression out to interpreted file
  * ***************************************************************************/
 
-#include <list>
 #include "common.h"
 #include "CompileExecTerms.h"
-#include "ExpressionParser.h"
-#include "ExprTreeNode.h"
 #include "FileParser.h"
 #include "Token.h"
-#include "InterpretedFileWriter.h"
-#include "InterpretedFileReader.h"
-#include "RunTimeInterpreter.h"
 #include "Utilities.h"
 #include "GeneralParser.h"
+#include <iostream>
 
 using namespace std;
 
@@ -90,30 +85,24 @@ int main(int argc, const char * argv[])
     	std::string output_file_name = "interpreted_file.o";
 			std::wstring wide_output_file_name = util.stringToWstring(output_file_name);
 
-			// TODO: Open output file here; I don't know how to make an fstream member variable (might not be possible)
-			// Can add it to
-//    	std::ofstream output_stream(output_file_name, output_stream.binary | output_stream.out);
-//			if (!output_stream.is_open()) {
-//				std::cout << "ERROR: Failed to open output file " << output_file_name << std::endl;
-//
-//			} else {
-				// Input & output files are ready to go
-				std::shared_ptr<VariablesScope> varScope = std::make_shared <VariablesScope> ();
-				UserMessages userMessages;
-				GeneralParser generalParser (tokenStream, userSrcFileName, srcExecTerms, userMessages, output_file_name, varScope);
-				int compileRetCode = generalParser.findKeyWordObjects();
-//				output_stream.close();
+			std::shared_ptr<VariablesScope> varScope = std::make_shared <VariablesScope> ();
+			// TODO: Previously passing &, but it appeared to be behaving like a copy: UserMessages userMessages;
+			std::shared_ptr<UserMessages> userMessages = std::make_shared <UserMessages> ();
+			GeneralParser generalParser (tokenStream, userSrcFileName, srcExecTerms, userMessages, output_file_name, varScope);
+			int compileRetCode = generalParser.findKeyWordObjects();
 
-				if (compileRetCode == OK)	{
-					// TODO: Open input file here; I don't know how to make an fstream member variable (might not be possible)
-					std::string interpretedFileName = output_file_name;
-		    	std::ifstream executableStream (interpretedFileName, executableStream.binary | executableStream.in);
-					if (!executableStream.is_open()) {
-						std::cout << "ERROR: Failed to open input file " << output_file_name << std::endl;
+			userMessages->showMessagesByInsertOrder(true);
 
-					} else	{
-						// TODO: Will need to change this up since we'll be executing more than just 1 expression
-						ret_code = OK;
+			if (compileRetCode == OK)	{
+				// TODO: Open input file here; I don't know how to make an fstream member variable (might not be possible)
+				std::string interpretedFileName = output_file_name;
+				std::ifstream executableStream (interpretedFileName, executableStream.binary | executableStream.in);
+				if (!executableStream.is_open()) {
+					std::cout << "ERROR: Failed to open input file " << output_file_name << std::endl;
+
+				} else	{
+					// TODO: Will need to change this up since we'll be executing more than just 1 expression
+					ret_code = OK;
 #if 0
 						InterpretedFileReader interpretedReader (executableStream, srcExecTerms);
 						std::vector<Token> exprTknList;
@@ -133,7 +122,8 @@ int main(int argc, const char * argv[])
 		} else  {
 			std::wcout << "Wrong # of arguments!" << std::endl;
 		}
-  }
+	}
+
 
   // TODO testStreamInterpreter();
 

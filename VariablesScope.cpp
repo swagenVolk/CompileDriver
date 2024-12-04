@@ -6,6 +6,7 @@
  */
 
 #include "VariablesScope.h"
+#include <memory>
 
 VariablesScope::VariablesScope() {
 	// TODO Auto-generated constructor stub
@@ -30,7 +31,7 @@ VariablesScope::~VariablesScope() {
  * Look up this variable in our scopeStack|NameSpace. Only update the variable
  * if isCommitUpdate = COMMIT_UPDATE (true)
  * ***************************************************************************/
-int VariablesScope::findVar(std::wstring varName, int maxLevels, Token & updateValTkn, bool isCommitUpdate, UserMessages & userMessages)	{
+int VariablesScope::findVar(std::wstring varName, int maxLevels, Token & updateValTkn, bool isCommitUpdate, std::shared_ptr<UserMessages> userMessages)	{
 	int ret_code = GENERAL_FAILURE;
 	bool isFound = false;
 
@@ -63,8 +64,8 @@ int VariablesScope::findVar(std::wstring varName, int maxLevels, Token & updateV
 		}
 	}
 
-	if (isCommitUpdate && !isFound)	{
-		userMessages.logMsg (INTERNAL_ERROR, L"Variable " + varName + L" no longer exists at current scope."
+	if (isCommitUpdate && !isFound && userMessages != NULL)	{
+		userMessages->logMsg (INTERNAL_ERROR, L"Variable " + varName + L" no longer exists at current scope."
 				, thisSrcFile, __LINE__, 0);
 	}
 

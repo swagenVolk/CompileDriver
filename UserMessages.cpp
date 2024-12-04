@@ -6,6 +6,8 @@
  */
 
 #include "UserMessages.h"
+#include "FileLineCol.h"
+#include "InfoWarnError.h"
 
 UserMessages::UserMessages() {
 	// TODO Auto-generated constructor stub
@@ -153,7 +155,7 @@ std::pair <int, int> UserMessages::getUniqueTotalMsgCnt (std::map<std::wstring, 
 /* ****************************************************************************
  *
  * ***************************************************************************/
-void UserMessages::displayGroupMessages (std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> & messagesHolder)	{
+void UserMessages::displayMessagesInHolder (std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> & messagesHolder)	{
 
 	for (auto uniqR8r = messagesHolder.begin(); uniqR8r != messagesHolder.end(); uniqR8r++)	{
 		// Print out the message on the 1st line
@@ -201,29 +203,31 @@ void UserMessages::showMessagesByGroup ()	{
 
 	uniq_total_pair = getUniqueTotalMsgCnt (internalErrorMessages);
 	std::wcout << L"INTERNAL ERROR MESSAGES: Unique messages = " << uniq_total_pair.first << L"; Total messages = " << uniq_total_pair.second << ";" << std::endl;
-	displayGroupMessages (internalErrorMessages);
+	displayMessagesInHolder (internalErrorMessages);
 
 	uniq_total_pair = getUniqueTotalMsgCnt (userErrorMessages);
 	std::wcout << L"USER ERROR MESSAGES: Unique messages = " << uniq_total_pair.first << L"; Total messages = " << uniq_total_pair.second << ";" << std::endl;
-	displayGroupMessages (userErrorMessages);
+	displayMessagesInHolder (userErrorMessages);
 
 	uniq_total_pair = getUniqueTotalMsgCnt (warningMessages);
 	std::wcout << L"USER WARNING MESSAGES: Unique messages = " << uniq_total_pair.first << L"; Total messages = " << uniq_total_pair.second << ";" << std::endl;
-	displayGroupMessages (warningMessages);
+	displayMessagesInHolder (warningMessages);
 
 	uniq_total_pair = getUniqueTotalMsgCnt (infoMessages);
 	std::wcout << L"USER INFO MESSAGES: Unique messages = " << uniq_total_pair.first << L"; Total messages = " << uniq_total_pair.second << ";" << std::endl;
-	displayGroupMessages (infoMessages);
+	displayMessagesInHolder (infoMessages);
 
 }
 
 /* ****************************************************************************
  *
  * ***************************************************************************/
-void UserMessages::orderMessagesHolder (std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> & messagesHolder
+void UserMessages::putHolderMsgsInOrder (std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> & messagesHolder
 		, std::vector<std::pair <std::wstring, FileLineCol>> & orderedMsgs
 		, std::vector<std::wstring> & orderedMsgTypes
 		, std::wstring msgTypeStr)	{
+
+	assert (orderedMsgs.size() == absoluteInsertPos);
 
 	for (auto unqMsgR8r = messagesHolder.begin(); unqMsgR8r != messagesHolder.end(); unqMsgR8r++)	{
 		std::wstring unqMsg = unqMsgR8r->first;
@@ -233,7 +237,9 @@ void UserMessages::orderMessagesHolder (std::map<std::wstring, std::shared_ptr<s
 			FileLineCol fileLineCol = *instr8r;
 			orderedMsgs[fileLineCol.insertPos].first = unqMsg;
 			orderedMsgs[fileLineCol.insertPos].second = fileLineCol;
+			orderedMsgTypes[fileLineCol.insertPos] = msgTypeStr;
 		}
+
 	}
 }
 
@@ -244,16 +250,25 @@ void UserMessages::showMessagesByInsertOrder (bool isOrderAscending)	{
 
 	std::vector<std::pair <std::wstring, FileLineCol>> orderedMsgs;
 	orderedMsgs.reserve(absoluteInsertPos);
+	int idx;
+	FileLineCol emptyFlc;
+
+	for (idx = 0; idx < absoluteInsertPos; idx++)	{
+		// .reserve only allocated space, but did nothing to the count, so add some blanks
+		orderedMsgs.push_back(std::pair {L"", emptyFlc});
+	}
 
 	std::vector<std::wstring> orderedMsgTypes;
 	orderedMsgTypes.reserve(absoluteInsertPos);
+	for (idx = 0; idx < absoluteInsertPos; idx++)	{
+		// .reserve only allocated space, but did nothing to the count, so add some blanks
+		orderedMsgTypes.push_back(L"");
+	}
 
-	orderMessagesHolder (infoMessages, orderedMsgs, orderedMsgTypes, L"INFO");
-	orderMessagesHolder (warningMessages, orderedMsgs, orderedMsgTypes, L"WARNING");
-	orderMessagesHolder (userErrorMessages, orderedMsgs, orderedMsgTypes, L"USER ERROR");
-	orderMessagesHolder (internalErrorMessages, orderedMsgs, orderedMsgTypes, L"INTERNAL ERROR");
-
-	int idx;
+	putHolderMsgsInOrder (infoMessages, orderedMsgs, orderedMsgTypes, L"INFO");
+	putHolderMsgsInOrder (warningMessages, orderedMsgs, orderedMsgTypes, L"WARNING");
+	putHolderMsgsInOrder (userErrorMessages, orderedMsgs, orderedMsgTypes, L"USER ERROR");
+	putHolderMsgsInOrder (internalErrorMessages, orderedMsgs, orderedMsgTypes, L"INTERNAL ERROR");
 
 	for (isOrderAscending ? idx = 0 : idx = absoluteInsertPos;
 			isOrderAscending ? idx < absoluteInsertPos : idx >= 0;

@@ -36,12 +36,14 @@
 
 #include <bits/stdint-uintn.h>
 #include <iostream>
+#include <memory>
 
 #include "CompileExecTerms.h"
 #include "Operator.h"
+#include "UserMessages.h"
 
 ExpressionParser::ExpressionParser(CompileExecTerms & inUsrSrcTerms, std::shared_ptr<VariablesScope> inVarScopeStack
-		, std::wstring userSrcFileName, UserMessages & userMessages) {
+		, std::wstring userSrcFileName, std::shared_ptr<UserMessages> userMessages) {
 	// TODO Auto-generated constructor stub
 	thisSrcFile = util.getLastSegment(util.stringToWstring(__FILE__), L"/");
 	usrSrcTerms = inUsrSrcTerms;
@@ -62,12 +64,12 @@ ExpressionParser::~ExpressionParser() {
  * message to the user.
  * ***************************************************************************/
 int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree
-		, Token & enderTkn, bool isEndedByComma, bool & isExprClosed, UserMessages & userMessages)  {
+		, Token & enderTkn, bool isEndedByComma, bool & isExprClosed)  {
   int ret_code = GENERAL_FAILURE;
 	isExprClosed = false;
 
   if (expressionTree == NULL)	{
-  	userMessages.logMsg (INTERNAL_ERROR, L"Passed parameter expressionTree is NULL!", thisSrcFile, __LINE__, 0);
+  	userMessages->logMsg (INTERNAL_ERROR, L"Passed parameter expressionTree is NULL!", thisSrcFile, __LINE__, 0);
 
   } else	{
 
@@ -84,7 +86,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 		Token expectedEndTkn(START_UNDEF_TKN, L"");
 
 		if (tknStream.empty())	{
-			userMessages.logMsg (INTERNAL_ERROR, L"Token stream is unexpectedly empty!", thisSrcFile, __LINE__, 0);
+			userMessages->logMsg (INTERNAL_ERROR, L"Token stream is unexpectedly empty!", thisSrcFile, __LINE__, 0);
 			isStopFail = true;
 
 		} else	{
@@ -115,7 +117,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 
 							top = exprScopeStack.size() - 1;
 							if (exprScopeStack[top]->scopedKids.size() == 0)	{
-								userMessages.logMsg (INTERNAL_ERROR, L"Expression ender " + currTkn->descr_sans_line_num_col() + L" closed an empty express!", thisSrcFile, __LINE__, 0);
+								userMessages->logMsg (INTERNAL_ERROR, L"Expression ender " + currTkn->descr_sans_line_num_col() + L" closed an empty express!", thisSrcFile, __LINE__, 0);
 								isStopFail = true;
 
 							} else if (exprScopeStack[top]->scopedKids.size() > 1)	{
@@ -124,14 +126,14 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 							}
 
 						} else	{
-							userMessages.logMsg (USER_ERROR, L"Expression ender " + currTkn->descr_sans_line_num_col() + L" not used validly."
+							userMessages->logMsg (USER_ERROR, L"Expression ender " + currTkn->descr_sans_line_num_col() + L" not used validly."
 									,  userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
 							// TODO: Possibly an opportunity to have the caller continue on. Might be prudent to change the error code accordingly
 							isStopFail = true;
 						}
 
 					} else if (!isExpectedTknType (curr_legal_tkn_types, next_legal_tkn_types, currTkn))	{
-						userMessages.logMsg (USER_ERROR
+						userMessages->logMsg (USER_ERROR
 								, L"Unexpected token type! Expected " + makeExpectedTknTypesStr(curr_legal_tkn_types) + L" but got " + currTkn->descr_sans_line_num_col()
 								, userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
 						isStopFail = true;
@@ -139,7 +141,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 					} else if ((currTkn->tkn_type == SRC_OPR8R_TKN && (TERNARY_2ND & usrSrcTerms.get_type_mask(currTkn->_string)))
 							&& !isTernaryOpen())	{
 						// Unexpected TERNARY_2ND
-						userMessages.logMsg (USER_ERROR
+						userMessages->logMsg (USER_ERROR
 								,L"Got middle ternary operand " + currTkn->descr_sans_line_num_col() + L" without required preceding starting ternary operator " + usrSrcTerms.get_ternary_1st()
 								,  userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
 						isStopFail = true;
@@ -147,7 +149,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 					} else if ((currTkn->tkn_type == SRC_OPR8R_TKN && (TERNARY_2ND & usrSrcTerms.get_type_mask(currTkn->_string)))
 							&& get2ndTernaryCnt() > 0)	{
 						// Unexpected *EXTRA* TERNARY_2ND
-						userMessages.logMsg (USER_ERROR, L"Got unexpected additional middle ternary operand " + currTkn->descr_sans_line_num_col()
+						userMessages->logMsg (USER_ERROR, L"Got unexpected additional middle ternary operand " + currTkn->descr_sans_line_num_col()
 								, userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
 						isStopFail = true;
 
@@ -191,7 +193,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 						}
 
 					} else if (currTkn->tkn_type == END_OF_STREAM_TKN) {
-						userMessages.logMsg (INTERNAL_ERROR, L"parseExpression should never hit END_OF_STREAM_TKN!", thisSrcFile, __LINE__, 0);
+						userMessages->logMsg (INTERNAL_ERROR, L"parseExpression should never hit END_OF_STREAM_TKN!", thisSrcFile, __LINE__, 0);
 						isStopFail = true;
 						tknStream.erase(tknStream.begin());
 
@@ -227,7 +229,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 						ret_code = OK;
 						expressionTree = exprScopeStack[0]->scopedKids[0];
 				} else	{
-					userMessages.logMsg (INTERNAL_ERROR, L"Expression was closed but could not be made into a tree! Remaining Token count = " + std::to_wstring(numTknsLeftInExpr)
+					userMessages->logMsg (INTERNAL_ERROR, L"Expression was closed but could not be made into a tree! Remaining Token count = " + std::to_wstring(numTknsLeftInExpr)
 							, thisSrcFile, __LINE__, 0);
 					showDebugInfo (thisSrcFile, __LINE__);
 				}
@@ -276,11 +278,11 @@ int ExpressionParser::closeParenClosesScope (bool & isOpenParenFndYet)  {
 
 	}
 	if (scopener == NULL)	{
-		userMessages.logMsg (INTERNAL_ERROR, L"ExprTreeNode that opens current scope was not set earlier", thisSrcFile, __LINE__, 0);
+		userMessages->logMsg (INTERNAL_ERROR, L"ExprTreeNode that opens current scope was not set earlier", thisSrcFile, __LINE__, 0);
 		isStopFail = true;
 
 	} else {
-		int stackSzB4 = top;
+		int stackSzB4 = exprScopeStack.size();
 		scopenerDesc = scopener->originalTkn->descr_sans_line_num_col();
 
 		if (scopener->originalTkn->tkn_type == SPR8R_TKN && 0 == scopener->originalTkn->_string.compare(L"("))	{
@@ -292,7 +294,7 @@ int ExpressionParser::closeParenClosesScope (bool & isOpenParenFndYet)  {
 			isScopeTopTernary = true;
 
 		} else	{
-			userMessages.logMsg (USER_ERROR, L"Current scope NOT opened by either '(' or " + usrSrcTerms.get_ternary_1st() + L" but with " + scopenerDesc
+			userMessages->logMsg (USER_ERROR, L"Current scope NOT opened by either '(' or " + usrSrcTerms.get_ternary_1st() + L" but with " + scopenerDesc
 					,  userSrcFileName, scopener->originalTkn->get_line_number(), scopener->originalTkn->get_column_pos());
 			isStopFail = true;
 		}
@@ -364,7 +366,7 @@ int ExpressionParser::closeParenClosesScope (bool & isOpenParenFndYet)  {
 									ret_code = OK;
 
 								} else	{
-									userMessages.logMsg (USER_ERROR, L"Current scope opened by " + usrSrcTerms.get_ternary_1st() + L" but could not find paired " + usrSrcTerms.get_ternary_2nd()
+									userMessages->logMsg (USER_ERROR, L"Current scope opened by " + usrSrcTerms.get_ternary_1st() + L" but could not find paired " + usrSrcTerms.get_ternary_2nd()
 											,  userSrcFileName, scopener->originalTkn->get_line_number(), scopener->originalTkn->get_column_pos());
 									isStopFail = true;
 								}
@@ -388,7 +390,7 @@ int ExpressionParser::closeParenClosesScope (bool & isOpenParenFndYet)  {
 							}
 						}
 						if (!isVestigeDeleted)	{
-							userMessages.logMsg (INTERNAL_ERROR, L"INTERNAL ERROR: Failed deleting vestigial " + scopenerDesc, thisSrcFile, __LINE__, 0);
+							userMessages->logMsg (INTERNAL_ERROR, L"INTERNAL ERROR: Failed deleting vestigial " + scopenerDesc, thisSrcFile, __LINE__, 0);
 							isStopFail = true;
 						}
 					}
@@ -401,16 +403,16 @@ int ExpressionParser::closeParenClosesScope (bool & isOpenParenFndYet)  {
 							else
 								scopeErrMsg = L"Failed to attach resolved sub-expression with scope opened by ";
 
-							userMessages.logMsg (USER_ERROR, scopeErrMsg + scopenerDesc + L" with current scope stack level = " + std::__cxx11::to_wstring(exprScopeStack.size() - 1)
+							userMessages->logMsg (USER_ERROR, scopeErrMsg + scopenerDesc + L" with current scope stack level = " + std::__cxx11::to_wstring(exprScopeStack.size() - 1)
 									, userSrcFileName, scopener->originalTkn->get_line_number(), scopener->originalTkn->get_column_pos());
 							printScopeStack(thisSrcFile, __LINE__);
 							isStopFail = true;
 
 						} else	{
-							userMessages.logMsg (INTERNAL_ERROR, L"Dazed and Confubalated!", thisSrcFile, __LINE__, 0);
+							userMessages->logMsg (INTERNAL_ERROR, L"Dazed and Confubalated!", thisSrcFile, __LINE__, 0);
 							isStopFail = true;
 							if (subExpr != NULL)	{
-								subExpr->showTree(subExpr, thisSrcFile, __LINE__);
+								subExpr->showTree(thisSrcFile, __LINE__);
 							}
 						}
 					}
@@ -422,16 +424,17 @@ int ExpressionParser::closeParenClosesScope (bool & isOpenParenFndYet)  {
 
 		int stackSzAfter = exprScopeStack.size();
 		if (stackSzAfter >= stackSzB4)	{
-			userMessages.logMsg (INTERNAL_ERROR
+			userMessages->logMsg (INTERNAL_ERROR
 					, L"closeSubExprScope did not reduce expression scope depth. Before call: " + std::__cxx11::to_wstring(stackSzB4)
 					+ L"; After call: " + std::__cxx11::to_wstring(stackSzAfter) + L";"
 					, thisSrcFile, __LINE__, 0);
+			printScopeStack(thisSrcFile, __LINE__);
 			isStopFail = true;
 		}
 	}
 
 	if (ret_code != OK && !isStopFail)	{
-		userMessages.logMsg (INTERNAL_ERROR, L"Error not handled!", thisSrcFile, __LINE__, 0);
+		userMessages->logMsg (INTERNAL_ERROR, L"Error not handled!", thisSrcFile, __LINE__, 0);
 		isStopFail = true;
 	}
 
@@ -497,7 +500,7 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 				std::shared_ptr <Token> currTkn = currNode->originalTkn;
 
 				if (currNode == NULL)	{
-					userMessages.logMsg (INTERNAL_ERROR, L"ExprTreeNode pointer is NULL! ", thisSrcFile, __LINE__, 0);
+					userMessages->logMsg (INTERNAL_ERROR, L"ExprTreeNode pointer is NULL! ", thisSrcFile, __LINE__, 0);
 					isStopFail = true;
 
 				} else if (currTkn->tkn_type == SRC_OPR8R_TKN && ((currTkn->_string != unary1stOpr8r && currNode->_1stChild == NULL)
@@ -548,14 +551,14 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 											currNode->_1stChild = prevNode;
 										prevNode->myParent = currNode;
 									} else	{
-										userMessages.logMsg (USER_ERROR
+										userMessages->logMsg (USER_ERROR
 												, L"Expected an variable name before " + currNode->originalTkn->descr_sans_line_num_col() + L" but instead got: " + prevNode->originalTkn->descr_sans_line_num_col()
 												, userSrcFileName, currNode->originalTkn->get_line_number(), currNode->originalTkn->get_column_pos());
 										isStopFail = true;
 									}
 
 								} else	{
-									userMessages.logMsg (USER_ERROR
+									userMessages->logMsg (USER_ERROR
 											, L"Expected a Token before " + currNode->originalTkn->descr_sans_line_num_col() + L" but nothing precedes it at current scope of expression."
 											, userSrcFileName, currNode->originalTkn->get_line_number(), currNode->originalTkn->get_column_pos());
 									isStopFail = true;
@@ -582,13 +585,13 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 										nextNode->myParent = currNode;
 
 									} else {
-										userMessages.logMsg (USER_ERROR
+										userMessages->logMsg (USER_ERROR
 												, L"Expected a keyword after " + currNode->originalTkn->descr_sans_line_num_col() + L" but instead got: " + nextNode->originalTkn->descr_sans_line_num_col()
 												, userSrcFileName, currNode->originalTkn->get_line_number(), currNode->originalTkn->get_column_pos());
 										isStopFail = true;
 									}
 								} else	{
-									userMessages.logMsg (USER_ERROR
+									userMessages->logMsg (USER_ERROR
 											, L"Expected a Token after " + currNode->originalTkn->descr_sans_line_num_col() + L" but nothing follows it at current scope of expression."
 											,  userSrcFileName, currNode->originalTkn->get_line_number(), currNode->originalTkn->get_column_pos());
 									isStopFail = true;
@@ -653,13 +656,13 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 		else if (currScope.size() == 1)
 			ret_code = OK;
 		else	{
-			userMessages.logMsg (INTERNAL_ERROR, L"Could not make tree", thisSrcFile, __LINE__, 0);
+			userMessages->logMsg (INTERNAL_ERROR, L"Could not make tree", thisSrcFile, __LINE__, 0);
 			showDebugInfo (thisSrcFile, __LINE__);
 		}
 	}
 
 	if (ret_code != OK && !isStopFail)	{
-		userMessages.logMsg (INTERNAL_ERROR, L"Unhandled error", thisSrcFile, __LINE__, 0);
+		userMessages->logMsg (INTERNAL_ERROR, L"Unhandled error", thisSrcFile, __LINE__, 0);
 	}
 
 
@@ -809,9 +812,9 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
  	  	// VAR_NAME
   		// TODO: && found in NameSpace.  If it's not in the NameSpace, we can accumulate this error but still keep
   		// compiling and looking for additional user errors.  Same same for compile time interpretation.
-  		UserMessages tmpUsrMsg;
+  		std::shared_ptr<UserMessages> tmpUsrMsg = std::make_shared<UserMessages>();
   		if (OK != varScopeStack->findVar(curr_tkn->_string, 0, scratchTkn, READ_ONLY, tmpUsrMsg))	{
-					userMessages.logMsg (USER_ERROR, L"Variable " + curr_tkn->_string + L" was not declared"
+					userMessages->logMsg (USER_ERROR, L"Variable " + curr_tkn->_string + L" was not declared"
 						, userSrcFileName, curr_tkn->get_line_number(), curr_tkn->get_column_pos());
   		}
 
@@ -995,7 +998,7 @@ int ExpressionParser::getExpectedEndToken (std::shared_ptr<Token> startTkn, uint
 
 		} else	{
 			isStopFail = true;
-  		userMessages.logMsg (INTERNAL_ERROR, L"Could not determine _1stTknType for " + startTkn->descr_sans_line_num_col(), thisSrcFile, __LINE__, 0);
+  		userMessages->logMsg (INTERNAL_ERROR, L"Could not determine _1stTknType for " + startTkn->descr_sans_line_num_col(), thisSrcFile, __LINE__, 0);
 		}
 
 		if (!isStopFail && isEndedByComma)	{
@@ -1011,7 +1014,7 @@ int ExpressionParser::getExpectedEndToken (std::shared_ptr<Token> startTkn, uint
 
 			} else	{
 				isStopFail = true;
-	  		userMessages.logMsg (INTERNAL_ERROR, L"Could not find STATEMENT_ENDER operator! ", thisSrcFile, __LINE__, 0);
+	  		userMessages->logMsg (INTERNAL_ERROR, L"Could not find STATEMENT_ENDER operator! ", thisSrcFile, __LINE__, 0);
 			}
 		}
 
@@ -1058,7 +1061,7 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
 
 		for (nodeR8r = childList.begin(); nodeR8r != childList.end(); nodeR8r++)	{
 			std::shared_ptr<ExprTreeNode> currNode = *nodeR8r;
-			currNode->showTree(currNode, srcFileName, lineNum);
+			currNode->showTree(srcFileName, lineNum);
 		}
 	}
 }

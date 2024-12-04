@@ -45,10 +45,11 @@
 
 class ExpressionParser {
 public:
-	ExpressionParser(CompileExecTerms & inUsrSrcTerms, std::shared_ptr<VariablesScope> inVarScopeStack, std::wstring userSrcFileName, UserMessages & userMessages);
+	ExpressionParser(CompileExecTerms & inUsrSrcTerms, std::shared_ptr<VariablesScope> inVarScopeStack, std::wstring userSrcFileName
+    , std::shared_ptr<UserMessages> userMessages);
 	virtual ~ExpressionParser();
 	int makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree, Token & enderTkn
-			, bool isEndedByComma, bool & isExprClosed, UserMessages & userMessages);
+			, bool isEndedByComma, bool & isExprClosed);
 
 private:
   TokenPtrVector tknStream;
@@ -59,7 +60,7 @@ private:
   Utilities util;
   std::shared_ptr<VariablesScope> varScopeStack;
   Token scratchTkn;
-  UserMessages userMessages;
+	std::shared_ptr<UserMessages> userMessages;
 
   void cleanScopeStack ();
   std::wstring makeExpectedTknTypesStr (uint32_t expected_tkn_types);

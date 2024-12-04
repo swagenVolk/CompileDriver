@@ -9,12 +9,13 @@
 #define USERMESSAGES_H_
 
 #include <map>
+#include <memory>
+#include <iostream>
 #include <string>
 #include <vector>
-
-#include "Token.h"
 #include "FileLineCol.h"
 #include "InfoWarnError.h"
+#include <cassert>
 
 class UserMessages {
 public:
@@ -36,8 +37,8 @@ private:
 	std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> internalErrorMessages;
 
 	std::pair <int, int> getUniqueTotalMsgCnt (std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> & messagesHolder);
-	void displayGroupMessages (std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> & messagesHolder);
-	void orderMessagesHolder (std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> & messagesHolder
+	void displayMessagesInHolder (std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> & messagesHolder);
+	void putHolderMsgsInOrder (std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> & messagesHolder
 			, std::vector<std::pair <std::wstring, FileLineCol>> & orderedMsgs
 			, std::vector<std::wstring> & orderedMsgTypes
 			, std::wstring msgTypeStr);

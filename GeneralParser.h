@@ -43,7 +43,7 @@ typedef var_declaration_states_enum varDeclarationState;
 class GeneralParser {
 public:
 	GeneralParser(TokenPtrVector & inTknStream, std::wstring userSrcFileName, CompileExecTerms & inUsrSrcTerms
-			, UserMessages & userMessages, std::string object_file_name, std::shared_ptr<VariablesScope> inVarScopeStack);
+			, std::shared_ptr<UserMessages> userMessages, std::string object_file_name, std::shared_ptr<VariablesScope> inVarScopeStack);
 	virtual ~GeneralParser();
 	int findKeyWordObjects();
 
@@ -61,7 +61,7 @@ private:
   ExpressionParser exprParser;
   std::shared_ptr<VariablesScope> varScopeStack;
   Token scratchTkn;
-  UserMessages userMessages;
+  std::shared_ptr<UserMessages> userMessages;
   int userErrorLimit;
   std::vector<std::wstring> ender_list;
   std::vector<std::wstring> ender_comma_list;

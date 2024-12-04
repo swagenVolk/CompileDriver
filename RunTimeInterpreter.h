@@ -10,6 +10,7 @@
 
 #include "Token.h"
 #include <map>
+#include <memory>
 #include "CompileExecTerms.h"
 #include "Utilities.h"
 #include "VariablesScope.h"
@@ -19,11 +20,11 @@
 class RunTimeInterpreter {
 public:
 	RunTimeInterpreter();
-	RunTimeInterpreter(CompileExecTerms & execTerms, std::shared_ptr<VariablesScope>, std::wstring userSrcFileName, UserMessages & userMessages);
+	RunTimeInterpreter(CompileExecTerms & execTerms, std::shared_ptr<VariablesScope>, std::wstring userSrcFileName, std::shared_ptr<UserMessages> userMessages);
 	virtual ~RunTimeInterpreter();
 	int execOperation (std::shared_ptr <Token> opr8r, TokenPtrVector & operands, Token & resultTkn);
   void dumpTokenPtrStream (TokenPtrVector tokenStream, std::wstring callersSrcFile, int lineNum);
-  int resolveFlattenedExpr(std::vector<Token> & exprTknStream, UserMessages & userMessages);
+  int resolveFlattenedExpr(std::vector<Token> & exprTknStream);
 
 protected:
 
@@ -35,7 +36,7 @@ private:
 	Utilities util;
 	Token scratchTkn;
 	std::shared_ptr<VariablesScope> varScopeStack;
-	UserMessages userMessages;
+	std::shared_ptr<UserMessages> userMessages;
 	std::wstring userSrcFileName;
 
 	int execUnaryOp (std::vector<Token> & exprTknStream, int & callersIdx);

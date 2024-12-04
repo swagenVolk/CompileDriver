@@ -27,13 +27,12 @@
  *  */
 
 #include "RunTimeInterpreter.h"
-
 #include "Token.h"
 #include "TokenCompareResult.h"
-#include <iterator>
 #include <cassert>
-
+#include <memory>
 #include "InfoWarnError.h"
+#include "UserMessages.h"
 
 RunTimeInterpreter::RunTimeInterpreter() {
 	// TODO Auto-generated constructor stub
@@ -48,7 +47,7 @@ RunTimeInterpreter::RunTimeInterpreter() {
 }
 
 RunTimeInterpreter::RunTimeInterpreter(CompileExecTerms & execTerms, std::shared_ptr<VariablesScope> inVarScopeStack
-		, std::wstring userSrcFileName, UserMessages & userMessages) {
+		, std::wstring userSrcFileName, std::shared_ptr<UserMessages> userMessages) {
 	// TODO Auto-generated constructor stub
   oneTkn = std::make_shared<Token> (INT64_TKN, L"1");
   // TODO: Token value not automatically filled in currently
@@ -152,11 +151,11 @@ int RunTimeInterpreter::execEquivalenceOp(std::vector<Token> & exprTknStream, in
 			std::wstring tmpStr = execTerms.getSrcOpr8rStrFor(op_code);
 			if (tmpStr.empty())
 				tmpStr = L"UNKNOWN OP_CODE [" + std::to_wstring(op_code) + L"]";
-			userMessages.logMsg (INTERNAL_ERROR, L"Failed to execute " + tmpStr, thisSrcFile, __LINE__, 0);
+			userMessages->logMsg (INTERNAL_ERROR, L"Failed to execute " + tmpStr, thisSrcFile, __LINE__, 0);
 		}
 
 	} else	{
-		userMessages.logMsg (INTERNAL_ERROR, L"Incorrect parameters|count", thisSrcFile, __LINE__, 0);
+		userMessages->logMsg (INTERNAL_ERROR, L"Incorrect parameters|count", thisSrcFile, __LINE__, 0);
 	}
 
   return (ret_code);
@@ -331,6 +330,7 @@ int RunTimeInterpreter::execStandardMath (std::vector<Token> & exprTknStream, in
 						if (operand2._signed == 0)
 							isDivByZero = true;
 						else	{
+							// TODO: Result of integer division used in a floating point context; possible loss of precision
 							tmpDouble = operand1._unsigned / operand2._signed;
 							isNowDouble = true;
 						}
@@ -548,7 +548,7 @@ int RunTimeInterpreter::execStandardMath (std::vector<Token> & exprTknStream, in
 				exprTknStream[opr8rIdx].resetToString (tmpStr);
 			}
 		}	else	{
-			userMessages.logMsg (INTERNAL_ERROR, L"Incorrect parameters|count", thisSrcFile, __LINE__, 0);
+			userMessages->logMsg (INTERNAL_ERROR, L"Incorrect parameters|count", thisSrcFile, __LINE__, 0);
 		}
 
 		if (isParamsValid && !isMissedCase && !isDivByZero)
@@ -562,10 +562,10 @@ int RunTimeInterpreter::execStandardMath (std::vector<Token> & exprTknStream, in
 			badUserMsg.append (L" / ");
 			badUserMsg.append (varName2.empty() ? operand2.getValueStr() : varName2);
 			badUserMsg.append (L"]");
-			userMessages.logMsg (USER_ERROR, badUserMsg, userSrcFileName, 0, 0);
+			userMessages->logMsg (USER_ERROR, badUserMsg, userSrcFileName, 0, 0);
 
 		} else if (isMissedCase)
-			userMessages.logMsg (INTERNAL_ERROR, L"Incorrect parameters|count", thisSrcFile, __LINE__, 0);
+			userMessages->logMsg (INTERNAL_ERROR, L"Incorrect parameters|count", thisSrcFile, __LINE__, 0);
 	}
 
 	return (ret_code);
@@ -647,11 +647,11 @@ int RunTimeInterpreter::execShift (std::vector<Token> & exprTknStream, int & cal
 			ret_code = OK;
 		}
 	}	else	{
-		userMessages.logMsg (INTERNAL_ERROR, L"Incorrect parameters|count", thisSrcFile, __LINE__, 0);
+		userMessages->logMsg (INTERNAL_ERROR, L"Incorrect parameters|count", thisSrcFile, __LINE__, 0);
 	}
 
 	if (OK != ret_code)
-		userMessages.logMsg (INTERNAL_ERROR, L"Function failed!", thisSrcFile, __LINE__, 0);
+		userMessages->logMsg (INTERNAL_ERROR, L"Function failed!", thisSrcFile, __LINE__, 0);
 
 	return (ret_code);
 }
@@ -759,7 +759,7 @@ int RunTimeInterpreter::execBitWiseOp (std::vector<Token> & exprTknStream, int &
 		} else	{
 			Operator opr8r;
 			execTerms.getExecOpr8rDetails(op_code, opr8r);
-			userMessages.logMsg (INTERNAL_ERROR, L"Failed to execute OPR8R " + opr8r.symbol, thisSrcFile, __LINE__, 0);
+			userMessages->logMsg (INTERNAL_ERROR, L"Failed to execute OPR8R " + opr8r.symbol, thisSrcFile, __LINE__, 0);
 		}
 	}
 
@@ -850,11 +850,11 @@ int RunTimeInterpreter::execUnaryOp (std::vector<Token> & exprTknStream, int & c
 		} else	{
 			Operator opr8r;
 			execTerms.getExecOpr8rDetails(op_code, opr8r);
-			userMessages.logMsg (INTERNAL_ERROR, L"Failed to execute OPR8R " + opr8r.symbol, thisSrcFile, __LINE__, 0);
+			userMessages->logMsg (INTERNAL_ERROR, L"Failed to execute OPR8R " + opr8r.symbol, thisSrcFile, __LINE__, 0);
 		}
 
 	} else	{
-		userMessages.logMsg (INTERNAL_ERROR, L"Incorrect parameters|count", thisSrcFile, __LINE__, 0);
+		userMessages->logMsg (INTERNAL_ERROR, L"Incorrect parameters|count", thisSrcFile, __LINE__, 0);
 	}
 
 
@@ -960,10 +960,10 @@ int RunTimeInterpreter::execAssignmentOp(std::vector<Token> & exprTknStream, int
 				ret_code = OK;
 			}
 		} else	{
-			userMessages.logMsg (INTERNAL_ERROR, L"Failed executing [" + execTerms.getSrcOpr8rStrFor(original_op_code) + L"] operator!", thisSrcFile, __LINE__, 0);
+			userMessages->logMsg (INTERNAL_ERROR, L"Failed executing [" + execTerms.getSrcOpr8rStrFor(original_op_code) + L"] operator!", thisSrcFile, __LINE__, 0);
 		}
 	}  else	{
-		userMessages.logMsg (INTERNAL_ERROR, L"Incorrect parameters|count", thisSrcFile, __LINE__, 0);
+		userMessages->logMsg (INTERNAL_ERROR, L"Incorrect parameters|count", thisSrcFile, __LINE__, 0);
 	}
 
 	return (ret_code);
@@ -1066,10 +1066,10 @@ int RunTimeInterpreter::execBinaryOp(std::vector<Token> & exprTknStream, int & c
 			ret_code = OK;
 
 		} else	{
-			userMessages.logMsg (INTERNAL_ERROR, L"Failed to execute OPR8R " + opr8r.symbol, thisSrcFile, __LINE__, 0);
+			userMessages->logMsg (INTERNAL_ERROR, L"Failed to execute OPR8R " + opr8r.symbol, thisSrcFile, __LINE__, 0);
 		}
 	} else	{
-		userMessages.logMsg (INTERNAL_ERROR, L"Incorrect parameters|count", thisSrcFile, __LINE__, 0);
+		userMessages->logMsg (INTERNAL_ERROR, L"Incorrect parameters|count", thisSrcFile, __LINE__, 0);
 	}
 
 	return (ret_code);
@@ -1310,31 +1310,31 @@ int RunTimeInterpreter::getEndOfSubExprIdx (std::vector<Token> & exprTknStream, 
 /* ****************************************************************************
  *
  * ***************************************************************************/
-int RunTimeInterpreter::resolveFlattenedExpr(std::vector<Token> & exprTknStream, UserMessages & userMessages)     {
+int RunTimeInterpreter::resolveFlattenedExpr(std::vector<Token> & flatExprTkns)     {
 	int ret_code = GENERAL_FAILURE;
 
 	bool isFailed = false;
 	bool is1RandLeft = false;
-	int prevTknCnt = exprTknStream.size();
+	int prevTknCnt = flatExprTkns.size();
 	int currTknCnt;
 	int idx;
 
 	if (0 == prevTknCnt)	{
 		// TODO: Great opportunity to use InfoWarnError!
 		isFailed = true;
-		userMessages.logMsg (INTERNAL_ERROR, L"Token stream unexpectedly EMPTY!", thisSrcFile, __LINE__, 0);
+		userMessages->logMsg (INTERNAL_ERROR, L"Token stream unexpectedly EMPTY!", thisSrcFile, __LINE__, 0);
 	}
 
 	while (!isFailed && !is1RandLeft)	{
 		// TODO: 0 count!
-		prevTknCnt = exprTknStream.size();
+		prevTknCnt = flatExprTkns.size();
 
 		int currIdx = 0;
 		bool isEOLreached = false;
 		int numSeqOperands = 0;
 
 		while (!isFailed && !isEOLreached)	{
-			Token nxtTkn = exprTknStream[currIdx];
+			Token nxtTkn = flatExprTkns[currIdx];
 
 			if (prevTknCnt == 1)	{
 				// TODO: If it's an Operand, then the Token list has been resolved
@@ -1342,7 +1342,7 @@ int RunTimeInterpreter::resolveFlattenedExpr(std::vector<Token> & exprTknStream,
 				if (nxtTkn.isOperand())
 					is1RandLeft = true;
 				else	{
-					userMessages.logMsg (INTERNAL_ERROR, L"Last remaining Token must be an Operand but is " + nxtTkn.get_type_str() + L" [" + nxtTkn._string + L"]"
+					userMessages->logMsg (INTERNAL_ERROR, L"Last remaining Token must be an Operand but is " + nxtTkn.get_type_str() + L" [" + nxtTkn._string + L"]"
 							, thisSrcFile, __LINE__, 0);
 					isFailed = true;
 				}
@@ -1359,7 +1359,7 @@ int RunTimeInterpreter::resolveFlattenedExpr(std::vector<Token> & exprTknStream,
 				Operator opr8r_obj;
 
 				if (OK != execTerms.getExecOpr8rDetails(nxtTkn._unsigned, opr8r_obj))	{
-					userMessages.logMsg (INTERNAL_ERROR, L"", thisSrcFile, __LINE__, 0);
+					userMessages->logMsg (INTERNAL_ERROR, L"", thisSrcFile, __LINE__, 0);
 					isFailed = true;
 
 				} else if (numSeqOperands >= opr8r_obj.numReqExecOperands)	{
@@ -1368,12 +1368,12 @@ int RunTimeInterpreter::resolveFlattenedExpr(std::vector<Token> & exprTknStream,
 
 					if ((opr8r_obj.type_mask & STATEMENT_ENDER) && opr8r_obj.numReqExecOperands == 0)	{
 						// TODO: msg?
-						userMessages.logMsg (INTERNAL_ERROR, L"", thisSrcFile, __LINE__, 0);
+						userMessages->logMsg (INTERNAL_ERROR, L"", thisSrcFile, __LINE__, 0);
 						isFailed = true;
 
 					} else if ((opr8r_obj.type_mask & UNARY) && opr8r_obj.numReqExecOperands == 1)	{
-						if (OK != execUnaryOp (exprTknStream, currIdx))	{
-							userMessages.logMsg (INTERNAL_ERROR, L"Failed executing UNARY OPR8R!", thisSrcFile, __LINE__, 0);
+						if (OK != execUnaryOp (flatExprTkns, currIdx))	{
+							userMessages->logMsg (INTERNAL_ERROR, L"Failed executing UNARY OPR8R!", thisSrcFile, __LINE__, 0);
 							isFailed = true;
 						} else	{
 							// Deletions made; Break out of loop so currIdx -> 0
@@ -1383,7 +1383,7 @@ int RunTimeInterpreter::resolveFlattenedExpr(std::vector<Token> & exprTknStream,
 						}
 
 					} else if ((opr8r_obj.type_mask & TERNARY_1ST) && opr8r_obj.numReqExecOperands == 1)	{
-						if (OK != execTernary1stOp (exprTknStream, currIdx))
+						if (OK != execTernary1stOp (flatExprTkns, currIdx))
 							isFailed = true;
 						else	{
 							// Deletions made; Break out of loop so currIdx -> 0
@@ -1394,12 +1394,12 @@ int RunTimeInterpreter::resolveFlattenedExpr(std::vector<Token> & exprTknStream,
 
 					} else if (opr8r_obj.type_mask & TERNARY_2ND)	{
 						// TODO: Is this an error condition? Or should there be a state machine or something?
-						userMessages.logMsg (INTERNAL_ERROR, L"", thisSrcFile, __LINE__, 0);
+						userMessages->logMsg (INTERNAL_ERROR, L"", thisSrcFile, __LINE__, 0);
 						isFailed = true;
 
 					} else if ((opr8r_obj.type_mask & BINARY) && opr8r_obj.numReqExecOperands == 2)	{
- 						if (OK != execBinaryOp (exprTknStream, currIdx))	{
-							userMessages.logMsg (INTERNAL_ERROR, L"Failure executing [" + opr8r_obj.symbol + L"] operator.", thisSrcFile, __LINE__, 0);
+ 						if (OK != execBinaryOp (flatExprTkns, currIdx))	{
+							userMessages->logMsg (INTERNAL_ERROR, L"Failure executing [" + opr8r_obj.symbol + L"] operator.", thisSrcFile, __LINE__, 0);
 							isFailed = true;
 						} else	{
 							// Deletions made; Break out of loop so currIdx -> 0
@@ -1408,29 +1408,29 @@ int RunTimeInterpreter::resolveFlattenedExpr(std::vector<Token> & exprTknStream,
 							break;
 						}
 					} else	{
-						userMessages.logMsg (INTERNAL_ERROR, L"", thisSrcFile, __LINE__, 0);
+						userMessages->logMsg (INTERNAL_ERROR, L"", thisSrcFile, __LINE__, 0);
 						isFailed = true;
 					}
 
 					if (!isFailed)	{
 						// Operation result stored in Token that previously held the OPR8R. We need to delete any associatd operands
 						int StartDelIdx = currIdx - opr8r_obj.numReqExecOperands;
-						exprTknStream.erase(exprTknStream.begin() + StartDelIdx, exprTknStream.begin() + StartDelIdx + 1);
+						flatExprTkns.erase(flatExprTkns.begin() + StartDelIdx, flatExprTkns.begin() + StartDelIdx + 1);
 						currIdx -= opr8r_obj.numReqExecOperands;
 					}
 				}
 			}
 
-			if (currIdx + 1 == exprTknStream.size())
+			if (currIdx + 1 == flatExprTkns.size())
 				isEOLreached = true;
 			else
 				currIdx++;
 		}
 
-		currTknCnt = exprTknStream.size();
+		currTknCnt = flatExprTkns.size();
 
 		if (!is1RandLeft && currTknCnt >= prevTknCnt)	{
-			userMessages.logMsg (INTERNAL_ERROR, L"Token stream not reduced; no meaningful work done in this loop", thisSrcFile, __LINE__, 0);
+			userMessages->logMsg (INTERNAL_ERROR, L"Token stream not reduced; no meaningful work done in this loop", thisSrcFile, __LINE__, 0);
 			isFailed = true;
 
 		} else if (is1RandLeft)	{
@@ -1439,10 +1439,10 @@ int RunTimeInterpreter::resolveFlattenedExpr(std::vector<Token> & exprTknStream,
 	}
 
 	if (ret_code != OK && !isFailed)
-		userMessages.logMsg (INTERNAL_ERROR, L"Unhandled error!", thisSrcFile, __LINE__, 0);
+		userMessages->logMsg (INTERNAL_ERROR, L"Unhandled error!", thisSrcFile, __LINE__, 0);
 
 	// TODO: See the final result
-	util.dumpTokenList (exprTknStream, execTerms, thisSrcFile, __LINE__);
+	util.dumpTokenList (flatExprTkns, execTerms, thisSrcFile, __LINE__);
 
 	return (ret_code);
 }
@@ -1477,7 +1477,7 @@ void RunTimeInterpreter::dumpTokenPtrStream (TokenPtrVector tokenStream, std::ws
  * ***************************************************************************/
 int RunTimeInterpreter::resolveIfVariable (Token & originalTkn, Token & resolvedTkn, std::wstring & varName)	{
 	int ret_code = GENERAL_FAILURE;
-	UserMessages tmpUserMsg;
+	std::shared_ptr<UserMessages> tmpUserMsg = std::make_shared<UserMessages>();
 
 	if (originalTkn.tkn_type == KEYWORD_TKN)	{
 		varName = originalTkn._string;

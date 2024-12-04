@@ -20,9 +20,10 @@ public:
   std::shared_ptr<ExprTreeNode> myParent;
   std::shared_ptr<ExprTreeNode> _1stChild;		// Left operand for a BINARY, POSTFIX or the TERNARY FALSE* branch
   std::shared_ptr<ExprTreeNode> _2ndChild;		// Right operand for a BINARY, PREFIX or the TERNARY TRUE* branch
-  														// * Ordering is opposite initial expectations to account for tree recursively flattened in [Operand1][Operand2][OPR8R] order
+  														                // Ordering is opposite initial expectations to account for tree recursively 
+                                              // flattened in [Operand1][Operand2][OPR8R] order
 
-  void showTree (std::shared_ptr<ExprTreeNode> treeNode, std::wstring fileName, int lineNumber);
+  void showTree (std::wstring fileName, int lineNumber);
 
 private:
   void buildTreeGraph (std::shared_ptr<ExprTreeNode>, std::vector<std::wstring> & treeGraph, int scopeDepth, int lftRgt3rdChild);

@@ -8,6 +8,7 @@
 #ifndef VARIABLESSCOPE_H_
 #define VARIABLESSCOPE_H_
 
+#include <memory>
 #include <string>
 #include <algorithm>
 #include "common.h"
@@ -25,7 +26,7 @@ public:
 	VariablesScope();
 	virtual ~VariablesScope();
 
-	int findVar(std::wstring varName, int maxLevels, Token & readOrWriteTkn, bool isWrite, UserMessages & userMessages);
+	int findVar(std::wstring varName, int maxLevels, Token & readOrWriteTkn, bool isWrite, std::shared_ptr<UserMessages> userMessages);
 	int insertNewVarAtCurrScope (std::wstring varName, Token varValue);
 	void displayVariables();
 
