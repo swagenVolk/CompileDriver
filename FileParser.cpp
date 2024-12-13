@@ -13,17 +13,9 @@
  * Test with tons of different files
  * Problem immediately after Ye Olde Skule comment block that started on line 37 and was 10 lines long
  *   SPR8R_TKN '(' on line 37 column 1 <-- *should* be line 47!
- *   KEYWORD_TKN count on line 47 column 2
+ *   USER_WORD_TKN count on line 47 column 2
  *
  * DONE:
- * Store datetime value
- * Test datetime
- * Make signed int into longs?
- * Convert bad hex & decimal #'s to junk tokens
- * Allow keywords with #'s in them
- * Will need to track prev_char to properly handle escape sequences
- * Track line #
- * Track column position of Token
  * ***************************************************************************/
 using namespace std;
 #include "FileParser.h"
@@ -31,7 +23,7 @@ using namespace std;
 /* ****************************************************************************
  * file_parser constructor
  * ***************************************************************************/
-FileParser::FileParser (BaseLanguageTerms & inOppoSpr8rs, std::wstring fileName) {
+FileParser::FileParser (BaseLanguageTerms & inCompilerTerms, std::wstring fileName) {
   curr_file_pos = 0;
 	line_num = 1;
   curr_line_start_pos = 0;
@@ -39,7 +31,7 @@ FileParser::FileParser (BaseLanguageTerms & inOppoSpr8rs, std::wstring fileName)
   curr_tkn_starts_on_col_pos = 1;
   num_chars_chomped_this_line = 0;
   num_lines_parsed = 0;
-  oppoSpr8rs = inOppoSpr8rs;
+  compilerTerms = inCompilerTerms;
   this->fileName = fileName;
 }
 
@@ -556,7 +548,7 @@ void FileParser::resolve_final_tkn_type (std::shared_ptr<Token>  tkn_of_ambiguit
         break;
       case SRC_OPR8R_TKN:
         // Check to make sure it's not junk
-      	if (!oppoSpr8rs.is_valid_opr8r(tkn_of_ambiguity->_string, USR_SRC))
+      	if (!compilerTerms.is_valid_opr8r(tkn_of_ambiguity->_string, USR_SRC))
           // Not a valid OPR8R
           tkn_of_ambiguity->tkn_type = JUNK_TKN;
         break;
@@ -565,7 +557,12 @@ void FileParser::resolve_final_tkn_type (std::shared_ptr<Token>  tkn_of_ambiguit
       case END_OF_STREAM_TKN:
       case SPR8R_TKN:
       case JUNK_TKN:                 // e.g. 200KbarKnives
-      case KEYWORD_TKN:
+        break;
+      case USER_WORD_TKN:
+        if (compilerTerms.isDataType(tkn_of_ambiguity->_string))
+          tkn_of_ambiguity->tkn_type = DATA_TYPE_TKN;
+        else if (compilerTerms.isReservedWord (tkn_of_ambiguity->_string))
+          tkn_of_ambiguity->tkn_type = RESERVED_WORD_TKN;
         break;
 
       // Illegal for a *committed* Token(s) or syntactic sugar
@@ -602,20 +599,20 @@ tkn_type_enum FileParser::start_new_tkn_get_type (std::fstream & input_stream, T
     tkn_type = WHITE_SPACE_TKN;
 
   } else if (iswalpha (curr_char) || curr_char == '_')	{
-    tkn_type = KEYWORD_TKN;
+    tkn_type = USER_WORD_TKN;
   }
 
   else if (iswpunct(curr_char))  {
     std::wstring sngl_char_symbol;
     sngl_char_symbol += curr_char;
-    if (oppoSpr8rs.is_sngl_char_spr8r(curr_char))  {
+    if (compilerTerms.is_sngl_char_spr8r(curr_char))  {
       // Consume this Token right away by adding it to the Token stream
       curr_file_pos = input_stream.tellg();
       std::shared_ptr<Token> tkn = std::make_shared<Token> (SPR8R_TKN, sngl_char_symbol, fileName, curr_tkn_starts_on_line_num, num_chars_chomped_this_line);
       token_stream.push_back(tkn);
       tkn_type = START_UNDEF_TKN;
 
-    } else if (oppoSpr8rs.is_atomic_opr8r(curr_char)) {
+    } else if (compilerTerms.is_atomic_opr8r(curr_char)) {
       // Consume this Token right away by adding it to the Token stream
       curr_file_pos = input_stream.tellg();
       std::shared_ptr<Token> tkn = std::make_shared<Token> (SRC_OPR8R_TKN, sngl_char_symbol, fileName, curr_tkn_starts_on_line_num, num_chars_chomped_this_line);
@@ -649,7 +646,7 @@ tkn_type_enum FileParser::start_new_tkn_get_type (std::fstream & input_stream, T
     }
   }
   
-  if (tkn_type != BRKN_TKN && tkn_type != WHITE_SPACE_TKN && !oppoSpr8rs.is_atomic_opr8r(curr_char) && !oppoSpr8rs.is_sngl_char_spr8r(curr_char))  {
+  if (tkn_type != BRKN_TKN && tkn_type != WHITE_SPACE_TKN && !compilerTerms.is_atomic_opr8r(curr_char) && !compilerTerms.is_sngl_char_spr8r(curr_char))  {
     // Start accumulating the characters for this Token IFF it hasn't already been committed to the Token stream
     if (tkn_type != STRING_TKN && curr_char != '"')
       // No need to add the opening " for a STRING_TKN
@@ -796,9 +793,9 @@ int FileParser::gnr8_token_stream(std::string file_name, TokenPtrVector & token_
             failed_on_src_line_num = __LINE__;
           }
           break;
-        case KEYWORD_TKN             :
-          if (iswspace(curr_char) || oppoSpr8rs.is_sngl_char_spr8r(curr_char) || (iswpunct(curr_char) && curr_char != '_') )  {
-            // Space, spr8r or punctuation (except _) ends a keyword
+        case USER_WORD_TKN             :
+          if (iswspace(curr_char) || compilerTerms.is_sngl_char_spr8r(curr_char) || (iswpunct(curr_char) && curr_char != '_') )  {
+            // Space, spr8r or punctuation (except _) ends a USER_WORD
             std::shared_ptr<Token> tkn = std::make_shared<Token>(curr_tkn_type, curr_str, fileName, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
             token_stream.push_back(tkn);
             curr_str.clear();
@@ -887,7 +884,7 @@ int FileParser::gnr8_token_stream(std::string file_name, TokenPtrVector & token_
         case INT16_TKN		       :
         case INT32_TKN		       :
         case INT64_TKN		       :
-          if (iswpunct(curr_char) || iswspace (curr_char) || oppoSpr8rs.is_sngl_char_spr8r(curr_char))  {
+          if (iswpunct(curr_char) || iswspace (curr_char) || compilerTerms.is_sngl_char_spr8r(curr_char))  {
             std::shared_ptr<Token> tkn = std::make_shared <Token> (curr_tkn_type, curr_str, fileName, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
             resolve_final_tkn_type (tkn);
             token_stream.push_back(tkn);
@@ -911,7 +908,7 @@ int FileParser::gnr8_token_stream(std::string file_name, TokenPtrVector & token_
           // OPR8Rs are made up of punctuation characters, *except* for the 1-char separators
           // A single character OPR8R (e.g. ;) will end the currently accumulating OPR8R, and
           // both will be added to the Token stream in order
-          if (!iswpunct(curr_char) || oppoSpr8rs.is_sngl_char_spr8r(curr_char) || oppoSpr8rs.is_atomic_opr8r(curr_char) || curr_char == '"')  {
+          if (!iswpunct(curr_char) || compilerTerms.is_sngl_char_spr8r(curr_char) || compilerTerms.is_atomic_opr8r(curr_char) || curr_char == '"')  {
             std::shared_ptr<Token> opr8r = std::make_shared <Token> (curr_tkn_type, curr_str, fileName, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
             resolve_final_tkn_type (opr8r);
             token_stream.push_back (opr8r);

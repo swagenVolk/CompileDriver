@@ -10,6 +10,7 @@
 
 #include "Token.h"
 #include <memory>
+#include <iostream>
 
 class ExprTreeNode {
 public:

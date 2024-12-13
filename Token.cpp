@@ -81,7 +81,8 @@ Token& Token::operator= (const Token & srcTkn)
 		return (*this);
 
 	// if data exists in the current string, delete it
-	_string.clear();
+	if (!_string.empty())
+		_string.clear();
 	_string = srcTkn._string;
 	tkn_type = srcTkn.tkn_type;
 	_unsigned = srcTkn._unsigned;
@@ -120,8 +121,14 @@ std::wstring Token::get_type_str()  {
     case WHITE_SPACE_TKN         :
       ret_string = L"WHITE_SPACE_TKN";
       break;
-    case KEYWORD_TKN             :
-      ret_string = L"KEYWORD_TKN";
+  	case RESERVED_WORD_TKN				:
+			ret_string = L"RESERVED_WORD_TKN";
+			break;
+		case DATA_TYPE_TKN						:
+			ret_string = L"DATA_TYPE_TKN";
+			break;
+    case USER_WORD_TKN             :
+      ret_string = L"USER_WORD_TKN";
       break;
     case STRING_TKN              :
       ret_string = L"STRING_TKN";
@@ -288,22 +295,32 @@ std::wstring Token::descr_line_num_col ()	{
  * ***************************************************************************/
 std::wstring Token::getValueStr ()	{
 	std::wstring value;
+	std::wstringstream hexStream;
+
+	hexStream.str (L"");
+	hexStream << L"0x" << std::hex << _unsigned;
 
 	// Give STRINGs, DATETIMEs and SPR8Rs some context clues
-	if (this->tkn_type == STRING_TKN || this->tkn_type == DATETIME_TKN)	{
+	if (tkn_type == STRING_TKN || tkn_type == DATETIME_TKN)	{
 		value.append (L"\"");
-		value.append (this->_string);
+		value.append (_string);
 		value.append (L"\"");
-	} else if (this->tkn_type == SPR8R_TKN) {
+	
+	} else if (tkn_type == SPR8R_TKN) {
 		value.append (L"'");
-		value.append (this->_string);
+		value.append (_string);
 		value.append (L"'");
+	
+	} else if (tkn_type == USER_WORD_TKN || tkn_type == DATA_TYPE_TKN || tkn_type == SRC_OPR8R_TKN)	{
+		value.append (_string);
+	
+	} else if (tkn_type == EXEC_OPR8R_TKN)	{
+		value.append (L"EXEC_OPR8R_TKN->");
+		value.append (hexStream.str());
 	}
 
 	if (isUnsigned())	{
-		std::wstringstream wstream;
-		wstream << L"0x" << std::hex << _unsigned;
-		value.append (wstream.str());
+		value.append (hexStream.str());
 
 	} else if (isSigned())	{
 		value.append (std::to_wstring (_signed));
@@ -311,6 +328,10 @@ std::wstring Token::getValueStr ()	{
 	} else if (tkn_type == DOUBLE_TKN)	{
 		value.append (std::to_wstring (_double));
 	}
+
+	if (value.empty())
+		// Nothing normal fits, but we need to display SOMETHING
+		value.append (get_type_str());
 
 	return (value);
 }
@@ -430,11 +451,18 @@ TokenCompareResult Token::compare (Token & otherTkn)	{
 /* ****************************************************************************
  *
  * ***************************************************************************/
-bool Token::isOperand ()	{
+bool Token::isDirectOperand ()	{
+	bool isRand = isDirectOperand(this->tkn_type);
+	return (isRand);
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+bool Token::isDirectOperand (TokenTypeEnum tokenType)	{
 	bool isRand = false;
 
-		switch (this->tkn_type)	{
-			case KEYWORD_TKN :
+		switch (tokenType)	{
 			case STRING_TKN :
 			case DATETIME_TKN :
 			case UINT8_TKN :
@@ -455,16 +483,15 @@ bool Token::isOperand ()	{
 
 	return isRand;
 }
-
 /* ****************************************************************************
  *
  * ***************************************************************************/
 bool Token::evalResolvedTokenAsIf ()	{
 	bool isTrue = false;
 
-	// KEYWORD_TKN probably means a variable name.  If so, then Token hasn't been resolved yet
+	// USER_WORD_TKN probably means a variable name.  If so, then Token hasn't been resolved yet
 	// TODO: Not sure how to handle DATETIME_TKN yet
-	assert (tkn_type != KEYWORD_TKN && tkn_type != DATETIME_TKN);
+	assert (tkn_type != USER_WORD_TKN && tkn_type != DATETIME_TKN);
 
 	switch (tkn_type)	{
 		case STRING_TKN :

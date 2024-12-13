@@ -66,9 +66,10 @@ private:
   std::wstring makeExpectedTknTypesStr (uint32_t expected_tkn_types);
   bool isExpectedTknType (uint32_t allowed_tkn_types, uint32_t & next_legal_tkn_types, std::shared_ptr<Token> curr_tkn);
   int openSubExprScope (TokenPtrVector & tknStream);
-  int closeParenClosesScope (bool & isOpenParenFndYet);
+  int makeTreeLinkParent (bool & isOpenParenFndYet);
   bool isTernaryOpen ();
   int get2ndTernaryCnt ();
+  int closedNestedScopes(Token currTkn, Token expectedEndTkn, bool & isExprClosed, Token & enderTkn);
   int turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope);
   int getExpectedEndToken (std::shared_ptr<Token> startTkn, uint32_t & _1stTknTypMsk, Token & expectedEndTkn, bool isEndedByComma);
   void printScopeStack (std::wstring fileName, int lineNumber);

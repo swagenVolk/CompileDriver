@@ -17,25 +17,36 @@ UserMessages::UserMessages() {
 
 UserMessages::~UserMessages() {
 	// TODO Auto-generated destructor stub
-	for (auto itr8r = infoMessages.begin(); itr8r != infoMessages.end();)	{
+	reset();
+}
+
+void UserMessages::reset()	{
+	absoluteInsertPos = 0;
+
+	while (!infoMessages.empty())	{
+		auto itr8r = infoMessages.begin();
 		itr8r->second.reset();
-		infoMessages.erase(itr8r++);
+		infoMessages.erase(itr8r);
 	}
 
-	for (auto itr8r = warningMessages.begin(); itr8r != warningMessages.end();)	{
+	while (!warningMessages.empty())	{
+		auto itr8r = warningMessages.begin();
 		itr8r->second.reset();
-		warningMessages.erase(itr8r++);
+		warningMessages.erase(itr8r);
 	}
 
-	for (auto itr8r = userErrorMessages.begin(); itr8r != userErrorMessages.end();)	{
+	while (!userErrorMessages.empty())	{
+		auto itr8r = userErrorMessages.begin();
 		itr8r->second.reset();
-		userErrorMessages.erase(itr8r++);
+		userErrorMessages.erase(itr8r);
 	}
 
-	for (auto itr8r = internalErrorMessages.begin(); itr8r != internalErrorMessages.end();)	{
+	while (!internalErrorMessages.empty())	{
+		auto itr8r = internalErrorMessages.begin();
 		itr8r->second.reset();
-		internalErrorMessages.erase(itr8r++);
+		internalErrorMessages.erase(itr8r);
 	}
+
 
 }
 
@@ -98,7 +109,7 @@ int UserMessages::logMsg (InfoWarnError & msg)	{
 
 
 	} else if (INTERNAL_ERROR == msgType)	{
-		FileLineCol fileLineCol(msg.getUserSrcFileName(), msg.getUserSrcLineNum(), msg.getUserSrcColPos());
+		FileLineCol fileLineCol(msg.getOurSrcFileName(), msg.getOurSrcLineNum(), 0);
 		fileLineCol.insertPos = absoluteInsertPos++;
 
 		auto search = internalErrorMessages.find(msg.getUserMsgFld());
@@ -248,34 +259,37 @@ void UserMessages::putHolderMsgsInOrder (std::map<std::wstring, std::shared_ptr<
  * ***************************************************************************/
 void UserMessages::showMessagesByInsertOrder (bool isOrderAscending)	{
 
-	std::vector<std::pair <std::wstring, FileLineCol>> orderedMsgs;
-	orderedMsgs.reserve(absoluteInsertPos);
-	int idx;
-	FileLineCol emptyFlc;
 
-	for (idx = 0; idx < absoluteInsertPos; idx++)	{
-		// .reserve only allocated space, but did nothing to the count, so add some blanks
-		orderedMsgs.push_back(std::pair {L"", emptyFlc});
-	}
+	if (absoluteInsertPos > 0)	{
+		std::vector<std::pair <std::wstring, FileLineCol>> orderedMsgs;
+		orderedMsgs.reserve(absoluteInsertPos);
+		int idx;
+		FileLineCol emptyFlc;
 
-	std::vector<std::wstring> orderedMsgTypes;
-	orderedMsgTypes.reserve(absoluteInsertPos);
-	for (idx = 0; idx < absoluteInsertPos; idx++)	{
-		// .reserve only allocated space, but did nothing to the count, so add some blanks
-		orderedMsgTypes.push_back(L"");
-	}
+		for (idx = 0; idx < absoluteInsertPos; idx++)	{
+			// .reserve only allocated space, but did nothing to the count, so add some blanks
+			orderedMsgs.push_back(std::pair {L"", emptyFlc});
+		}
 
-	putHolderMsgsInOrder (infoMessages, orderedMsgs, orderedMsgTypes, L"INFO");
-	putHolderMsgsInOrder (warningMessages, orderedMsgs, orderedMsgTypes, L"WARNING");
-	putHolderMsgsInOrder (userErrorMessages, orderedMsgs, orderedMsgTypes, L"USER ERROR");
-	putHolderMsgsInOrder (internalErrorMessages, orderedMsgs, orderedMsgTypes, L"INTERNAL ERROR");
+		std::vector<std::wstring> orderedMsgTypes;
+		orderedMsgTypes.reserve(absoluteInsertPos);
+		for (idx = 0; idx < absoluteInsertPos; idx++)	{
+			// .reserve only allocated space, but did nothing to the count, so add some blanks
+			orderedMsgTypes.push_back(L"");
+		}
 
-	for (isOrderAscending ? idx = 0 : idx = absoluteInsertPos;
-			isOrderAscending ? idx < absoluteInsertPos : idx >= 0;
-			isOrderAscending ? idx++ : idx--)	{
-		// Traverse the array in ASC or DESC order based on callers preference
-		std::wcout << orderedMsgTypes[idx] << L": " << orderedMsgs[idx].first << L" " << orderedMsgs[idx].second.fileName << L":"
-				<< orderedMsgs[idx].second.lineNumber << L":" << orderedMsgs[idx].second.columnPos << std::endl;
+		putHolderMsgsInOrder (infoMessages, orderedMsgs, orderedMsgTypes, L"INFO");
+		putHolderMsgsInOrder (warningMessages, orderedMsgs, orderedMsgTypes, L"WARNING");
+		putHolderMsgsInOrder (userErrorMessages, orderedMsgs, orderedMsgTypes, L"USER ERROR");
+		putHolderMsgsInOrder (internalErrorMessages, orderedMsgs, orderedMsgTypes, L"INTERNAL ERROR");
+
+		for (isOrderAscending ? idx = 0 : idx = absoluteInsertPos;
+				isOrderAscending ? idx < absoluteInsertPos : idx >= 0;
+				isOrderAscending ? idx++ : idx--)	{
+			// Traverse the array in ASC or DESC order based on callers preference
+			std::wcout << orderedMsgTypes[idx] << L": " << orderedMsgs[idx].first << L" " << orderedMsgs[idx].second.fileName << L":"
+					<< orderedMsgs[idx].second.lineNumber << L":" << orderedMsgs[idx].second.columnPos << std::endl;
+		}
 	}
 
 }

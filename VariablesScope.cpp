@@ -19,12 +19,16 @@ VariablesScope::VariablesScope() {
 VariablesScope::~VariablesScope() {
 	// TODO Auto-generated destructor stub
 	thisSrcFile.clear();
+	reset();
+}
 
+void VariablesScope::reset()	{
 	while (scopeStack.size() > 0)	{
 		std::shared_ptr<ScopeFrame> top = scopeStack[scopeStack.size() - 1];
 		scopeStack.erase(scopeStack.end());
 		top.reset();
 	}
+
 }
 
 /* ****************************************************************************

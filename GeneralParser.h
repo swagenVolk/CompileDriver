@@ -45,7 +45,7 @@ public:
 	GeneralParser(TokenPtrVector & inTknStream, std::wstring userSrcFileName, CompileExecTerms & inUsrSrcTerms
 			, std::shared_ptr<UserMessages> userMessages, std::string object_file_name, std::shared_ptr<VariablesScope> inVarScopeStack);
 	virtual ~GeneralParser();
-	int findKeyWordObjects();
+	int rootScopeCompile();
 
 protected:
 

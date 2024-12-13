@@ -6,6 +6,8 @@
  */
 
 #include "GeneralParser.h"
+#include "Token.h"
+#include <iostream>
 
 using namespace std;
 
@@ -100,14 +102,14 @@ int GeneralParser::chompUntil_infoMsgAfter (std::vector<std::wstring> searchStri
 }
 
 /* ****************************************************************************
- * Parse through the user's source file, looking for KEYWORDs such as:
- * data type KEYWORDs that either indicate a variable or a fxn declaration
+ * Parse through the user's source file, looking for USER_WORDs such as:
+ * data type USER_WORDs that either indicate a variable or a fxn declaration
  * [if] [else if] [else] [while] [for] [?fxn]
  * the current expression and if it's well formed, commit it to
  * the interpreted stream. If it's not well formed, generate a clear error
  * message to the user.
  * ***************************************************************************/
-int GeneralParser::findKeyWordObjects () 	{
+int GeneralParser::rootScopeCompile () 	{
 	int ret_code = GENERAL_FAILURE;
 	bool isStopFail = false;
 	bool isEOF = false;
@@ -146,7 +148,9 @@ int GeneralParser::findKeyWordObjects () 	{
 								isStopFail = true;
 						}
 					}
-				} else if (currTkn->tkn_type == KEYWORD_TKN && OK == varScopeStack->findVar(currTkn->_string, 0, scratchTkn, READ_ONLY, userMessages))	{
+				} else if ((currTkn->tkn_type == USER_WORD_TKN && OK == varScopeStack->findVar(currTkn->_string, 0, scratchTkn, READ_ONLY, userMessages))
+					|| currTkn->tkn_type == SRC_OPR8R_TKN && (currTkn->_string == usrSrcTerms.getSrcOpr8rStrFor (PRE_INCR_NO_OP_OPCODE)
+					|| currTkn->_string == usrSrcTerms.getSrcOpr8rStrFor (PRE_DECR_NO_OP_OPCODE)))	{
 					// Put the current Token back; exprParser will need it!
 					tknStream.insert(tknStream.begin(), currTkn);
 
@@ -175,10 +179,11 @@ int GeneralParser::findKeyWordObjects () 	{
 						if (isProgressBlocked ())
 							isStopFail = true;
 					
-					} else if (OK != interpreter.resolveFlattenedExpr(flatExprTkns))	{
+					} else if (OK != interpretedFileWriter.writeFlatExprToFile(flatExprTkns))	{
+						// Write out to interpreted file BEFORE we destructively resolve the flat stream of Tokens that make up the expression
 						isStopFail = true;
 
-					} else if (OK != interpretedFileWriter.writeFlatExprToFile(exprTree, flatExprTkns))	{
+					} else if (OK != interpreter.resolveFlattenedExpr(flatExprTkns))	{
 						isStopFail = true;
 
 					} else	{
@@ -189,23 +194,23 @@ int GeneralParser::findKeyWordObjects () 	{
 							isStopFail = true;
 						}
 					}
-				} else if (currTkn->tkn_type == KEYWORD_TKN && currTkn->_string == L"if")	{
-			  	userMessages->logMsg (INTERNAL_ERROR, L"[if] KEYWORD not supported yet!", thisSrcFile, __LINE__, 0);
+				} else if (currTkn->tkn_type == RESERVED_WORD_TKN && currTkn->_string == L"if")	{
+			  	userMessages->logMsg (INTERNAL_ERROR, L"[if] RESERVED_WORD not supported yet!", thisSrcFile, __LINE__, 0);
 			  	isStopFail = true;
 
-				} else if (currTkn->tkn_type == KEYWORD_TKN && currTkn->_string == L"else")	{
+				} else if (currTkn->tkn_type == RESERVED_WORD_TKN && currTkn->_string == L"else")	{
 					// TODO:
-			  	userMessages->logMsg (INTERNAL_ERROR, L"[else] KEYWORD not supported yet!", thisSrcFile, __LINE__, 0);
+			  	userMessages->logMsg (INTERNAL_ERROR, L"[else] RESERVED_WORD not supported yet!", thisSrcFile, __LINE__, 0);
 					isStopFail = true;
 
-				} else if (currTkn->tkn_type == KEYWORD_TKN && currTkn->_string == L"for")	{
+				} else if (currTkn->tkn_type == RESERVED_WORD_TKN && currTkn->_string == L"for")	{
 					// TODO:
-			  	userMessages->logMsg (INTERNAL_ERROR, L"[for] KEYWORD not supported yet!", thisSrcFile, __LINE__, 0);
+			  	userMessages->logMsg (INTERNAL_ERROR, L"[for] RESERVED_WORD not supported yet!", thisSrcFile, __LINE__, 0);
 					isStopFail = true;
 
-				} else if (currTkn->tkn_type == KEYWORD_TKN && currTkn->_string == L"while")	{
+				} else if (currTkn->tkn_type == RESERVED_WORD_TKN && currTkn->_string == L"while")	{
 					// TODO:
-			  	userMessages->logMsg (INTERNAL_ERROR, L"[while] KEYWORD not supported yet!", thisSrcFile, __LINE__, 0);
+			  	userMessages->logMsg (INTERNAL_ERROR, L"[while] RESERVED_WORD not supported yet!", thisSrcFile, __LINE__, 0);
 					isStopFail = true;
 				} else	{
 			  	userMessages->logMsg (INTERNAL_ERROR, L"Unhandled condition!", thisSrcFile, __LINE__, 0);
@@ -217,8 +222,6 @@ int GeneralParser::findKeyWordObjects () 	{
 		}
   }
 
-  varScopeStack->displayVariables();
-
   if (!isStopFail && isEOF)
   	ret_code = OK;
 
@@ -227,7 +230,7 @@ int GeneralParser::findKeyWordObjects () 	{
 }
 
 /* ****************************************************************************
- * Found a data type KEYWORD that indicates the beginning of a possibly plural
+ * Found a data type USER_WORD that indicates the beginning of a possibly plural
  * variable declaration.
  * ***************************************************************************/
 int GeneralParser::parseVarDeclaration (std::wstring dataTypeStr, std::pair<TokenTypeEnum, uint8_t> tknType_opCode, bool & isDeclarationEnded)	{
@@ -238,8 +241,8 @@ int GeneralParser::parseVarDeclaration (std::wstring dataTypeStr, std::pair<Toke
 
 	uint32_t startFilePos = interpretedFileWriter.getWriteFilePos();
 	std::wstring assignOpr8r = usrSrcTerms.getSrcOpr8rStrFor(ASSIGNMENT_OPR8R_OPCODE);
-
 	uint32_t length_pos = interpretedFileWriter.writeFlexLenOpCode (VARIABLES_DECLARATION_OPCODE);
+
 	if (0 != length_pos)	{
 		// Save off the position where the expression's total length is stored and
 		// write 0s to it. It will get filled in later after the remainder of the
@@ -251,7 +254,7 @@ int GeneralParser::parseVarDeclaration (std::wstring dataTypeStr, std::pair<Toke
 			userMessages->logMsg (INTERNAL_ERROR, L"Data type [" + dataTypeStr + L"] -> INVALID_OPCODE!", thisSrcFile, __LINE__, 0);
 			isStopFail = true;
 
-		} else if (OK != interpretedFileWriter.writeRawUnsigned (tknType_opCode.first, NUM_BITS_IN_BYTE))	{
+		} else if (OK != interpretedFileWriter.writeRawUnsigned (tknType_opCode.second, NUM_BITS_IN_BYTE))	{
 			userMessages->logMsg (INTERNAL_ERROR, L"Failed writing data type op_code to interpreted file.", thisSrcFile, __LINE__, 0);
 			isStopFail = true;
 
@@ -274,8 +277,8 @@ int GeneralParser::parseVarDeclaration (std::wstring dataTypeStr, std::pair<Toke
 					if (parserState == GET_VAR_NAME)	{
 						// bool isBobYerUncle, isFailed = false, isDeclarationEnded = false;
 						//      ^              ^                 ^
-						if (currTkn->tkn_type != KEYWORD_TKN || currTkn->_string.empty())	{
-							userMessages->logMsg (USER_ERROR, L"Expected a KEYWORD for a variable name, but got " + currTkn->descr_sans_line_num_col()
+						if (currTkn->tkn_type != USER_WORD_TKN || currTkn->_string.empty())	{
+							userMessages->logMsg (USER_ERROR, L"Expected a USER_WORD for a variable name, but got " + currTkn->descr_sans_line_num_col()
 									, userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
 							// TODO: Is it possible to recover from this and keep compiling?
 							isStopFail = true;
@@ -331,7 +334,7 @@ int GeneralParser::parseVarDeclaration (std::wstring dataTypeStr, std::pair<Toke
 							userMessages->logMsg (USER_ERROR
 									, L"Expected a [,] or [" + assignOpr8r + L"] or [" + usrSrcTerms.get_statement_ender() + L"] but got " + currTkn->descr_sans_line_num_col()
 									, userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
-							// TODO: What to look for to keep compiling? Do we look for the next , or KEYWORD, [=] or [;]?
+							// TODO: What to look for to keep compiling? Do we look for the next , or USER_WORD, [=] or [;]?
 							isStopFail = true;
 						}
 
@@ -407,7 +410,6 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
 
 	int makeTreeRetCode = exprParser.makeExprTree (tknStream, exprTree, exprEnder, END_COMMA_IS_EXPECTED, isExprClosed);
 	closerTkn = exprEnder;
-	exprTree->showTree(thisSrcFile, __LINE__);
 
 	if (OK != makeTreeRetCode)	{
 		isFailed = true;
@@ -417,10 +419,11 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
 		if (isProgressBlocked ())
 			isFailed = true;
 	
-	} else if (OK != interpreter.resolveFlattenedExpr(flatExprTkns))	{
+	} else if (OK != interpretedFileWriter.writeFlatExprToFile(flatExprTkns))	{
+		// Write out the expression BEFORE we destructively resolve it
 		isFailed = true;
 
-	} else if (OK != interpretedFileWriter.writeFlatExprToFile(exprTree, flatExprTkns))	{
+	} else if (OK != interpreter.resolveFlattenedExpr(flatExprTkns))	{
 		isFailed = true;
 
 	} else if (!isFailed)	{

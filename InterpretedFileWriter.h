@@ -20,7 +20,7 @@ class InterpretedFileWriter {
 public:
 	InterpretedFileWriter(std::string output_file_name, CompileExecTerms & inExecTerms, std::shared_ptr<UserMessages> userMessages);
 	virtual ~InterpretedFileWriter();
-	int writeFlatExprToFile(std::shared_ptr<ExprTreeNode> rootOfExpr, std::vector<Token> & flatExprTknLists);
+	int writeFlatExprToFile(std::vector<Token> & flatExprTknLists);
 
 	// TODO: Is making these "public" legit?
 	int writeFlexLenOpCode (uint8_t op_code);

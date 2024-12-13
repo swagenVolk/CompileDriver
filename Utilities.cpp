@@ -7,6 +7,9 @@
  */
 
 #include "Utilities.h"
+#include "common.h"
+#include <cctype>
+#include <cwctype>
 #include <stdint.h>
 #include <string>
 
@@ -76,6 +79,62 @@ std::wstring Utilities::joinStrings (std::vector<std::wstring> & strVector, std:
 
 	return (concatStr);
 }
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+std::wstring Utilities::trim (std::wstring inStr)	{
+	std::wstring retStr = L"";
+	int idx;
+	int firstValidPos = -1;
+	int lastValidPos = -1;
+
+	for (idx = 0; idx < inStr.length(); idx++)	{
+		wchar_t currChar = inStr[idx];
+		if (!std::iswspace(currChar))	{
+			firstValidPos = idx;
+			break;
+		}
+	}
+
+	for (idx = inStr.length() - 1; idx >= 0; idx--)	{
+		wchar_t currChar = inStr[idx];
+		if (!std::iswspace(currChar))	{
+			lastValidPos = idx;
+			break;
+		}
+	}
+
+	if (firstValidPos >= 0 && firstValidPos <= lastValidPos && lastValidPos < inStr.length())	
+		// 2nd parameter of substr is a COUNT of characters, not a position
+		retStr = inStr.substr(firstValidPos, ((lastValidPos + 1) - firstValidPos));
+
+	return (retStr);
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+void Utilities::splitString (std::wstring inStr, std::wstring spr8r, std::vector<std::wstring> & strVector)	{
+	int ret_code = GENERAL_FAILURE;
+	std::wstring::size_type foundPos;
+
+	while (!inStr.empty())	{
+		foundPos = inStr.find (spr8r);
+
+		if (foundPos == std::string::npos)	{
+			strVector.push_back (inStr);
+			inStr.clear();
+		
+		} else {
+			std::wstring segment = trim (inStr.substr(0, foundPos));
+			if (!segment.empty())
+				strVector.push_back(segment);
+			inStr.erase (0, foundPos + spr8r.length());
+		}
+	}
+}
+
 /* ****************************************************************************
  *
  * ***************************************************************************/
@@ -90,8 +149,17 @@ void Utilities::dumpTokenList (std::vector<Token> & tokenStream, CompileExecTerm
 
 		switch (listTkn.tkn_type)	{
 			case EXEC_OPR8R_TKN:
+			if (listTkn._unsigned == PRE_INCR_OPR8R_OPCODE)	
+				std::wcout << L"++(" << listTkn._string << L")";
+			else if (listTkn._unsigned == PRE_DECR_OPR8R_OPCODE)
+				std::wcout << L"--(" << listTkn._string << L")";
+			else if (listTkn._unsigned == POST_INCR_OPR8R_OPCODE)
+				std::wcout << L"(" << listTkn._string << L")++";
+			else if (listTkn._unsigned == POST_DECR_OPR8R_OPCODE)
+				std::wcout << L"(" << listTkn._string << L")--";
+			else
 				std::wcout << execTerms.getSrcOpr8rStrFor(listTkn._unsigned);
-				break;
+			break;
 			case UINT8_TKN:
 			case UINT16_TKN:
 			case UINT32_TKN:
@@ -109,7 +177,7 @@ void Utilities::dumpTokenList (std::vector<Token> & tokenStream, CompileExecTerm
 				break;
 			case STRING_TKN:
 			case DATETIME_TKN:
-			case KEYWORD_TKN:
+			case USER_WORD_TKN:
 			case SRC_OPR8R_TKN:
 				std::wcout << listTkn._string;
 				break;
@@ -123,3 +191,4 @@ void Utilities::dumpTokenList (std::vector<Token> & tokenStream, CompileExecTerm
 	std::wcout << std::endl;
 
 }
+

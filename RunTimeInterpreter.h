@@ -8,23 +8,36 @@
 #ifndef RUNTIMEINTERPRETER_H_
 #define RUNTIMEINTERPRETER_H_
 
+#include "InterpretedFileReader.h"
 #include "Token.h"
-#include <map>
 #include <memory>
 #include "CompileExecTerms.h"
 #include "Utilities.h"
 #include "VariablesScope.h"
 #include "UserMessages.h"
-#include "ExprTreeNode.h"
+
+enum interpreter_modes_enum {
+	COMPILE_TIME_CHECKING
+	,RUN_TIME_EXECUTION
+
+};
+
+typedef interpreter_modes_enum InterpreterModesType;
 
 class RunTimeInterpreter {
 public:
 	RunTimeInterpreter();
-	RunTimeInterpreter(CompileExecTerms & execTerms, std::shared_ptr<VariablesScope>, std::wstring userSrcFileName, std::shared_ptr<UserMessages> userMessages);
+	RunTimeInterpreter(CompileExecTerms & execTerms, std::shared_ptr<VariablesScope> inVarScope
+		, std::wstring userSrcFileName, std::shared_ptr<UserMessages> userMessages);
+	RunTimeInterpreter(std::string interpretedFileName, std::wstring userSrcFileName
+		, std::shared_ptr<VariablesScope> inVarScope,  std::shared_ptr<UserMessages> userMessages);
+
 	virtual ~RunTimeInterpreter();
 	int execOperation (std::shared_ptr <Token> opr8r, TokenPtrVector & operands, Token & resultTkn);
   void dumpTokenPtrStream (TokenPtrVector tokenStream, std::wstring callersSrcFile, int lineNum);
+	// TODO: Should I make this static?
   int resolveFlattenedExpr(std::vector<Token> & exprTknStream);
+	int rootScopeExec();
 
 protected:
 
@@ -38,7 +51,14 @@ private:
 	std::shared_ptr<VariablesScope> varScopeStack;
 	std::shared_ptr<UserMessages> userMessages;
 	std::wstring userSrcFileName;
+	int usageMode;
+	InterpretedFileReader fileReader;
 
+	int execVarDeclaration (uint32_t objStartPos, uint32_t objectLen);
+	int execPrefixGatherPostfix (std::vector<Token> & flatExprTkns, int & numPrefixOpsFnd, std::vector<Token> & postFixOps);
+	int execGatheredPostfix (int & numDone, std::vector<Token> & postFixOps);
+	int execPrePostFixNoOp (std::vector<Token> & exprTknStream, int & callersIdx);
+	int execPrePostFixOp (Token & opCodeTkn);
 	int execUnaryOp (std::vector<Token> & exprTknStream, int & callersIdx);
 	int execAssignmentOp(std::vector<Token> & exprTknStream, int & callersIdx);
 	int execBinaryOp (std::vector<Token> & exprTknStream, int & callersIdx);

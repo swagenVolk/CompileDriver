@@ -27,13 +27,22 @@
  *  */
 
 #include "RunTimeInterpreter.h"
+#include "OpCodes.h"
 #include "Token.h"
 #include "TokenCompareResult.h"
 #include <cassert>
+#include <cstdint>
 #include <memory>
+#include <string>
+#include <vector>
 #include "InfoWarnError.h"
 #include "UserMessages.h"
+#include "VariablesScope.h"
+#include "common.h"
 
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
 RunTimeInterpreter::RunTimeInterpreter() {
 	// TODO Auto-generated constructor stub
   oneTkn = std::make_shared<Token> (INT64_TKN, L"1");
@@ -46,6 +55,9 @@ RunTimeInterpreter::RunTimeInterpreter() {
 	assert (0);
 }
 
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
 RunTimeInterpreter::RunTimeInterpreter(CompileExecTerms & execTerms, std::shared_ptr<VariablesScope> inVarScopeStack
 		, std::wstring userSrcFileName, std::shared_ptr<UserMessages> userMessages) {
 	// TODO Auto-generated constructor stub
@@ -59,12 +71,467 @@ RunTimeInterpreter::RunTimeInterpreter(CompileExecTerms & execTerms, std::shared
 	varScopeStack = inVarScopeStack;
 	this->userMessages = userMessages;
 	this->userSrcFileName = userSrcFileName;
+	usageMode = COMPILE_TIME_CHECKING;
 }
 
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+RunTimeInterpreter::RunTimeInterpreter(std::string interpretedFileName, std::wstring userSrcFileName
+	, std::shared_ptr<VariablesScope> inVarScope,  std::shared_ptr<UserMessages> userMessages)
+		: execTerms ()
+		, fileReader (interpretedFileName, execTerms)	{
+	// TODO Auto-generated constructor stub
+  oneTkn = std::make_shared<Token> (INT64_TKN, L"1");
+  // TODO: Token value not automatically filled in currently
+  oneTkn->_signed = 1;
+  zeroTkn = std::make_shared<Token> (INT64_TKN, L"0");
+  zeroTkn->_signed = 0;
+	thisSrcFile = util.getLastSegment(util.stringToWstring(__FILE__), L"/");
+	varScopeStack = inVarScope;
+	this->userMessages = userMessages;
+	this->userSrcFileName = userSrcFileName;
+	usageMode = RUN_TIME_EXECUTION;
+
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
 RunTimeInterpreter::~RunTimeInterpreter() {
 	// TODO Auto-generated destructor stub
 	oneTkn.reset();
 	zeroTkn.reset();
+}
+
+/* ****************************************************************************
+ * Analogous to GeneralParser::rootScopeCompile.  
+ * Parse through the user's interpreted file, looking for objects such as:
+ * variable declarations
+ * Expressions
+ * [if] 
+ * [else if]
+ * [else] 
+ * [while] 
+ * [for] 
+ * [fxn declaration]
+ * [fxn call]
+ * ***************************************************************************/
+int RunTimeInterpreter::rootScopeExec()	{
+	int ret_code = GENERAL_FAILURE;
+	uint8_t	op_code;
+	uint32_t objStartPos;
+	uint32_t objectLen;
+	bool isFailed = false;
+	bool isDone = false;
+	std::wstringstream hexStream;
+
+	if (usageMode == RUN_TIME_EXECUTION)	{
+
+		while (!isDone && !isFailed)	{
+			objStartPos = fileReader.getReadFilePos();
+
+			if (fileReader.isEOF())
+				isDone = true;
+
+			else if (OK != fileReader.readNextByte (op_code))	{
+				isFailed = true;
+			
+			} else if (op_code >= FIRST_VALID_FLEX_LEN_OPCODE && op_code <= LAST_VALID_FLEX_LEN_OPCODE)		{
+				if (OK != fileReader.readNextDword (objectLen))	{
+					isFailed = true;
+					hexStream.str(L"");
+					hexStream << L"0x" << std::hex << op_code;
+					std::wstring msg = L"Failed to get length of object (opcode = ";
+					msg.append(hexStream.str());
+					msg.append(L") starting at ");
+					hexStream.str(L"");
+					hexStream << L"0x" << std::hex << objStartPos;
+					msg.append(hexStream.str());
+					userMessages->logMsg(INTERNAL_ERROR, msg, thisSrcFile, __LINE__, 0);
+
+				} else {
+					if (op_code == VARIABLES_DECLARATION_OPCODE)	{
+						if (OK != execVarDeclaration (objStartPos, objectLen))	{
+							isFailed = true;
+						}
+
+					} else if (op_code == EXPRESSION_OPCODE)	{			
+						if (OK != fileReader.setFilePos(objStartPos))	{
+							// Follow on fxn expects to start at beginning of expression
+							// TODO: Standardize on this?
+							isFailed = true;
+							hexStream.str(L"");
+							hexStream << L"0x" << std::hex << objStartPos;
+							userMessages->logMsg(INTERNAL_ERROR
+								, L"Failed to reset interpreter file position to " + hexStream.str(), thisSrcFile, __LINE__, 0);
+
+						} else {
+							std::vector<Token> exprTkns;
+							if (OK != fileReader.readExprIntoList(exprTkns))	{
+								isFailed = true;
+								hexStream.str(L"");
+								hexStream << L"0x" << std::hex << op_code;
+								userMessages->logMsg(INTERNAL_ERROR
+									, L"Failed to retrieve expression starting at " + hexStream.str(), thisSrcFile, __LINE__, 0);
+							
+							}	else 	{
+								if (OK != resolveFlattenedExpr(exprTkns)) {
+									isFailed = true;
+								}
+							}
+						}
+					} else if (op_code == IF_BLOCK_OPCODE)	{									
+							isFailed = true;
+							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, __LINE__, 0);
+
+					} else if (op_code == ELSE_IF_BLOCK_OPCODE)	{						
+							isFailed = true;
+							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, __LINE__, 0);
+
+					} else if (op_code == ELSE_BLOCK_OPCODE)	{								
+							isFailed = true;
+							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, __LINE__, 0);
+
+					} else if (op_code == WHILE_LOOP_OPCODE)	{								
+							isFailed = true;
+							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, __LINE__, 0);
+
+					} else if (op_code == FOR_LOOP_OPCODE)	{									
+							isFailed = true;
+							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, __LINE__, 0);
+
+					} else if (op_code == SCOPE_OPEN_OPCODE)	{								
+							isFailed = true;
+							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, __LINE__, 0);
+
+					} else if (op_code == FXN_DECLARATION_OPCODE)	{					
+							isFailed = true;
+							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, __LINE__, 0);
+
+					} else if (op_code == FXN_CALL_OPCODE)	{									
+							isFailed = true;
+							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, __LINE__, 0);
+
+					} else if (op_code == SYSTEM_CALL_OPCODE)	{							
+							isFailed = true;
+							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, __LINE__, 0);
+
+					} else {
+						isFailed = true;
+						hexStream.str(L"");
+						hexStream << L"0x" << std::hex << op_code;
+						std::wstring msg = L"Unknown opcode [";
+						msg.append(hexStream.str());
+						msg.append(L"] found at ");
+						hexStream.str(L"");
+						hexStream << L"0x" << std::hex << objStartPos;
+						msg.append(hexStream.str());
+						userMessages->logMsg(INTERNAL_ERROR, msg, thisSrcFile, __LINE__, 0);
+					}
+				}
+			}
+		}
+	}
+
+	if (isDone && !isFailed)
+		ret_code = OK;
+
+	return (ret_code);
+}
+
+/* ****************************************************************************
+ * VARIABLES_DECLARATION_OPCODE		0x6F	
+ * [op_code][total_length][datatype op_code][[string var_name][init_expression]]+
+ * ***************************************************************************/
+int RunTimeInterpreter::execVarDeclaration (uint32_t objStartPos, uint32_t objectLen)	{
+	int ret_code = GENERAL_FAILURE;
+	uint8_t	op_code;
+	bool isDone = false;
+	bool isFailed = false;
+	std::wstringstream hexStrOpCode;
+	std::wstringstream hexStrFilePos;
+	std::wstring devMsg;
+	uint32_t currObjStartPos;
+
+	if (OK == fileReader.readNextByte(op_code))	{
+		// Got the DATA_TYPE_[]_OPCODE
+		TokenTypeEnum tknType = execTerms.getTokenTypeForOpCode (op_code);
+		if (tknType == USER_WORD_TKN || !Token::isDirectOperand (tknType))	{
+			hexStrOpCode.str(L"");
+			hexStrOpCode << L"0x" << std::hex << op_code;
+			std::wstring devMsg = L"Expected op_code that would resolve to a datatype but got ";
+			devMsg.append(hexStrOpCode.str());
+			devMsg.append (L" at file position ");
+			hexStrFilePos.str(L"");
+			hexStrFilePos << L"0x" << std::hex << fileReader.getReadFilePos();
+			devMsg.append(hexStrFilePos.str());
+			userMessages->logMsg(INTERNAL_ERROR, devMsg, thisSrcFile, __LINE__, 0);
+			isFailed = true;
+
+		} else {
+			uint32_t pastLimitFilePos = objStartPos + objectLen;
+			Token varNameTkn;
+			std::vector<Token> tokenList;
+
+			while (!isDone && !isFailed)	{
+				varNameTkn.resetToString(L"");
+				Token varTkn;
+				varTkn.resetToken();
+				varTkn.tkn_type = tknType;
+
+				if (fileReader.isEOF())	{
+					isDone = true;
+				
+				} else if (pastLimitFilePos <= (currObjStartPos = fileReader.getReadFilePos()))	{
+					isDone = true;
+				
+				} else {
+						hexStrFilePos.str(L"");
+						hexStrFilePos << L"0x" << std::hex << currObjStartPos;
+
+					if (OK != fileReader.readNextByte(op_code) || VAR_NAME_OPCODE != op_code)	{
+						devMsg = L"Did not get expected VAR_NAME_OPCODE at file position " + hexStrFilePos.str();
+						userMessages->logMsg(INTERNAL_ERROR, devMsg, thisSrcFile, __LINE__, 0);
+						isFailed = true;
+			
+					} else if (OK != fileReader.readString (op_code, varNameTkn))	{
+						devMsg = L"Failed reading variable name in declaration after file position " + hexStrFilePos.str();
+						userMessages->logMsg(INTERNAL_ERROR, devMsg, thisSrcFile, __LINE__, 0);
+						isFailed = true;
+
+					} else if (!execTerms.isViableVarName(varNameTkn._string))	{
+						devMsg = L"Variable name in declaration is invalid [" + varNameTkn._string + L"] after file position " + hexStrFilePos.str();
+						userMessages->logMsg(INTERNAL_ERROR, devMsg, thisSrcFile, __LINE__, 0);
+						isFailed = true;
+					
+					} else if (OK != varScopeStack->insertNewVarAtCurrScope(varNameTkn._string, varTkn))	{
+							devMsg = L"Failed to insert variable into NameSpace [" + varNameTkn._string + L"] after file position " + hexStrFilePos.str();
+							userMessages->logMsg(INTERNAL_ERROR, devMsg, thisSrcFile, __LINE__, 0);
+							isFailed = true;
+					
+					} else if (OK != fileReader.peekNextByte(op_code))	{
+							if (fileReader.isEOF())	{
+								isDone = true;
+							
+							} else {
+								userMessages->logMsg(INTERNAL_ERROR, L"Peek failed", thisSrcFile, __LINE__, 0);
+								isFailed = true;
+							}
+					} else if (op_code == EXPRESSION_OPCODE)	{
+						// If there's an initialization expression for this variable in the declaration, then resolve it
+						// e.g. uint32 numFruits = 3 + 4, numVeggies = (3 * (1 + 2)), numPizzas = (4 + (2 * 3));
+						//                         ^                    ^                         ^
+						// Otherwise, go back to top of loop and look for the next variable name
+						std::vector<Token> exprTkns;
+						if (OK != fileReader.readExprIntoList(exprTkns))	{
+							isFailed = true;
+							hexStrFilePos.str(L"");
+							hexStrFilePos << L"0x" << std::hex << fileReader.getReadFilePos();
+							userMessages->logMsg(INTERNAL_ERROR, L"Failed to retrieve expression starting at " + hexStrFilePos.str(), thisSrcFile, __LINE__, 0);
+						
+						}	else if (OK != resolveFlattenedExpr(exprTkns)) {
+							isFailed = true;
+						
+						} else if (exprTkns.size() != 1)	{
+							// flattenedExpr should have 1 Token left - the result of the expression
+							devMsg = L"Failed to resolve variable initialization expression for [" + varNameTkn._string + L"] after file position " + hexStrFilePos.str();
+							userMessages->logMsg (INTERNAL_ERROR, devMsg, thisSrcFile, __LINE__, 0);
+							isFailed = true;
+
+						} else if (OK != varScopeStack->findVar(varNameTkn._string, 0, exprTkns[0], COMMIT_WRITE, userMessages))	{
+							// Don't limit search to current scope
+							userMessages->logMsg (INTERNAL_ERROR
+									, L"After resolving initialization expression, could not find " + varNameTkn._string, thisSrcFile, __LINE__, 0);
+							isFailed = true;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (isDone && !isFailed)
+		ret_code = OK;
+
+	return (ret_code);
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+int RunTimeInterpreter::execPrePostFixNoOp (std::vector<Token> & exprTknStream, int & callersIdx)	{
+	int ret_code = GENERAL_FAILURE;
+	bool isSuccess = false;
+
+	if (exprTknStream.size() > callersIdx && exprTknStream.size() >= 2 && callersIdx >= 1 && exprTknStream[callersIdx].tkn_type == EXEC_OPR8R_TKN)	{
+
+		int opr8rIdx = callersIdx;
+		// Snarf up OPR8R op_code BEFORE it is overwritten by the result
+		uint8_t op_code = exprTknStream[opr8rIdx]._unsigned;
+
+		// Our operand Token could be a USER_WORD variable name, requiring a NameSpace look up to get the actual value
+		// TODO: Figure out how to log errors but continue on when compiling
+		Token operand1;
+		std::wstring varName1;
+		resolveIfVariable (exprTknStream[opr8rIdx-1], operand1, varName1);
+
+		if (!varName1.empty() && (op_code == PRE_INCR_NO_OP_OPCODE || op_code == PRE_DECR_NO_OP_OPCODE
+			|| op_code == POST_INCR_NO_OP_OPCODE || op_code == POST_DECR_NO_OP_OPCODE))	{
+			// Same action for all of these...take the existing value and copy it over the opr8r. The actual INCR|DECR happens BEFORE|AFTER the real,
+			// user visible expression
+			if (operand1.isSigned() || operand1.isUnsigned())	{
+				exprTknStream[opr8rIdx] = operand1;
+				isSuccess = true;
+			}
+		}
+ 		
+		if (isSuccess)	{
+			exprTknStream.erase (exprTknStream.begin() + (opr8rIdx-1));
+			callersIdx -= 1;
+			ret_code = OK;
+		} else	{
+			Operator opr8r;
+			execTerms.getExecOpr8rDetails(op_code, opr8r);
+			userMessages->logMsg (INTERNAL_ERROR, L"Failed to execute OPR8R " + opr8r.symbol, thisSrcFile, __LINE__, 0);
+		}
+
+	} else	{
+		userMessages->logMsg (INTERNAL_ERROR, L"Incorrect parameters|count", thisSrcFile, __LINE__, 0);
+	}
+
+	return (ret_code);
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+int RunTimeInterpreter::execPrePostFixOp (Token & opCodeTkn)	{
+	int ret_code = GENERAL_FAILURE;
+	int addValue = 0;
+
+	if (opCodeTkn._unsigned == PRE_INCR_OPR8R_OPCODE || opCodeTkn._unsigned == POST_INCR_OPR8R_OPCODE)
+		addValue = 1;
+	else if (opCodeTkn._unsigned == PRE_DECR_OPR8R_OPCODE || opCodeTkn._unsigned == POST_DECR_OPR8R_OPCODE)
+		addValue = -1;
+
+	if (addValue != 0)	{
+		std::vector<std::wstring>	varNames;
+		util.splitString(opCodeTkn._string, L",", varNames);
+
+		int idx;
+		int numFails = 0;
+		Token workTkn;
+
+		for (idx = 0; idx < varNames.size(); idx++)	{
+			bool isFailed = false;
+			if (OK != varScopeStack->findVar(varNames[idx], 0, workTkn, READ_ONLY, userMessages))	{
+				userMessages->logMsg(INTERNAL_ERROR, L"Could not find " + varNames[idx] + L" in the NameSpace", thisSrcFile, __LINE__, 0);
+				numFails++;
+
+			} else {
+				if (workTkn.isSigned())	{
+					workTkn._signed += addValue;
+				
+				} else if (workTkn.isUnsigned())	{
+					// TODO: How should I handle special case [0][--]?
+					workTkn._unsigned += addValue;
+
+				} else {
+					userMessages->logMsg(INTERNAL_ERROR, L"Invalid data type for ariable " + varNames[idx] + L". Compiler should have caught this!"
+						, thisSrcFile, __LINE__, 0);
+					isFailed = true;
+					numFails++;
+				}
+
+				if (!isFailed && OK != varScopeStack->findVar(varNames[idx], 0, workTkn, COMMIT_WRITE, userMessages))	{
+					userMessages->logMsg(INTERNAL_ERROR, L"Could not find update " + varNames[idx] + L" in the NameSpace!", thisSrcFile, __LINE__, 0);
+					numFails++;
+				}
+			}
+		}
+
+		if (idx == varNames.size() && numFails == 0)	{
+			if (idx == 0)	{
+				userMessages->logMsg(INTERNAL_ERROR, L"Variable list for internal [PRE|POST]FIX OPR8R was empty!"
+					, thisSrcFile, __LINE__, 0);
+
+			}	else	{
+				ret_code = OK;
+			}
+		}
+
+	} else {
+		userMessages->logMsg(INTERNAL_ERROR, L"Passed in op_code did not resolve to [PRE|POST]FIX OPR8R!"
+			, thisSrcFile, __LINE__, 0);
+	}
+
+	return (ret_code);
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+int RunTimeInterpreter::execGatheredPostfix (int & numDone, std::vector<Token> & postFixOps)	{
+	int ret_code = GENERAL_FAILURE;
+	bool isFailed = false;
+	numDone = 0;
+
+	int numPlanned = postFixOps.size();
+	while (!isFailed && !postFixOps.empty())	{
+		Token nxtTkn = postFixOps[0];
+		if (nxtTkn._unsigned == POST_INCR_OPR8R_OPCODE || nxtTkn._unsigned == POST_DECR_OPR8R_OPCODE)	{
+			numDone++;
+			postFixOps.erase(postFixOps.begin());
+			if (OK != execPrePostFixOp (nxtTkn))
+				isFailed = true;
+		}
+	}
+
+	if (numDone == numPlanned && !isFailed)
+		ret_code = OK;
+
+	return (ret_code);
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+int RunTimeInterpreter::execPrefixGatherPostfix (std::vector<Token> & flatExprTkns, int & numPrefixOps, std::vector<Token> & postFixOps)	{
+	int ret_code = GENERAL_FAILURE;
+	numPrefixOps = 0;
+	bool isPrefixDone = false;
+	bool isFailed = false;
+	int idx;
+
+	while (!isPrefixDone && !isFailed && !flatExprTkns.empty())	{
+		Token nxtTkn = flatExprTkns[0];
+		if (nxtTkn.tkn_type == EXEC_OPR8R_TKN && (nxtTkn._unsigned == PRE_INCR_OPR8R_OPCODE || nxtTkn._unsigned == PRE_DECR_OPR8R_OPCODE))	{
+			numPrefixOps++;
+			flatExprTkns.erase(flatExprTkns.begin());
+			if (OK != execPrePostFixOp (nxtTkn))
+				isFailed = true;
+
+		} else {
+			isPrefixDone = true;
+		}
+	}
+
+	bool isPostFixDone = false;
+	while (!isPostFixDone && !isFailed && !flatExprTkns.empty())	{
+		Token nxtTkn = flatExprTkns[flatExprTkns.size() - 1];
+		if (nxtTkn.tkn_type == EXEC_OPR8R_TKN && (nxtTkn._unsigned == POST_INCR_OPR8R_OPCODE || nxtTkn._unsigned == POST_DECR_OPR8R_OPCODE))	{
+			flatExprTkns.erase(flatExprTkns.end());
+			postFixOps.insert(postFixOps.begin(), nxtTkn);
+		} else {
+			isPostFixDone = true;
+		}
+	}
+
+	if (isPrefixDone && isPostFixDone && !isFailed)
+		ret_code = OK;
+
+	return (ret_code);
 }
 
 /* ****************************************************************************
@@ -80,7 +547,7 @@ int RunTimeInterpreter::execEquivalenceOp(std::vector<Token> & exprTknStream, in
 		// Snarf up OPR8R op_code BEFORE it is overwritten by the result
 		uint8_t op_code = exprTknStream[opr8rIdx]._unsigned;
 
-		// Either|both of our operand Tokens could be KEYWORD variable names, requiring a NameSpace look up to get the actual value
+		// Either|both of our operand Tokens could be USER_WORD variable names, requiring a NameSpace look up to get the actual value
 		// TODO: Figure out how to log errors but continue on when compiling
 		Token operand1;
 		Token operand2;
@@ -161,7 +628,6 @@ int RunTimeInterpreter::execEquivalenceOp(std::vector<Token> & exprTknStream, in
   return (ret_code);
 }
 
-
 /* ****************************************************************************
  *
  * ***************************************************************************/
@@ -181,7 +647,7 @@ int RunTimeInterpreter::execStandardMath (std::vector<Token> & exprTknStream, in
 		// Snarf up OPR8R op_code BEFORE it is overwritten by the result
 		uint8_t op_code = exprTknStream[opr8rIdx]._unsigned;
 
-		// Either|both of our operand Tokens could be KEYWORD variable names, requiring a NameSpace look up to get the actual value
+		// Either|both of our operand Tokens could be USER_WORD variable names, requiring a NameSpace look up to get the actual value
 		// TODO: Figure out how to log errors but continue on when compiling
 		Token operand1;
 		Token operand2;
@@ -562,7 +1028,7 @@ int RunTimeInterpreter::execStandardMath (std::vector<Token> & exprTknStream, in
 			badUserMsg.append (L" / ");
 			badUserMsg.append (varName2.empty() ? operand2.getValueStr() : varName2);
 			badUserMsg.append (L"]");
-			userMessages->logMsg (USER_ERROR, badUserMsg, userSrcFileName, 0, 0);
+			userMessages->logMsg (USER_ERROR, badUserMsg, !userSrcFileName.empty() ? userSrcFileName : L"???", 0, 0);
 
 		} else if (isMissedCase)
 			userMessages->logMsg (INTERNAL_ERROR, L"Incorrect parameters|count", thisSrcFile, __LINE__, 0);
@@ -583,7 +1049,7 @@ int RunTimeInterpreter::execShift (std::vector<Token> & exprTknStream, int & cal
 		// Snarf up OPR8R op_code BEFORE it is overwritten by the result
 		uint8_t op_code = exprTknStream[opr8rIdx]._unsigned;
 
-		// Either|both of our operand Tokens could be KEYWORD variable names, requiring a NameSpace look up to get the actual value
+		// Either|both of our operand Tokens could be USER_WORD variable names, requiring a NameSpace look up to get the actual value
 		// TODO: Figure out how to log errors but continue on when compiling
 		Token operand1;
 		Token operand2;
@@ -667,12 +1133,12 @@ int RunTimeInterpreter::execBitWiseOp (std::vector<Token> & exprTknStream, int &
 	if (exprTknStream.size() > callersIdx && exprTknStream.size() >= 3 && callersIdx >= 2 && exprTknStream[callersIdx].tkn_type == EXEC_OPR8R_TKN)	{
 
 		// Passed in resultTkn has OPR8R op_code BEFORE it is overwritten by the result
-		// TODO: If these are KEYWORD_TKNs, then do a variable name lookup in our NameSpace
+		// TODO: If these are USER_WORD_TKNs, then do a variable name lookup in our NameSpace
 		int opr8rIdx = callersIdx;
 		// Snarf up OPR8R op_code BEFORE it is overwritten by the result
 		uint8_t op_code = exprTknStream[opr8rIdx]._unsigned;
 
-		// Either|both of our operand Tokens could be KEYWORD variable names, requiring a NameSpace look up to get the actual value
+		// Either|both of our operand Tokens could be USER_WORD variable names, requiring a NameSpace look up to get the actual value
 		// TODO: Figure out how to log errors but continue on when compiling
 		Token operand1;
 		Token operand2;
@@ -766,7 +1232,6 @@ int RunTimeInterpreter::execBitWiseOp (std::vector<Token> & exprTknStream, int &
 	return (ret_code);
 }
 
-
 /* ****************************************************************************
  *
  * ***************************************************************************/
@@ -776,12 +1241,12 @@ int RunTimeInterpreter::execUnaryOp (std::vector<Token> & exprTknStream, int & c
 
 	if (exprTknStream.size() > callersIdx && exprTknStream.size() >= 2 && callersIdx >= 1 && exprTknStream[callersIdx].tkn_type == EXEC_OPR8R_TKN)	{
 
-		// TODO: If these are KEYWORD_TKNs, then do a variable name lookup in our NameSpace
+		// TODO: If these are USER_WORD_TKNs, then do a variable name lookup in our NameSpace
 		int opr8rIdx = callersIdx;
 		// Snarf up OPR8R op_code BEFORE it is overwritten by the result
 		uint8_t op_code = exprTknStream[opr8rIdx]._unsigned;
 
-		// Our operand Token could be a KEYWORD variable name, requiring a NameSpace look up to get the actual value
+		// Our operand Token could be a USER_WORD variable name, requiring a NameSpace look up to get the actual value
 		// TODO: Figure out how to log errors but continue on when compiling
 		Token operand1;
 		std::wstring varName1;
@@ -873,7 +1338,7 @@ int RunTimeInterpreter::execAssignmentOp(std::vector<Token> & exprTknStream, int
 		// Snarf up OPR8R op_code BEFORE it is overwritten by the result
 		uint8_t original_op_code = exprTknStream[opr8rIdx]._unsigned;
 
-		// Either|both of our operand Tokens could be KEYWORD variable names, requiring a NameSpace look up to get the actual value
+		// Either|both of our operand Tokens could be USER_WORD variable names, requiring a NameSpace look up to get the actual value
 		// TODO: Figure out how to log errors but continue on when compiling
 		Token operand1;
 		Token operand2;
@@ -983,7 +1448,7 @@ int RunTimeInterpreter::execBinaryOp(std::vector<Token> & exprTknStream, int & c
 		Operator opr8r;
 		execTerms.getExecOpr8rDetails(op_code, opr8r);
 
-		// Either|both of our operand Tokens could be KEYWORD variable names, requiring a NameSpace look up to get the actual value
+		// Either|both of our operand Tokens could be USER_WORD variable names, requiring a NameSpace look up to get the actual value
 		// TODO: Figure out how to log errors but continue on when compiling
 		Token operand1;
 		Token operand2;
@@ -1312,12 +1777,14 @@ int RunTimeInterpreter::getEndOfSubExprIdx (std::vector<Token> & exprTknStream, 
  * ***************************************************************************/
 int RunTimeInterpreter::resolveFlattenedExpr(std::vector<Token> & flatExprTkns)     {
 	int ret_code = GENERAL_FAILURE;
+	bool isMiddleOK = false;
 
 	bool isFailed = false;
 	bool is1RandLeft = false;
 	int prevTknCnt = flatExprTkns.size();
 	int currTknCnt;
 	int idx;
+	int numOpr8rsFnd = 0;
 
 	if (0 == prevTknCnt)	{
 		// TODO: Great opportunity to use InfoWarnError!
@@ -1325,124 +1792,155 @@ int RunTimeInterpreter::resolveFlattenedExpr(std::vector<Token> & flatExprTkns) 
 		userMessages->logMsg (INTERNAL_ERROR, L"Token stream unexpectedly EMPTY!", thisSrcFile, __LINE__, 0);
 	}
 
-	while (!isFailed && !is1RandLeft)	{
-		// TODO: 0 count!
-		prevTknCnt = flatExprTkns.size();
+	std::vector<Token> postFixOps;
+	int numPrefixOpsFnd;
+	if (OK != execPrefixGatherPostfix (flatExprTkns, numPrefixOpsFnd, postFixOps))	{
+		isFailed = true;
 
-		int currIdx = 0;
-		bool isEOLreached = false;
-		int numSeqOperands = 0;
+	} else if (!flatExprTkns.empty())	{
 
-		while (!isFailed && !isEOLreached)	{
-			Token nxtTkn = flatExprTkns[currIdx];
+		while (!isFailed && !is1RandLeft)	{
+			prevTknCnt = flatExprTkns.size();
 
-			if (prevTknCnt == 1)	{
-				// TODO: If it's an Operand, then the Token list has been resolved
-				// If it's an OPR8R, then something's BUSTICATED
-				if (nxtTkn.isOperand())
-					is1RandLeft = true;
-				else	{
-					userMessages->logMsg (INTERNAL_ERROR, L"Last remaining Token must be an Operand but is " + nxtTkn.get_type_str() + L" [" + nxtTkn._string + L"]"
-							, thisSrcFile, __LINE__, 0);
-					isFailed = true;
-				}
-			}
+			int currIdx = 0;
+			bool isEOLreached = false;
+			int numSeqOperands = 0;
 
-			else if (nxtTkn.tkn_type != EXEC_OPR8R_TKN)	{
-				numSeqOperands++;
-				// TODO: Uncomment after getting OPR8Rs executing
-//				if (prevTknCnt == 1)
-//					isResolved = true;
+			while (!isFailed && !isEOLreached)	{
+				Token nxtTkn = flatExprTkns[currIdx];
 
-			} else	{
-				// How many operands does this OPR8R require?
-				Operator opr8r_obj;
-
-				if (OK != execTerms.getExecOpr8rDetails(nxtTkn._unsigned, opr8r_obj))	{
-					userMessages->logMsg (INTERNAL_ERROR, L"", thisSrcFile, __LINE__, 0);
-					isFailed = true;
-
-				} else if (numSeqOperands >= opr8r_obj.numReqExecOperands)	{
-					// Current OPR8R has what it needs, so do the operation
-					// TODO: What about PREFIX and POSTFIX?
-
-					if ((opr8r_obj.type_mask & STATEMENT_ENDER) && opr8r_obj.numReqExecOperands == 0)	{
-						// TODO: msg?
-						userMessages->logMsg (INTERNAL_ERROR, L"", thisSrcFile, __LINE__, 0);
-						isFailed = true;
-
-					} else if ((opr8r_obj.type_mask & UNARY) && opr8r_obj.numReqExecOperands == 1)	{
-						if (OK != execUnaryOp (flatExprTkns, currIdx))	{
-							userMessages->logMsg (INTERNAL_ERROR, L"Failed executing UNARY OPR8R!", thisSrcFile, __LINE__, 0);
-							isFailed = true;
-						} else	{
-							// Deletions made; Break out of loop so currIdx -> 0
-							// TODO: Is there a way to be SMRT about this?  Maybe currIdx points to NEXT idx after handled
-							// OPR8R, and if it's an OPERAND we can continue w/o breaking out of the loop?
-							break;
-						}
-
-					} else if ((opr8r_obj.type_mask & TERNARY_1ST) && opr8r_obj.numReqExecOperands == 1)	{
-						if (OK != execTernary1stOp (flatExprTkns, currIdx))
-							isFailed = true;
-						else	{
-							// Deletions made; Break out of loop so currIdx -> 0
-							// TODO: Is there a way to be SMRT about this?  Maybe currIdx points to NEXT idx after handled
-							// OPR8R, and if it's an OPERAND we can continue w/o breaking out of the loop?
-							break;
-						}
-
-					} else if (opr8r_obj.type_mask & TERNARY_2ND)	{
-						// TODO: Is this an error condition? Or should there be a state machine or something?
-						userMessages->logMsg (INTERNAL_ERROR, L"", thisSrcFile, __LINE__, 0);
-						isFailed = true;
-
-					} else if ((opr8r_obj.type_mask & BINARY) && opr8r_obj.numReqExecOperands == 2)	{
- 						if (OK != execBinaryOp (flatExprTkns, currIdx))	{
-							userMessages->logMsg (INTERNAL_ERROR, L"Failure executing [" + opr8r_obj.symbol + L"] operator.", thisSrcFile, __LINE__, 0);
-							isFailed = true;
-						} else	{
-							// Deletions made; Break out of loop so currIdx -> 0
-							// TODO: Is there a way to be SMRT about this?  Maybe currIdx points to NEXT idx after handled
-							// OPR8R, and if it's an OPERAND we can continue w/o breaking out of the loop?
-							break;
-						}
-					} else	{
-						userMessages->logMsg (INTERNAL_ERROR, L"", thisSrcFile, __LINE__, 0);
+				if (prevTknCnt == 1)	{
+					// TODO: If it's an Operand, then the Token list has been resolved
+					// If it's an OPR8R, then something's BUSTICATED
+					if (nxtTkn.isDirectOperand() || execTerms.isViableVarName(nxtTkn._string))
+						is1RandLeft = true;
+					else	{
+						userMessages->logMsg (INTERNAL_ERROR, L"Last remaining Token must be an Operand but is " + nxtTkn.get_type_str() + L" [" + nxtTkn._string + L"]"
+								, thisSrcFile, __LINE__, 0);
 						isFailed = true;
 					}
+				}
 
-					if (!isFailed)	{
-						// Operation result stored in Token that previously held the OPR8R. We need to delete any associatd operands
-						int StartDelIdx = currIdx - opr8r_obj.numReqExecOperands;
-						flatExprTkns.erase(flatExprTkns.begin() + StartDelIdx, flatExprTkns.begin() + StartDelIdx + 1);
-						currIdx -= opr8r_obj.numReqExecOperands;
+				else if (nxtTkn.tkn_type != EXEC_OPR8R_TKN)	{
+					numSeqOperands++;
+
+				} else	{
+					// How many operands does this OPR8R require?
+					numOpr8rsFnd++;
+					Operator opr8r_obj;
+
+					if (OK != execTerms.getExecOpr8rDetails(nxtTkn._unsigned, opr8r_obj))	{
+						userMessages->logMsg (INTERNAL_ERROR, L"", thisSrcFile, __LINE__, 0);
+						isFailed = true;
+
+					} else if (numSeqOperands >= opr8r_obj.numReqExecOperands)	{
+						// Current OPR8R has what it needs, so do the operation
+						// TODO: What about PREFIX and POSTFIX?
+
+						if ((opr8r_obj.type_mask & STATEMENT_ENDER) && opr8r_obj.numReqExecOperands == 0)	{
+							// TODO: msg?
+							userMessages->logMsg (INTERNAL_ERROR, L"", thisSrcFile, __LINE__, 0);
+							isFailed = true;
+
+						} else if (nxtTkn._unsigned == POST_INCR_NO_OP_OPCODE || nxtTkn._unsigned == POST_DECR_NO_OP_OPCODE 
+							|| nxtTkn._unsigned == PRE_INCR_NO_OP_OPCODE || nxtTkn._unsigned == PRE_DECR_NO_OP_OPCODE)	{
+								// For "actionable" [PRE|POST]FIX OPR8Rs, a CSV list of variable names is packed inside the OP_CODE's
+								// structure, as opposed to being a separate Token.
+								if (OK != execPrePostFixNoOp (flatExprTkns, currIdx))
+									isFailed = true;
+								else
+								// Deletions made; Break out of loop so currIdx -> 0
+								break;
+
+						} else if ((opr8r_obj.type_mask & UNARY) && opr8r_obj.numReqExecOperands == 1)	{
+							if (OK != execUnaryOp (flatExprTkns, currIdx))	{
+								userMessages->logMsg (INTERNAL_ERROR, L"Failed executing UNARY OPR8R!", thisSrcFile, __LINE__, 0);
+								isFailed = true;
+							} else	{
+								// Deletions made; Break out of loop so currIdx -> 0
+								// TODO: Is there a way to be SMRT about this?  Maybe currIdx points to NEXT idx after handled
+								// OPR8R, and if it's an OPERAND we can continue w/o breaking out of the loop?
+								break;
+							}
+
+						} else if ((opr8r_obj.type_mask & TERNARY_1ST) && opr8r_obj.numReqExecOperands == 1)	{
+							if (OK != execTernary1stOp (flatExprTkns, currIdx))
+								isFailed = true;
+							else	{
+								// Deletions made; Break out of loop so currIdx -> 0
+								// TODO: Is there a way to be SMRT about this?  Maybe currIdx points to NEXT idx after handled
+								// OPR8R, and if it's an OPERAND we can continue w/o breaking out of the loop?
+								break;
+							}
+
+						} else if (opr8r_obj.type_mask & TERNARY_2ND)	{
+							// TODO: Is this an error condition? Or should there be a state machine or something?
+							userMessages->logMsg (INTERNAL_ERROR, L"", thisSrcFile, __LINE__, 0);
+							isFailed = true;
+
+						} else if ((opr8r_obj.type_mask & BINARY) && opr8r_obj.numReqExecOperands == 2)	{
+							if (OK != execBinaryOp (flatExprTkns, currIdx))	{
+								userMessages->logMsg (INTERNAL_ERROR, L"Failure executing [" + opr8r_obj.symbol + L"] operator.", thisSrcFile, __LINE__, 0);
+								isFailed = true;
+							} else	{
+								// Deletions made; Break out of loop so currIdx -> 0
+								// TODO: Is there a way to be SMRT about this?  Maybe currIdx points to NEXT idx after handled
+								// OPR8R, and if it's an OPERAND we can continue w/o breaking out of the loop?
+								break;
+							}
+						} else	{
+							userMessages->logMsg (INTERNAL_ERROR, L"", thisSrcFile, __LINE__, 0);
+							isFailed = true;
+						}
+
+						if (!isFailed)	{
+							// Operation result stored in Token that previously held the OPR8R. We need to delete any associatd operands
+							int StartDelIdx = currIdx - opr8r_obj.numReqExecOperands;
+							flatExprTkns.erase(flatExprTkns.begin() + StartDelIdx, flatExprTkns.begin() + StartDelIdx + 1);
+							currIdx -= opr8r_obj.numReqExecOperands;
+						}
 					}
 				}
+
+				if (currIdx + 1 == flatExprTkns.size())
+					isEOLreached = true;
+				else
+					currIdx++;
 			}
 
-			if (currIdx + 1 == flatExprTkns.size())
-				isEOLreached = true;
-			else
-				currIdx++;
+			currTknCnt = flatExprTkns.size();
+
+			if (!is1RandLeft && currTknCnt >= prevTknCnt)	{
+				userMessages->logMsg (INTERNAL_ERROR, L"Token stream not reduced; no meaningful work done in this loop", thisSrcFile, __LINE__, 0);
+				isFailed = true;
+
+			} else if (is1RandLeft)	{
+				isMiddleOK = true;
+			}
 		}
+	}
 
-		currTknCnt = flatExprTkns.size();
-
-		if (!is1RandLeft && currTknCnt >= prevTknCnt)	{
-			userMessages->logMsg (INTERNAL_ERROR, L"Token stream not reduced; no meaningful work done in this loop", thisSrcFile, __LINE__, 0);
+	if (isMiddleOK || flatExprTkns.empty())	{
+		int numPostFixOpsFnd;
+		if (OK != execGatheredPostfix (numPostFixOpsFnd, postFixOps))	{
 			isFailed = true;
+			ret_code = GENERAL_FAILURE;
+		
+		} else if (!isMiddleOK && 0 == (numPrefixOpsFnd + numPostFixOpsFnd))	{
+				userMessages->logMsg (INTERNAL_ERROR, L"Token stream had no PREFIX or POSTFIX OPR8Rs and main expression was not resolved!"
+				, thisSrcFile, __LINE__, 0);
+				isFailed = true;
 
-		} else if (is1RandLeft)	{
+		} else {
 			ret_code = OK;
 		}
 	}
 
-	if (ret_code != OK && !isFailed)
+	if (ret_code != OK && !isFailed)	{
 		userMessages->logMsg (INTERNAL_ERROR, L"Unhandled error!", thisSrcFile, __LINE__, 0);
-
-	// TODO: See the final result
-	util.dumpTokenList (flatExprTkns, execTerms, thisSrcFile, __LINE__);
+		// TODO: See the final result
+		util.dumpTokenList (flatExprTkns, execTerms, thisSrcFile, __LINE__);
+	}
 
 	return (ret_code);
 }
@@ -1479,7 +1977,7 @@ int RunTimeInterpreter::resolveIfVariable (Token & originalTkn, Token & resolved
 	int ret_code = GENERAL_FAILURE;
 	std::shared_ptr<UserMessages> tmpUserMsg = std::make_shared<UserMessages>();
 
-	if (originalTkn.tkn_type == KEYWORD_TKN)	{
+	if (originalTkn.tkn_type == USER_WORD_TKN)	{
 		varName = originalTkn._string;
 		if (OK != varScopeStack->findVar(varName, 0, resolvedTkn, READ_ONLY, tmpUserMsg))	{
 			// TODO: Log an error message

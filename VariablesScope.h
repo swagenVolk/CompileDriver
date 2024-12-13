@@ -25,6 +25,7 @@ class VariablesScope {
 public:
 	VariablesScope();
 	virtual ~VariablesScope();
+	void reset();
 
 	int findVar(std::wstring varName, int maxLevels, Token & readOrWriteTkn, bool isWrite, std::shared_ptr<UserMessages> userMessages);
 	int insertNewVarAtCurrScope (std::wstring varName, Token varValue);

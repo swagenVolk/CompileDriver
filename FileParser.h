@@ -31,7 +31,7 @@
 
 class FileParser {
   public:
-  	FileParser(BaseLanguageTerms & inOppoSpr8rs, std::wstring fileName);
+  	FileParser(BaseLanguageTerms & inCompilerTerms, std::wstring fileName);
     int gnr8_token_stream(std::string file_name, TokenPtrVector & token_stream);
   
   private:
@@ -46,7 +46,7 @@ class FileParser {
     wchar_t prev_char;
     long curr_file_pos;
     long curr_line_start_pos;
-    BaseLanguageTerms oppoSpr8rs;
+    BaseLanguageTerms compilerTerms;
 
 
     /* ****************************************************************************

@@ -14,6 +14,7 @@
 #include "InterpretedFileWriter.h"
 #include "InfoWarnError.h"
 #include "OpCodes.h"
+#include <cstdint>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -172,13 +173,13 @@ int InterpretedFileWriter::writeExpr_12_Opr8r (std::shared_ptr<ExprTreeNode> cur
  * just needs to write the Token stream out to the interpreted file as a
  * flexible length object.
  * ***************************************************************************/
-int InterpretedFileWriter::writeFlatExprToFile (std::shared_ptr<ExprTreeNode> rootOfExpr, std::vector<Token> & flatExprTknList)	{
+int InterpretedFileWriter::writeFlatExprToFile (std::vector<Token> & flatExprTknList)	{
 	int ret_code = GENERAL_FAILURE;
 	int idx;
 	bool isFailed = false;
 
-	if (rootOfExpr == NULL)	{
-  	userMessages->logMsg (INTERNAL_ERROR, L"rootOfExpr is NULL!", thisSrcFile, __LINE__, 0);
+	if (flatExprTknList.empty())	{
+  	userMessages->logMsg (INTERNAL_ERROR, L"Flattened expression list is EMPTY!", thisSrcFile, __LINE__, 0);
 
 	} else	{
 		// Make sure we're at END of our output file
@@ -192,8 +193,6 @@ int InterpretedFileWriter::writeFlatExprToFile (std::shared_ptr<ExprTreeNode> ro
 			// Save off the position where the expression's total length is stored and
 			// write 0s to it. It will get filled in later when writing the entire expression out has
 			// been completed.
-
-			// TODO: Write out the flattened expression
 			for (idx = 0; idx < flatExprTknList.size() && !isFailed; idx++)	{
 				if (OK != writeToken(flatExprTknList[idx]))
 					isFailed = true;
@@ -277,6 +276,9 @@ int InterpretedFileWriter::writeFlexLenOpCode (uint8_t op_code)	{
  * ***************************************************************************/
 int InterpretedFileWriter::write8BitOpCode (uint8_t op_code, uint8_t  payload)	{
 	int ret_code = GENERAL_FAILURE;
+
+	if (op_code == INT8_OPCODE)
+		std::wcout << L"TODO: STOP!" << std::endl;
 
 	if (op_code >= FIXED_OPCODE_RANGE_BEGIN && op_code <= FIXED_OPCODE_RANGE_END)	{
 		if (op_code == UINT8_OPCODE || op_code == INT8_OPCODE)	{
@@ -437,7 +439,7 @@ int InterpretedFileWriter::writeToken (Token token)	{
 
 	else {
 		switch(token.tkn_type)	{
-		case KEYWORD_TKN :
+		case USER_WORD_TKN :
 			ret_code = writeString (VAR_NAME_OPCODE, token._string);
 			break;
 		case STRING_TKN :
@@ -491,11 +493,16 @@ int InterpretedFileWriter::writeToken (Token token)	{
 				if (token._unsigned == POST_INCR_OPR8R_OPCODE || token._unsigned == POST_DECR_OPR8R_OPCODE 
 					|| token._unsigned == PRE_INCR_OPR8R_OPCODE || token._unsigned == PRE_DECR_OPR8R_OPCODE)		{
 					// Actionable [PRE|POST]FIX OPR8R with a list of variable names to affect
-					if (OK == writeRawUnsigned (token._unsigned, NUM_BITS_IN_BYTE) && 
-						OK == writeString (STRING_OPCODE, token._string))
-						ret_code = OK;
+					uint32_t objStartPos = outputStream.tellp();
+					uint32_t length_pos = writeFlexLenOpCode (token._unsigned);
+					if (0 != length_pos)	{
+						// Save off the position where the expression's total length is stored and
+						if (OK == writeString (STRING_OPCODE, token._string))	{
+							ret_code = writeObjectLen (objStartPos, length_pos);
+						}
+					}
 				} else	{
-				ret_code = writeRawUnsigned (execTerms->getOpCodeFor (token._string), NUM_BITS_IN_BYTE);
+					ret_code = writeRawUnsigned (token._unsigned, NUM_BITS_IN_BYTE);
 				}
 			break;
 		case SPR8R_TKN :
@@ -524,7 +531,7 @@ uint32_t InterpretedFileWriter::getWriteFilePos ()	{
  * ***************************************************************************/
 int InterpretedFileWriter::addTokenToFlatList (std::shared_ptr<Token> token, std::vector<Token> & flatExprTknList)	{
 	int ret_code = GENERAL_FAILURE;
-	bool isMissedCase = false;
+	bool isFailed = false;
 
 	if (token->tkn_type == SRC_OPR8R_TKN && execTerms->get_statement_ender() == token->_string)
 		// TODO: Skip writing [] out not needed
@@ -532,7 +539,7 @@ int InterpretedFileWriter::addTokenToFlatList (std::shared_ptr<Token> token, std
 
 	else {
 		switch(token->tkn_type)	{
-		case KEYWORD_TKN :
+		case USER_WORD_TKN :
 		case STRING_TKN :
 		case DATETIME_TKN :
 		case UINT8_TKN :
@@ -547,11 +554,11 @@ int InterpretedFileWriter::addTokenToFlatList (std::shared_ptr<Token> token, std
 		case SRC_OPR8R_TKN :
 			break;
 		default:
-			isMissedCase = true;
+			isFailed = true;
 			break;
 		}
 
-		if (!isMissedCase)	{
+		if (!isFailed)	{
 			if (token->tkn_type == SRC_OPR8R_TKN || token->tkn_type == EXEC_OPR8R_TKN)	{
 				// Prior to putting OPR8Rs in flattened list, make them EXEC_OPR8R_TKNs
 				// since the caller is expected to use the RunTimeInterpreter to resolve
@@ -560,12 +567,16 @@ int InterpretedFileWriter::addTokenToFlatList (std::shared_ptr<Token> token, std
 				token->resetToken();
 				token->tkn_type = EXEC_OPR8R_TKN;
 				token->_unsigned = op_code;
+				if (op_code == INVALID_OPCODE)
+					isFailed = true;
+
 			}
 
 			// Store a copy of this Token in the flattened list
 			flatExprTknList.push_back (*token);
 			token.reset();
-			ret_code = OK;
+			if (!isFailed)
+				ret_code = OK;
 		}
 	}
 
@@ -718,7 +729,7 @@ int InterpretedFileWriter::checkPrePostFix (std::vector<Token> & flatExprTknList
 		if (currTkn.tkn_type == EXEC_OPR8R_TKN)	{
 			if (currTkn._unsigned == POST_INCR_NO_OP_OPCODE)	{
 				isPrePostFix = true;
-				if (prevTkn.tkn_type != KEYWORD_TKN)
+				if (prevTkn.tkn_type != USER_WORD_TKN)
 					isFailed = true;
 				else	{
 					postIncList.push_back(prevTkn._string);
@@ -727,7 +738,7 @@ int InterpretedFileWriter::checkPrePostFix (std::vector<Token> & flatExprTknList
 
 			} else if (currTkn._unsigned == POST_DECR_NO_OP_OPCODE)	{
 				isPrePostFix = true;
-				if (prevTkn.tkn_type != KEYWORD_TKN)
+				if (prevTkn.tkn_type != USER_WORD_TKN)
 					isFailed = true;
 				else	{
 				postDecList.push_back(prevTkn._string);
@@ -735,7 +746,7 @@ int InterpretedFileWriter::checkPrePostFix (std::vector<Token> & flatExprTknList
 				}
 			} else if (currTkn._unsigned == PRE_INCR_NO_OP_OPCODE)	{
 				isPrePostFix = true;
-				if (prevTkn.tkn_type != KEYWORD_TKN)
+				if (prevTkn.tkn_type != USER_WORD_TKN)
 					isFailed = true;
 				else	{
 					preIncList.push_back(prevTkn._string);
@@ -743,7 +754,7 @@ int InterpretedFileWriter::checkPrePostFix (std::vector<Token> & flatExprTknList
 				}
 			} else if (currTkn._unsigned == PRE_DECR_NO_OP_OPCODE)	{
 				isPrePostFix = true;
-				if (prevTkn.tkn_type != KEYWORD_TKN)
+				if (prevTkn.tkn_type != USER_WORD_TKN)
 					isFailed = true;
 				else	{
 					preDecList.push_back(prevTkn._string);
@@ -754,7 +765,7 @@ int InterpretedFileWriter::checkPrePostFix (std::vector<Token> & flatExprTknList
 			if (isPrePostFix && !isInserted)	{
 				isFailed = true;
 				userMessages->logMsg(USER_ERROR
-				, L"Expected a KEYWORD associated with [" + execTerms->getSrcOpr8rStrFor(currTkn._unsigned) + L"] but instead got " + prevTkn.descr_sans_line_num_col()
+				, L"Expected a USER_WORD associated with [" + execTerms->getSrcOpr8rStrFor(currTkn._unsigned) + L"] but instead got " + prevTkn.descr_sans_line_num_col()
 				, userSrcFileName, usrSrcLineNum, usrSrcColPos);
 			}
 
@@ -810,16 +821,10 @@ int InterpretedFileWriter::flattenExprTree (std::shared_ptr<ExprTreeNode> rootOf
   	userMessages->logMsg (INTERNAL_ERROR, L"rootOfExpr is NULL!", thisSrcFile, __LINE__, 0);
 
 	} else	{
-		// TODO:
-		std::wcout << std::endl << L"********** <flattenExprTree> **********" << std::endl;
-		rootOfExpr->showTree(thisSrcFile, __LINE__);
 		usrSrcLineNum = rootOfExpr->originalTkn->get_line_number();
 		usrSrcColPos = rootOfExpr->originalTkn->get_column_pos();
 
 		if (OK == makeFlatExpr_12_Opr8r (rootOfExpr, flatExprTknList))	{
-
-			util.dumpTokenList(flatExprTknList, *execTerms, thisSrcFile, __LINE__);
-
 			std::vector<std::wstring> preIncList;
 			std::vector<std::wstring> preDecList;
 			std::vector<std::wstring> postIncList;
@@ -864,8 +869,6 @@ int InterpretedFileWriter::flattenExprTree (std::shared_ptr<ExprTreeNode> rootOf
 				ret_code = OK;
 
 		}
-		// TODO:
-		std::wcout << std::endl << L"********** </flattenExprTree> **********" << std::endl;
 	}
 
 	return (ret_code);

@@ -24,24 +24,33 @@
 
 class InterpretedFileReader {
 public:
-	InterpretedFileReader(std::ifstream & interpreted_file, CompileExecTerms & inExecTerms);
+	InterpretedFileReader ();
+	InterpretedFileReader(std::string input_file_name, CompileExecTerms & inExecTerms);
 	virtual ~InterpretedFileReader();
 	int readExprIntoList (std::vector<Token> & exprTknStream);
+	int readNextByte (uint8_t & nextByte);
+	int peekNextByte (uint8_t & nextByte);
+	int readNextDword (uint32_t & nextDword);
+	uint32_t getReadFilePos ();
+	int setFilePos (uint32_t newFilePos);
+	bool isEOF ();
+
+	// TODO: Would the fxns below be more generic if exprTknStream was excluded?  Probably.....
+	int resolveOpr8r (uint8_t op_code, Token & nxtTkn);
+	int readFixedRange (uint8_t op_code, Token & nxtTkn);
+	int readString (uint8_t op_code, Token & nxtTkn);
+	int readPrePostFix (uint8_t op_code, Token & nxtTkn);
+
 
 protected:
-	int readFileByte (uint8_t & nextByte);
 	int readNextWord (uint16_t & nextWord);
-	int readNextDword (uint32_t & nextDword);
 	int readNextQword (uint64_t & nextQword);
 	int readRawUnsigned (uint64_t & payload, int payloadByteSize);
-	int snagOpr8r (uint8_t op_code, Token nxtTkn, std::vector<Token> & exprTknStream);
-	int snagFixedRange (uint8_t op_code, Token nxtTkn, std::vector<Token> & exprTknStream);
-	int snagString (uint8_t op_code, Token nxtTkn, std::vector<Token> & exprTknStream);
 
 private:
 	std::wstring thisSrcFile;
 	std::wstring inFileName;
-	std::ifstream * inputStream;
+	std::ifstream inputStream;
 	Utilities util;
 	CompileExecTerms * execTerms;
 

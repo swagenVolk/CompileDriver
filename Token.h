@@ -2,15 +2,13 @@
 #define TOKEN_H
 
 #include "common.h"
+#include <sstream>
 #include "TokenCompareResult.h"
 #include "FileLineCol.h"
 #include <string>
 #include <stdint.h>
 #include <cassert>
-#include <stdexcept>
 #include <vector>
-#include <iostream>
-#include <sstream>
 #include <memory>
 #include <cmath>
 
@@ -25,7 +23,9 @@ enum tkn_type_enum {
   ,JUNK_TKN                 // e.g. 200KbarKnives
   ,START_UNDEF_TKN          // Illegal for a *committed* token
   ,WHITE_SPACE_TKN          // Illegal for a *committed* token - syntactic sugar
-  ,KEYWORD_TKN             
+  ,RESERVED_WORD_TKN
+  ,DATA_TYPE_TKN
+  ,USER_WORD_TKN             
   ,STRING_TKN              
   ,DATETIME_TKN            
   ,OLD_SCHOOL_CMMNT_TKN     // Illegal for a *committed* token - syntactic sugar
@@ -59,7 +59,7 @@ class Token {
     Token& operator= (const Token & srcTkn);
 
 
-    int tkn_type;
+    TokenTypeEnum tkn_type;
     std::wstring _string;
     uint64_t    _unsigned;
     int64_t     _signed;
@@ -74,7 +74,9 @@ class Token {
     std::wstring descr_line_num_col ();
     std::wstring getValueStr ();
     TokenCompareResult compare (Token & otherTkn);
-    bool isOperand();
+    // Make isOperand static to live beyond any single Token instance
+    static bool isDirectOperand (TokenTypeEnum tokenType);
+    bool isDirectOperand();
     bool evalResolvedTokenAsIf ();
     bool isUnsigned ();
     bool isSigned ();

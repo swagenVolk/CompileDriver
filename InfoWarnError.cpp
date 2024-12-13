@@ -14,8 +14,6 @@ InfoWarnError::InfoWarnError() {
 	userSrcColumnPos = 0;
 }
 
-
-
 InfoWarnError::~InfoWarnError() {
 	ourSrcFileName.clear();
 	userSrcFileName.clear();

@@ -30,7 +30,7 @@ CompileExecTerms::CompileExecTerms() {
 	grouped_opr8rs.back().opr8rs.push_back ( Operator (PRE_INCR_OPR8R, PREFIX, GNR8D_SRC, 1, 1, PRE_INCR_NO_OP_OPCODE));   // NOTE: Pre-fix and post-fix precedence is different
 	execToSrcOpr8rMap.insert (std::pair {PRE_INCR_OPR8R, L"++"});
 	grouped_opr8rs.back().opr8rs.push_back ( Operator (PRE_DECR_OPR8R, PREFIX, GNR8D_SRC, 1, 1, PRE_DECR_NO_OP_OPCODE));   // NOTE: Pre-fix and post-fix precedence is different
-	execToSrcOpr8rMap.insert (std::pair {PRE_DECR_OPR8R, L"++"});
+	execToSrcOpr8rMap.insert (std::pair {PRE_DECR_OPR8R, L"--"});
 
   grouped_opr8rs.back().opr8rs.push_back ( Operator (L"+", UNARY, USR_SRC, 1, 0, INVALID_OPCODE));
   grouped_opr8rs.back().opr8rs.push_back ( Operator (UNARY_PLUS_OPR8R, UNARY, GNR8D_SRC, 1, 1, UNARY_PLUS_OPR8R_OPCODE));
@@ -142,6 +142,7 @@ CompileExecTerms::CompileExecTerms() {
   _1char_spr8rs = L"()[]{},";
   // TODO: Is a comma a spr8r?  What about the '\' character, for paths?
 
+  // TODO: Should I add [bool]?
   valid_data_types.insert (std::pair {L"uint8", std::pair {UINT8_TKN, DATA_TYPE_UINT8_OPCODE}});
   valid_data_types.insert (std::pair {L"uint16", std::pair {UINT16_TKN, DATA_TYPE_UINT16_OPCODE}});
   valid_data_types.insert (std::pair {L"uint32", std::pair {UINT32_TKN , DATA_TYPE_UINT32_OPCODE}});
@@ -153,6 +154,19 @@ CompileExecTerms::CompileExecTerms() {
   valid_data_types.insert (std::pair {L"string", std::pair {STRING_TKN, DATA_TYPE_STRING_OPCODE}});
   valid_data_types.insert (std::pair {L"datetime", std::pair {DATETIME_TKN, DATA_TYPE_DATETIME_OPCODE}});
   valid_data_types.insert (std::pair {L"double", std::pair {DOUBLE_TKN, DATA_TYPE_DOUBLE_OPCODE}});
+
+  reserved_words.push_back(L"if");
+  reserved_words.push_back(L"else");
+  reserved_words.push_back(L"while");
+  reserved_words.push_back(L"for");
+
+  reserved_words.push_back(L"true");
+  reserved_words.push_back(L"false");
+  reserved_words.push_back(L"break");
+  reserved_words.push_back(L"return");
+  // TODO: Should [void] be in valid_data_types?  Probably NOT
+  reserved_words.push_back(L"void");
+
 
 
   // TODO: What is the right way to do this?

@@ -9,6 +9,12 @@
  */
 
 #include "BaseLanguageTerms.h"
+#include "OpCodes.h"
+#include "Operator.h"
+#include "Token.h"
+#include <iostream>
+#include <string>
+#include <vector>
 
 BaseLanguageTerms::BaseLanguageTerms() {
 	// TODO Auto-generated constructor stub
@@ -96,7 +102,7 @@ void BaseLanguageTerms::validityCheck()	{
   		if (nxtDefOpr8r.valid_for_mask & GNR8D_SRC)	{
   			assert (nxtDefOpr8r.op_code != INVALID_OPCODE);
   			assert (0 == execTimeOpr8rMap.count (nxtDefOpr8r.symbol));
-  			execTimeOpr8rMap.emplace (std::pair {nxtDefOpr8r.symbol, nxtDefOpr8r});
+  			execTimeOpr8rMap[nxtDefOpr8r.symbol] = nxtDefOpr8r;
   		}
   	}
   }
@@ -270,6 +276,8 @@ uint8_t BaseLanguageTerms::getOpCodeFor (std::wstring opr8r)	{
 		op_code = r8r.op_code;
 	}
 
+	if (op_code == INVALID_OPCODE)
+		std::wcout << L"TODO: DEBUG" << std::endl;
 
 	return (op_code);
 }
@@ -351,11 +359,11 @@ std::wstring BaseLanguageTerms::getUniqExecOpr8rStr (std::wstring srcStr, uint8_
 		for (innr8r = precedenceLvl.opr8rs.begin(); innr8r != precedenceLvl.opr8rs.end(); ++innr8r){
 			Operator nxtOpr8r = *innr8r;
 
-			if (req_type_mask == (req_type_mask & nxtOpr8r.type_mask))	{
+			if (req_type_mask == (req_type_mask & nxtOpr8r.type_mask) && (nxtOpr8r.valid_for_mask & GNR8D_SRC))	{
 				// The current usage mode of this defined OPR8R meets the search criteria
 				for (pssblR8r = pssblExecOpr8rs.begin(); pssblR8r != pssblExecOpr8rs.end(); pssblR8r++)	{
 					if (0 == nxtOpr8r.symbol.compare(*pssblR8r))	{
-						// Operator string matches
+						// Operator string directly matches
 						matchingOpr8rs.push_back(nxtOpr8r);
 						break;
 					}
@@ -373,13 +381,13 @@ std::wstring BaseLanguageTerms::getUniqExecOpr8rStr (std::wstring srcStr, uint8_
 
 
 /* ****************************************************************************
- * If the passed in KEYWORD is a valid data type, return the associated Token type
+ * If the passed in USER_WORD is a valid data type, return the associated Token type
  * enum and op_code. Otherwise, return an obviously invalid (hopefully)l pair
  * ***************************************************************************/
-std::pair<TokenTypeEnum, uint8_t> BaseLanguageTerms::getDataType_tknEnum_opCode (std::wstring keyword)	{
+std::pair<TokenTypeEnum, uint8_t> BaseLanguageTerms::getDataType_tknEnum_opCode (std::wstring user_word)	{
 	std::pair ret_info {START_UNDEF_TKN, INVALID_OPCODE};
 
-	if (auto search = valid_data_types.find(keyword); search != valid_data_types.end())	{
+	if (auto search = valid_data_types.find(user_word); search != valid_data_types.end())	{
 		std::pair tknEnum_opCode = search->second;
 		ret_info = tknEnum_opCode;
 	}
@@ -404,4 +412,79 @@ std::wstring BaseLanguageTerms::getDataTypeForOpCode (uint8_t op_code)	{
 
 	return (dataType);
 
+}
+
+/* ****************************************************************************
+ * If the passed in op_code represents a valid data type, a valid datatype string
+ * will be returned. Otherwise, return an empty string.
+ * ***************************************************************************/
+TokenTypeEnum BaseLanguageTerms::getTokenTypeForOpCode (uint8_t op_code)	{
+	TokenTypeEnum tknType = START_UNDEF_TKN;
+
+	for (auto itr8r = valid_data_types.begin(); itr8r != valid_data_types.end(); itr8r++)	{
+		std::pair tknEnum_opCode = itr8r->second;
+		if (tknEnum_opCode.second == op_code)	{
+			tknType = tknEnum_opCode.first;
+			break;
+		}
+	}
+
+	return (tknType);
+
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+bool BaseLanguageTerms::isDataType (std::wstring inStr)	{
+	bool isValid = false;
+
+	if ( auto search = valid_data_types.find(inStr); search != valid_data_types.end())	{
+		isValid = true;
+	}
+
+	return isValid;
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+bool BaseLanguageTerms::isReservedWord (std::wstring inStr)	{
+	bool isValid = false;
+
+		for (auto itr8r = reserved_words.begin(); itr8r != reserved_words.end() && !isValid; itr8r++)	{
+			if (0 == inStr.compare(*itr8r))
+				isValid = true;
+		}
+
+	return isValid;
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+bool BaseLanguageTerms::isViableVarName (std::wstring varName)	{
+	bool isViable = true;
+
+	if (isReservedWord(varName))	{
+		isViable = false;
+	
+	} else if (isDataType(varName))	{
+		isViable = false;
+
+	} else {
+		int idx;
+		for (idx = 0; idx < varName.length() && isViable; idx++)	{
+			wchar_t currChar = varName[idx];
+
+			if (idx == 0 && std::isdigit(currChar))
+				// Variable names can't start with numbers
+				isViable = false;
+
+			if (currChar != '_' && !std::iswalnum(currChar))
+				isViable = false;
+		}
+	}
+
+	return (isViable);
 }

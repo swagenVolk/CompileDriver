@@ -21,12 +21,12 @@ class UserMessages {
 public:
 	UserMessages();
 	virtual ~UserMessages();
+	void reset();
 
 	int logMsg (InfoWarnError & msg);
 	int logMsg (info_warn_error_type msgType, std::wstring userMsg, std::wstring srcFileName, int lineNumber, int columnPos);
 	void getUserErrorCnt (int & numUnique, int & numTotal);
 	void getInternalErrorCnt (int & numUnique, int & numTotal);
-
 	void showMessagesByGroup ();
 	void showMessagesByInsertOrder (bool isOrderAscending);
 

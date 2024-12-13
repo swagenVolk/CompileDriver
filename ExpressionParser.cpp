@@ -37,10 +37,14 @@
 #include <bits/stdint-uintn.h>
 #include <iostream>
 #include <memory>
+#include <string>
 
 #include "CompileExecTerms.h"
+#include "ExprTreeNode.h"
+#include "InfoWarnError.h"
 #include "Operator.h"
 #include "UserMessages.h"
+#include "common.h"
 
 ExpressionParser::ExpressionParser(CompileExecTerms & inUsrSrcTerms, std::shared_ptr<VariablesScope> inVarScopeStack
 		, std::wstring userSrcFileName, std::shared_ptr<UserMessages> userMessages) {
@@ -67,6 +71,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 		, Token & enderTkn, bool isEndedByComma, bool & isExprClosed)  {
   int ret_code = GENERAL_FAILURE;
 	isExprClosed = false;
+	int exprCloseLine = 0;
 
   if (expressionTree == NULL)	{
   	userMessages->logMsg (INTERNAL_ERROR, L"Passed parameter expressionTree is NULL!", thisSrcFile, __LINE__, 0);
@@ -113,6 +118,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 						if (0 == (curr_legal_tkn_types & (VAR_NAME_NXT_OK|LITERAL_NXT_OK|OPEN_PAREN_NXT_OK)))	{
 							// Check if expression is in a closeable state
 							isExprClosed = true;
+							exprCloseLine = __LINE__;
 							enderTkn = *currTkn;
 
 							top = exprScopeStack.size() - 1;
@@ -121,8 +127,10 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 								isStopFail = true;
 
 							} else if (exprScopeStack[top]->scopedKids.size() > 1)	{
-								// TODO: No return code check done here
-								turnClosedScopeIntoTree (exprScopeStack[top]->scopedKids);
+								if (OK != closedNestedScopes(*currTkn, expectedEndTkn, isExprClosed, enderTkn))	{
+									// TODO:
+									isStopFail = true;
+								}
 							}
 
 						} else	{
@@ -164,32 +172,13 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 						// Close parenthesis - syntactic sugar that just melts away
 						// Remove Token from stream without destroying - move to flat expression in current scope
 						tknStream.erase(tknStream.begin());
-						bool isOpenParenFndYet = false;
 
-						if (OK != closeParenClosesScope(isOpenParenFndYet))	{
+						if (OK != closedNestedScopes (*currTkn, expectedEndTkn, isExprClosed, enderTkn))	{
 							isStopFail = true;
-						} else if (!isOpenParenFndYet)	{
-							// Nested TERNARY OPR8Rs. Need to try closing scopes until we
-							// hit the originating "(" that we opened with
 
-							while (!isOpenParenFndYet && !isStopFail)	{
-								if (OK != closeParenClosesScope(isOpenParenFndYet))	{
-									isStopFail = true;
-									break;
-								}
-
-								if (!isStopFail && expectedEndTkn.tkn_type == SPR8R_TKN && expectedEndTkn._string == L")")	{
-									// Check if the expression has been collapsed down to a single ExprTreeNode
-									// If it was ended by a comma
-									// uint32 numFruits = 3 + 4, numVeggies = (3 * (1 + 2)), numPizzas = (4 + (2 * 3));
-									//                                                    ^ then we can't close it out yet
-									if (exprScopeStack.size() == 1 && exprScopeStack[0]->scopedKids.size() == 1)	{
-										// TODO: Double check tree health before calling it a day?
-										isExprClosed = true;
-										enderTkn = *currTkn;
-									}
-								}
-							}
+						} else if (exprScopeStack.size() == 1 && exprScopeStack[0]->scopedKids.size() == 1)	{
+							isExprClosed = true;
+							exprCloseLine = __LINE__;
 						}
 
 					} else if (currTkn->tkn_type == END_OF_STREAM_TKN) {
@@ -229,8 +218,12 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 						ret_code = OK;
 						expressionTree = exprScopeStack[0]->scopedKids[0];
 				} else	{
-					userMessages->logMsg (INTERNAL_ERROR, L"Expression was closed but could not be made into a tree! Remaining Token count = " + std::to_wstring(numTknsLeftInExpr)
-							, thisSrcFile, __LINE__, 0);
+					std::wstring devMsg = L"Expression was closed but could not be made into a tree! Remaining Token count = ";
+					devMsg.append ( std::to_wstring(numTknsLeftInExpr));
+					devMsg.append (L"; exprCloseLine = ");
+					devMsg.append (std::to_wstring(exprCloseLine));
+					devMsg.append(L";");
+					userMessages->logMsg (INTERNAL_ERROR, devMsg, thisSrcFile, __LINE__, 0);
 					showDebugInfo (thisSrcFile, __LINE__);
 				}
 			}
@@ -243,28 +236,57 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 }
 
 /* ****************************************************************************
+ * After the closed scope gets collapsed into a tree and linked to its
+ * parent scope, we need to see if the parent scope can be collapsed also &
+ * recursively.  It's turtles all the way down!
+ * TODO: Might not need any of these parameters. 
+* ***************************************************************************/
+ int ExpressionParser::closedNestedScopes(Token currTkn, Token expectedEndTkn, bool & isExprClosed, Token & enderTkn)	{
+	int ret_code = GENERAL_FAILURE;
+
+	bool isParentLinked = false;
+	bool isRootScope = false;
+	bool isStopFail = false;
+
+	if (OK == makeTreeLinkParent(isParentLinked))	{
+		while (!isParentLinked && !isRootScope && !isStopFail)	{
+			if (OK != makeTreeLinkParent(isParentLinked))	{
+				isStopFail = true;
+				break;
+			} else if (exprScopeStack.size() == 1)	{
+				// Only the root scope remains. Check for correctness
+				isRootScope = true;
+				int numRootKids = exprScopeStack[0]->scopedKids.size();
+				// TODO: Should this call be necessary?
+				ret_code = turnClosedScopeIntoTree (exprScopeStack[exprScopeStack.size() - 1]->scopedKids);
+			}
+		}
+
+		if (!isStopFail)
+			ret_code = OK;
+	}
+
+	return (ret_code);
+
+}
+
+/* ****************************************************************************
  * Next Token is either a closing parenthesis or a statement ending ";"
- * Consume the closing ')'. It is syntactic sugar that doesn't need to be kept.
- * For a STATEMENT_ENDER (eg ";"), this will be kept as the root of the
- * expression tree and exercised last when the expression is executed either in
- * compile mode or interpreter mode.
+ * Both of which are syntactic sugar that doesn't need to be kept.
  * Attempt to resolve the expression in this scope to
  * a single codeToken by working through the precedence of the operators.
  * Decrease the current scope level of the expression
- *
- * TODO: When the closed scope gets collapsed into a tree and linked to its
- * parent scope, we need to see if the parent scope can be collapsed also &
- * recursively.  It's turtles all the way down!
  * ***************************************************************************/
-int ExpressionParser::closeParenClosesScope (bool & isOpenParenFndYet)  {
+int ExpressionParser::makeTreeLinkParent (bool & isParentFndYet)  {
   int ret_code = GENERAL_FAILURE;
 	bool isScopenerFound = false;
+	bool isRootScope = false;
 	bool isExprAttached = false;
 	bool isScopeTopTernary = false;
 	bool isStopFail = false;
 
-	// Start off expecting we won't find the matching opening '(' at this scope
-	isOpenParenFndYet = false;
+	// Start off expecting we won't find the matching opening '(' or [?] at this scope
+	isParentFndYet = false;
 
 	// Get pointer to ExprTreeNode that contains the '(' or [?] that opened the top scope
 	// This fxn was called when we encountered a ')', but the corresponding '(' could be
@@ -273,20 +295,15 @@ int ExpressionParser::closeParenClosesScope (bool & isOpenParenFndYet)  {
 	std::wstring scopenerDesc;
 
 	int top = exprScopeStack.size() - 1;
-	if (exprScopeStack.size() >= 2)	{
+	if (exprScopeStack.size() == 1)	{
+		isRootScope = true;
+
+	} else if (exprScopeStack.size() >= 2)	{
 		scopener = (std::shared_ptr<ExprTreeNode>)(exprScopeStack[top]->myParentScopener);
-
-	}
-	if (scopener == NULL)	{
-		userMessages->logMsg (INTERNAL_ERROR, L"ExprTreeNode that opens current scope was not set earlier", thisSrcFile, __LINE__, 0);
-		isStopFail = true;
-
-	} else {
-		int stackSzB4 = exprScopeStack.size();
 		scopenerDesc = scopener->originalTkn->descr_sans_line_num_col();
 
 		if (scopener->originalTkn->tkn_type == SPR8R_TKN && 0 == scopener->originalTkn->_string.compare(L"("))	{
-			isOpenParenFndYet = true;
+			isParentFndYet = true;
 			// TODO: Might be hurting myself here.....
 			// exprScopeStack[exprScopeStack.size() - 1]->myParentScopener = NULL;
 
@@ -298,8 +315,19 @@ int ExpressionParser::closeParenClosesScope (bool & isOpenParenFndYet)  {
 					,  userSrcFileName, scopener->originalTkn->get_line_number(), scopener->originalTkn->get_column_pos());
 			isStopFail = true;
 		}
+	}
+	
+	if (!isRootScope && scopener == NULL)	{
+		userMessages->logMsg (INTERNAL_ERROR, L"ExprTreeNode that opens current scope was not set earlier", thisSrcFile, __LINE__, 0);
+		isStopFail = true;
 
-		if (!isStopFail && isOpenParenFndYet != isScopeTopTernary)	{
+	} else if (isRootScope) {
+			ret_code = turnClosedScopeIntoTree (exprScopeStack[exprScopeStack.size() - 1]->scopedKids);
+
+	} else {
+		int stackSzB4 = exprScopeStack.size();
+
+		if (!isStopFail && isParentFndYet != isScopeTopTernary)	{
 			// Call turnClosedScopeIntoTree to collapse the current flat list of ExprTreeNodes into
 			// a hierarchical tree based on OPR8R precedence - a root ExprTreeNode
 			if (OK == turnClosedScopeIntoTree (exprScopeStack[exprScopeStack.size() - 1]->scopedKids))	{
@@ -326,7 +354,7 @@ int ExpressionParser::closeParenClosesScope (bool & isOpenParenFndYet)  {
 							// Found the branch that opened the previous scope. Now attach subExpr to it
 							isScopenerFound = true;
 
-							if (isOpenParenFndYet)	{
+							if (isParentFndYet)	{
 								// Don't make our sub-expression a child to the "(" that opened our scope
 								// Replace it with our sub-expression since the "(" is vestigial at this point
 								// List clean-up pending after this loop
@@ -334,14 +362,15 @@ int ExpressionParser::closeParenClosesScope (bool & isOpenParenFndYet)  {
 								childList.insert (nodeR8r, subExpr);
 								isExprAttached = true;
 
-							} else if (isScopeTopTernary && subExpr->originalTkn->_string == usrSrcTerms.get_ternary_2nd())	{
-								// TODO: Double check
+							} else if (isScopeTopTernary 
+								&& (subExpr->originalTkn->_string == usrSrcTerms.get_ternary_2nd() || subExpr->originalTkn->_string == usrSrcTerms.get_ternary_1st()))	{
+								// The subexpression could be the direct [:] child, but we also need to allow for nested ternarys
 								scopener->_2ndChild = subExpr;
 								subExpr->myParent = scopener;
 								isExprAttached = true;
 								ret_code = OK;
 
-							} else if (isScopeTopTernary && subExpr->originalTkn->_string != usrSrcTerms.get_ternary_2nd())	{
+							} else if (isScopeTopTernary)	{
 								// Scope was opened by TERNARY_1ST, and root of subExpr is NOT direct TERNARY_2ND
 								// The TERNARY_2ND *may* be buried deeper in the tree; probably below an assignment OPR8R
 								// that has lower priority. Tree precedence is inverted; deeper|lower in tree means higher precedence
@@ -366,15 +395,19 @@ int ExpressionParser::closeParenClosesScope (bool & isOpenParenFndYet)  {
 									ret_code = OK;
 
 								} else	{
-									userMessages->logMsg (USER_ERROR, L"Current scope opened by " + usrSrcTerms.get_ternary_1st() + L" but could not find paired " + usrSrcTerms.get_ternary_2nd()
-											,  userSrcFileName, scopener->originalTkn->get_line_number(), scopener->originalTkn->get_column_pos());
+									std::wstring userMsg = L"Current scope opened by [";
+									userMsg.append(usrSrcTerms.get_ternary_1st());
+									userMsg.append (L"] but could not find paired [");
+									userMsg.append (usrSrcTerms.get_ternary_2nd());
+									userMsg.append (L"]");
+									userMessages->logMsg (USER_ERROR, userMsg,  userSrcFileName, scopener->originalTkn->get_line_number(), scopener->originalTkn->get_column_pos());
 									isStopFail = true;
 								}
 							}
 						}
 					}
 
-					if (isOpenParenFndYet && isExprAttached)	{
+					if (isParentFndYet && isExprAttached)	{
 						// Need to remove that vestigial "(" from the list
 						bool isVestigeDeleted = false;
 						ExprTreeNodePtrVector::iterator delR8r;
@@ -390,7 +423,7 @@ int ExpressionParser::closeParenClosesScope (bool & isOpenParenFndYet)  {
 							}
 						}
 						if (!isVestigeDeleted)	{
-							userMessages->logMsg (INTERNAL_ERROR, L"INTERNAL ERROR: Failed deleting vestigial " + scopenerDesc, thisSrcFile, __LINE__, 0);
+							userMessages->logMsg (INTERNAL_ERROR, L"Failed deleting vestigial " + scopenerDesc, thisSrcFile, __LINE__, 0);
 							isStopFail = true;
 						}
 					}
@@ -541,7 +574,7 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 									prevNodeR8r--;
 									prevNode = *prevNodeR8r;
 
-									if (!(tgtOpr8r.type_mask & POSTFIX) || (prevNode->originalTkn->tkn_type == KEYWORD_TKN)) {
+									if (!(tgtOpr8r.type_mask & POSTFIX) || (prevNode->originalTkn->tkn_type == USER_WORD_TKN)) {
 										// POSTFIX OPR8R ([++|--] only works on a variable. Note that BINARY OPR8Rs can work
 										// with OPR8Rs to the left and right if they're at the top of a sub-expression tree
 										if (tgtOpr8r.type_mask & TERNARY_1ST)
@@ -574,7 +607,7 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 								if (nextNodeR8r != currScope.end())	{
 									nextNode = *nextNodeR8r;
 
-									if (!(tgtOpr8r.type_mask & PREFIX) || (nextNode->originalTkn->tkn_type == KEYWORD_TKN)) {
+									if (!(tgtOpr8r.type_mask & PREFIX) || (nextNode->originalTkn->tkn_type == USER_WORD_TKN)) {
 										// PREFIX OPR8Rs can only work on variables
 
 										if ((tgtOpr8r.type_mask & PREFIX) || (tgtOpr8r.type_mask & UNARY))
@@ -586,7 +619,7 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 
 									} else {
 										userMessages->logMsg (USER_ERROR
-												, L"Expected a keyword after " + currNode->originalTkn->descr_sans_line_num_col() + L" but instead got: " + nextNode->originalTkn->descr_sans_line_num_col()
+												, L"Expected a USER_WORD after " + currNode->originalTkn->descr_sans_line_num_col() + L" but instead got: " + nextNode->originalTkn->descr_sans_line_num_col()
 												, userSrcFileName, currNode->originalTkn->get_line_number(), currNode->originalTkn->get_column_pos());
 										isStopFail = true;
 									}
@@ -680,7 +713,7 @@ std::wstring ExpressionParser::makeExpectedTknTypesStr (uint32_t expected_tkn_ty
 	if (VAR_NAME_NXT_OK & expected_tkn_types)  {
 		if (expected.length() > 0)
 			expected.append(L"|");
-		expected.append(L"KEYWORD (variable name)");
+		expected.append(L"USER_WORD (variable name)");
 	}
 
 	if (LITERAL_NXT_OK & expected_tkn_types)  {
@@ -808,7 +841,7 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   	std::wstring execPostfixOpr8rStr = usrSrcTerms.getUniqExecOpr8rStr(curr_tkn->_string, POSTFIX);
   	std::wstring execBinaryOpr8rStr = usrSrcTerms.getUniqExecOpr8rStr(curr_tkn->_string, BINARY);
 
-  	if ((allowed_tkn_types & VAR_NAME_NXT_OK) && curr_tkn->tkn_type == KEYWORD_TKN)	{
+  	if ((allowed_tkn_types & VAR_NAME_NXT_OK) && curr_tkn->tkn_type == USER_WORD_TKN)	{
  	  	// VAR_NAME
   		// TODO: && found in NameSpace.  If it's not in the NameSpace, we can accumulate this error but still keep
   		// compiling and looking for additional user errors.  Same same for compile time interpretation.
@@ -860,18 +893,18 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   			&& (TERNARY_2ND & usrSrcTerms.get_type_mask(curr_tkn->_string)))	{
   		isTknTypeOK = true;
   		// TODO: Is PREFIX_OPR8R legit here?
-  		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|OPEN_PAREN_NXT_OK);
+  		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
 
   	} else if ((allowed_tkn_types & TERNARY_OPR8R_1ST_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN
   			&& (TERNARY_1ST & usrSrcTerms.get_type_mask(curr_tkn->_string)))	{
     	// TERNARY_OPR8R
   		isTknTypeOK = true;
-  		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|OPEN_PAREN_NXT_OK);
+  		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
 
   	} else if ((allowed_tkn_types & BINARY_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN && !execBinaryOpr8rStr.empty())	{
     	// BINARY_OPR8R
  			curr_tkn->_string = execBinaryOpr8rStr;
-			next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|OPEN_PAREN_NXT_OK);
+			next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
 			isTknTypeOK = true;
 
   	} else if ((allowed_tkn_types & OPEN_PAREN_NXT_OK) && SPR8R_TKN == curr_tkn->tkn_type && 0 == curr_tkn->_string.compare(L"("))	{
@@ -887,7 +920,7 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   		if (isTernaryOpen())
   			next_legal_tkn_types |= TERNARY_OPR8R_2ND_NXT_OK;
 
-  	} else if ((allowed_tkn_types & DCLR_VAR_OR_FXN_NXT_OK) && KEYWORD_TKN == curr_tkn->tkn_type && usrSrcTerms.is_valid_datatype(curr_tkn->_string))	{
+  	} else if ((allowed_tkn_types & DCLR_VAR_OR_FXN_NXT_OK) && USER_WORD_TKN == curr_tkn->tkn_type && usrSrcTerms.is_valid_datatype(curr_tkn->_string))	{
   		// DCLR_VAR_OR_FXN
   		// TODO: isTknTypeOK = true;
   		// TODO: This should be handled by GeneralParser
@@ -953,12 +986,12 @@ int ExpressionParser::openSubExprScope (TokenPtrVector & tknStream)  {
  * OPEN_PAREN - Expression ends with a ")" of the same scope
  * VAR_NAME - Expression ends with a ";"
  * LITERAL - Expression ends with a ";"
- * FXN_CALL - Begin Token is a KEYWORD representing a previously defined fxn call.  Expression ends with a ";"
+ * FXN_CALL - Begin Token is a USER_WORD representing a previously defined fxn call.  Expression ends with a ";"
  * PREFIX_OPR8R - e.g. ++idx;  Expression ends with a ";"
  * 	TODO:  ++(idx); ++((idx)); ++(((idx))) + jdx++; etc. are legal statements
  * UNARY_OPR8R - A bit non-sensical, but is still legal (e.g. ~jdx;).  Expression ends with a ";"
  *
- * DCLR_VAR_OR_FXN - Begin Token is a KEYWORD representing a datatype.  Expression ends with a ";"
+ * DCLR_VAR_OR_FXN - Begin Token is a USER_WORD representing a datatype.  Expression ends with a ";"
  * 	TODO: Handle this via a different fxn to make life easier.
  *
  * ***************************************************************************/
@@ -975,12 +1008,16 @@ int ExpressionParser::getExpectedEndToken (std::shared_ptr<Token> startTkn, uint
 			expectedEndTkn._string = L")";
 			_1stTknType = OPEN_PAREN_NXT_OK;
 
-		} else if (startTkn->tkn_type == KEYWORD_TKN)	{
+		} else if (startTkn->tkn_type == USER_WORD_TKN)	{
 			// TODO: Must be [VAR_NAME|FXN_CALL] that currently exists in the NameSpace
 			_1stTknType = (VAR_NAME_NXT_OK);
 
-		} else if (startTkn->tkn_type == SRC_OPR8R_TKN && ((PREFIX|UNARY) & usrSrcTerms.get_type_mask(startTkn->_string)))	{
-			_1stTknType = (PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK);
+		} else if (startTkn->tkn_type == SRC_OPR8R_TKN && (UNARY & usrSrcTerms.get_type_mask(startTkn->_string)))	{
+			_1stTknType = UNARY_OPR8R_NXT_OK;
+
+		} else if (startTkn->tkn_type == SRC_OPR8R_TKN && (startTkn->_string == usrSrcTerms.getSrcOpr8rStrFor (PRE_INCR_NO_OP_OPCODE)
+					|| startTkn->_string == usrSrcTerms.getSrcOpr8rStrFor (PRE_DECR_NO_OP_OPCODE)))	{
+			_1stTknType = PREFIX_OPR8R_NXT_OK;
 
 		} else if (startTkn->tkn_type == STRING_TKN
 			|| startTkn->tkn_type == DATETIME_TKN
