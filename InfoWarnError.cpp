@@ -67,7 +67,7 @@ void InfoWarnError::setUserMsg(info_warn_error_type type, std::wstring userSrcFi
 	typeOfError = type;
 	this->userSrcFileName = userSrcFileName;
 	this->userSrcLineNum = userSrcLineNum;
-	this->userSrcColumnPos = userSrcColPos;
+	userSrcColumnPos = userSrcColPos;
 	userMsg = msgForUser;
 }
 

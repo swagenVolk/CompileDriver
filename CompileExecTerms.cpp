@@ -8,6 +8,8 @@
  */
 
 #include "CompileExecTerms.h"
+#include "OpCodes.h"
+#include "Token.h"
 
 CompileExecTerms::CompileExecTerms() {
 	// TODO Auto-generated constructor stub
@@ -19,17 +21,17 @@ CompileExecTerms::CompileExecTerms() {
 	grouped_opr8rs.push_back(Opr8rPrecedenceLvl ());
 	grouped_opr8rs.back().opr8rs.push_back( Operator (L"++", POSTFIX, USR_SRC, 1, 0, INVALID_OPCODE));   // NOTE: Pre-fix and post-fix precedence is different
 	grouped_opr8rs.back().opr8rs.push_back ( Operator (L"--", POSTFIX, USR_SRC, 1, 0, INVALID_OPCODE));
-	grouped_opr8rs.back().opr8rs.push_back ( Operator (POST_INCR_OPR8R, POSTFIX, GNR8D_SRC, 1, 1, POST_INCR_NO_OP_OPCODE));
+	grouped_opr8rs.back().opr8rs.push_back ( Operator (POST_INCR_OPR8R, POSTFIX, GNR8D_SRC, 1, 1, POST_INCR_OPR8R_OPCODE));
 	execToSrcOpr8rMap.insert (std::pair {POST_INCR_OPR8R, L"++"});
-	grouped_opr8rs.back().opr8rs.push_back ( Operator (POST_DECR_OPR8R, POSTFIX, GNR8D_SRC, 1, 1, POST_DECR_NO_OP_OPCODE));   // NOTE: Pre-fix and post-fix precedence is different
+	grouped_opr8rs.back().opr8rs.push_back ( Operator (POST_DECR_OPR8R, POSTFIX, GNR8D_SRC, 1, 1, POST_DECR_OPR8R_OPCODE));   // NOTE: Pre-fix and post-fix precedence is different
 	execToSrcOpr8rMap.insert (std::pair {POST_DECR_OPR8R, L"--"});
 
 	grouped_opr8rs.push_back(Opr8rPrecedenceLvl ());
 	grouped_opr8rs.back().opr8rs.push_back ( Operator (L"++", PREFIX, USR_SRC, 1, 0, INVALID_OPCODE));
 	grouped_opr8rs.back().opr8rs.push_back ( Operator (L"--", PREFIX, USR_SRC, 1, 0, INVALID_OPCODE));
-	grouped_opr8rs.back().opr8rs.push_back ( Operator (PRE_INCR_OPR8R, PREFIX, GNR8D_SRC, 1, 1, PRE_INCR_NO_OP_OPCODE));   // NOTE: Pre-fix and post-fix precedence is different
+	grouped_opr8rs.back().opr8rs.push_back ( Operator (PRE_INCR_OPR8R, PREFIX, GNR8D_SRC, 1, 1, PRE_INCR_OPR8R_OPCODE));   // NOTE: Pre-fix and post-fix precedence is different
 	execToSrcOpr8rMap.insert (std::pair {PRE_INCR_OPR8R, L"++"});
-	grouped_opr8rs.back().opr8rs.push_back ( Operator (PRE_DECR_OPR8R, PREFIX, GNR8D_SRC, 1, 1, PRE_DECR_NO_OP_OPCODE));   // NOTE: Pre-fix and post-fix precedence is different
+	grouped_opr8rs.back().opr8rs.push_back ( Operator (PRE_DECR_OPR8R, PREFIX, GNR8D_SRC, 1, 1, PRE_DECR_OPR8R_OPCODE));   // NOTE: Pre-fix and post-fix precedence is different
 	execToSrcOpr8rMap.insert (std::pair {PRE_DECR_OPR8R, L"--"});
 
   grouped_opr8rs.back().opr8rs.push_back ( Operator (L"+", UNARY, USR_SRC, 1, 0, INVALID_OPCODE));
@@ -99,21 +101,9 @@ CompileExecTerms::CompileExecTerms() {
   //	TODO: # of expected operands for Ternary? Especially since I'll be pushing a new scope when the "?"
   //	opr8r is encountered.
 	grouped_opr8rs.push_back(Opr8rPrecedenceLvl ());
-
-  // TODO: Is TERNARY OPR8R the two together, e.g. "?:" ?
-	// TODO: How many operands should the constructor get? 3? Or is this OPR8R a special case since it
-	// opens up a scope and it'll be treated as such anyway?  If so, shouldn't we pass 0?
-	// TODO: TERNARY_1ST expects 1 resolved operand for its conditional at run time. Should compile time
-	// vs. run time characteristics get stored differently?
-	// TODO: Could just special case this instead of adding *another* member variable
 	grouped_opr8rs.back().opr8rs.push_back ( Operator (L"?", (BINARY|TERNARY_1ST), (USR_SRC|GNR8D_SRC), 2, 1, TERNARY_1ST_OPR8R_OPCODE));
-  // TODO: Should this be BINARY instead?
 
-	grouped_opr8rs.push_back(Opr8rPrecedenceLvl ());
-	// TERNARY_2ND OPR8R doesn't follow same pattern in interpreted expression stream. It sits in between and DIVIDES 2 paths/sub-expressions
-	// where normal BINARY OPR8Rs will appear AFTER their 2 required operands
-	// [TRUE path expression][:][FALSE path expression]
-	// [operand1][operand2][OPR8R]
+  grouped_opr8rs.push_back(Opr8rPrecedenceLvl ());
   grouped_opr8rs.back().opr8rs.push_back ( Operator (L":", (BINARY|TERNARY_2ND), (USR_SRC|GNR8D_SRC), 2, 2, TERNARY_2ND_OPR8R_OPCODE));
 
 	grouped_opr8rs.push_back(Opr8rPrecedenceLvl ());
@@ -143,31 +133,28 @@ CompileExecTerms::CompileExecTerms() {
   // TODO: Is a comma a spr8r?  What about the '\' character, for paths?
 
   // TODO: Should I add [bool]?
-  valid_data_types.insert (std::pair {L"uint8", std::pair {UINT8_TKN, DATA_TYPE_UINT8_OPCODE}});
-  valid_data_types.insert (std::pair {L"uint16", std::pair {UINT16_TKN, DATA_TYPE_UINT16_OPCODE}});
-  valid_data_types.insert (std::pair {L"uint32", std::pair {UINT32_TKN , DATA_TYPE_UINT32_OPCODE}});
-  valid_data_types.insert (std::pair {L"uint64", std::pair {UINT64_TKN, DATA_TYPE_UINT64_OPCODE}});
-  valid_data_types.insert (std::pair {L"int8", std::pair {INT8_TKN, DATA_TYPE_INT8_OPCODE}});
-  valid_data_types.insert (std::pair {L"int16", std::pair {INT16_TKN, DATA_TYPE_INT16_OPCODE}});
-  valid_data_types.insert (std::pair {L"int32", std::pair {INT32_TKN, DATA_TYPE_INT32_OPCODE}});
-  valid_data_types.insert (std::pair {L"int64", std::pair {INT64_TKN, DATA_TYPE_INT64_OPCODE}});
-  valid_data_types.insert (std::pair {L"string", std::pair {STRING_TKN, DATA_TYPE_STRING_OPCODE}});
-  valid_data_types.insert (std::pair {L"datetime", std::pair {DATETIME_TKN, DATA_TYPE_DATETIME_OPCODE}});
-  valid_data_types.insert (std::pair {L"double", std::pair {DOUBLE_TKN, DATA_TYPE_DOUBLE_OPCODE}});
+  valid_data_types.insert (std::pair {DATA_TYPE_UINT8, std::pair {UINT8_TKN, DATA_TYPE_UINT8_OPCODE}});
+  valid_data_types.insert (std::pair {DATA_TYPE_UINT16, std::pair {UINT16_TKN, DATA_TYPE_UINT16_OPCODE}});
+  valid_data_types.insert (std::pair {DATA_TYPE_UINT32, std::pair {UINT32_TKN , DATA_TYPE_UINT32_OPCODE}});
+  valid_data_types.insert (std::pair {DATA_TYPE_UINT64, std::pair {UINT64_TKN, DATA_TYPE_UINT64_OPCODE}});
+  valid_data_types.insert (std::pair {DATA_TYPE_INT8, std::pair {INT8_TKN, DATA_TYPE_INT8_OPCODE}});
+  valid_data_types.insert (std::pair {DATA_TYPE_INT16, std::pair {INT16_TKN, DATA_TYPE_INT16_OPCODE}});
+  valid_data_types.insert (std::pair {DATA_TYPE_INT32, std::pair {INT32_TKN, DATA_TYPE_INT32_OPCODE}});
+  valid_data_types.insert (std::pair {DATA_TYPE_INT64, std::pair {INT64_TKN, DATA_TYPE_INT64_OPCODE}});
+  valid_data_types.insert (std::pair {DATA_TYPE_STRING, std::pair {STRING_TKN, DATA_TYPE_STRING_OPCODE}});
+  valid_data_types.insert (std::pair {DATA_TYPE_DATETIME, std::pair {DATETIME_TKN, DATA_TYPE_DATETIME_OPCODE}});
+  valid_data_types.insert (std::pair {DATA_TYPE_DOUBLE, std::pair {DOUBLE_TKN, DATA_TYPE_DOUBLE_OPCODE}});
+  valid_data_types.insert (std::pair {DATA_TYPE_BOOL, std::pair {BOOL_TKN, DATA_TYPE_BOOL_OPCODE}});
 
-  reserved_words.push_back(L"if");
-  reserved_words.push_back(L"else");
-  reserved_words.push_back(L"while");
-  reserved_words.push_back(L"for");
-
-  reserved_words.push_back(L"true");
-  reserved_words.push_back(L"false");
-  reserved_words.push_back(L"break");
-  reserved_words.push_back(L"return");
-  // TODO: Should [void] be in valid_data_types?  Probably NOT
-  reserved_words.push_back(L"void");
-
-
+  reserved_words.push_back (FALSE_RESERVED_WORD);
+  reserved_words.push_back (TRUE_RESERVED_WORD);
+  reserved_words.push_back (IF_RESERVED_WORD);
+  reserved_words.push_back (ELSE_RESERVED_WORD);
+  reserved_words.push_back (WHILE_RESERVED_WORD);
+  reserved_words.push_back (FOR_RESERVED_WORD);
+  reserved_words.push_back (BREAK_RESERVED_WORD);
+  reserved_words.push_back (RETURN_RESERVED_WORD);
+  reserved_words.push_back (VOID_RESERVED_WORD);
 
   // TODO: What is the right way to do this?
   validityCheck();

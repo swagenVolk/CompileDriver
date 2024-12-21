@@ -29,21 +29,50 @@ BaseLanguageTerms::~BaseLanguageTerms() {
  *
  * ***************************************************************************/
 void BaseLanguageTerms::validityCheck()	{
-	// Double check caller for any OPR8Rs in SPR8Rs
-  for(std::wstring::iterator o = atomic_1char_opr8rs.begin(); o != atomic_1char_opr8rs.end(); ++o) {
-    if (_1char_spr8rs.find(*o) != std::wstring::npos) {
-      std::wcout << "ERROR: file_parser::file_parser: Found OPR8R " << *o << " in SPR8R list " << _1char_spr8rs << "; " << std::endl;
-      assert (_1char_spr8rs.find(*o) == std::wstring::npos);
-    }
-  }
+	//	Make sure there's no overlap between: valid_data_types reserved_words OPR8Rs SPR8Rs
+	//	Check for duplicates in each
 
-  // Double check caller for any SPR8Rs in OPR8Rs
-  for(std::wstring::iterator s = _1char_spr8rs.begin(); s != _1char_spr8rs.end(); ++s) {
-    if (atomic_1char_opr8rs.find(*s) != std::wstring::npos) {
-      std::wcout << "ERROR: file_parser::file_parser: Found SPR8R " << *s << " in OPR8R list " << atomic_1char_opr8rs << "; " << std::endl;
-      assert (atomic_1char_opr8rs.find(*s) == std::wstring::npos);
-    }
-  }
+	std::map<std::wstring, int> nameReferenceCnt;
+	int idx;
+
+	// Reference count valid_data_types
+	for (auto itr8r = valid_data_types.begin(); itr8r != valid_data_types.end(); itr8r++)	{
+		std::wstring next_type = itr8r->first;
+		assert (!next_type.empty());
+		auto search = nameReferenceCnt.find(next_type);
+		if (search == nameReferenceCnt.end())	{
+			nameReferenceCnt.insert(std::pair {next_type, 1});
+		
+		} else	{
+			search->second++;
+		}
+	}
+
+	// Reference count reserved words
+	for (idx = 0; idx < reserved_words.size(); idx++)	{
+		std::wstring next_type = reserved_words[idx];
+		assert (!next_type.empty());
+		auto search = nameReferenceCnt.find(next_type);
+		if (search == nameReferenceCnt.end())	{
+			nameReferenceCnt.insert(std::pair {next_type, 1});
+		
+		} else	{
+			search->second++;
+		}
+	}
+
+	// Reference count SPR8Rs
+	for (idx = 0; idx < _1char_spr8rs.size(); idx++)	{
+		std::wstring nextChar = std::to_wstring(_1char_spr8rs.at(idx));
+		assert (!nextChar.empty());
+		auto search = nameReferenceCnt.find(nextChar);
+		if (search == nameReferenceCnt.end())	{
+			nameReferenceCnt.insert(std::pair {nextChar, 1});
+		
+		} else	{
+			search->second++;
+		}
+	}
 
 	std::wstring opr8r;
   std::list<Opr8rPrecedenceLvl>::iterator outr8r;
@@ -68,7 +97,7 @@ void BaseLanguageTerms::validityCheck()	{
     }
 
   	if (!isFound) {
-  		std::wcout << "ERROR: file_parser::file_parser: Did not find single char atomic OPR8R " << *o << " in list of valid operators;" << std::endl;
+  		std::wcout << "ERROR: Did not find single char atomic OPR8R " << *o << " in list of valid operators;" << std::endl;
   		assert (_1char_spr8rs.find(*o) == std::wstring::npos);
   	}
   }
@@ -83,34 +112,55 @@ void BaseLanguageTerms::validityCheck()	{
 
   	for (innr8r = precedenceLvl.opr8rs.begin(); innr8r != precedenceLvl.opr8rs.end(); ++innr8r){
   		Operator nxtDefOpr8r = *innr8r;
+
+			std::wstring opr8r = innr8r->symbol;
+
   		if (TERNARY_1ST == (innr8r->type_mask & TERNARY_1ST))	{
-  			ternary_1st = innr8r->symbol;
+  			ternary_1st = opr8r;
   			ternary1stCnt++;
   		}
 
   		if (TERNARY_2ND == (innr8r->type_mask & TERNARY_2ND))	{
-  			ternary_2nd = innr8r->symbol;
+  			ternary_2nd = opr8r;
   			ternary2ndCnt++;
   		}
 
   		if (STATEMENT_ENDER == (innr8r->type_mask & STATEMENT_ENDER))	{
-  			statement_ender = innr8r->symbol;
+  			statement_ender = opr8r;
   			statementEnderCnt++;
   		}
 
-    	// Add to our map of exec time OPR8Rs
   		if (nxtDefOpr8r.valid_for_mask & GNR8D_SRC)	{
-  			assert (nxtDefOpr8r.op_code != INVALID_OPCODE);
+  	  	// Add to our map of exec time OPR8Rs
+	 			assert (nxtDefOpr8r.op_code != INVALID_OPCODE);
   			assert (0 == execTimeOpr8rMap.count (nxtDefOpr8r.symbol));
   			execTimeOpr8rMap[nxtDefOpr8r.symbol] = nxtDefOpr8r;
-  		}
+
+				// Reference count USR_SRC OPR8Rs
+				assert (!opr8r.empty());
+				auto search = nameReferenceCnt.find(opr8r);
+				if (search == nameReferenceCnt.end())	{
+					nameReferenceCnt.insert(std::pair {opr8r, 1});
+				
+				} else	{
+					search->second++;
+				}
+			}
   	}
   }
 
 	assert ((ternary1stCnt == 0 && ternary2ndCnt == 0) || (ternary1stCnt == 1 && ternary2ndCnt == 1));
 	assert (statementEnderCnt == 1);
 
+	bool isDupesFound = false;
+	for (auto refr8r = nameReferenceCnt.begin(); refr8r != nameReferenceCnt.end(); refr8r++)	{
+		if (refr8r->second != 1)	{
+			std::wcout << L"RESERVED word, data type, operator or separator used more than once [" << refr8r->first << L", " << refr8r->second << L"]" << std::endl;
+			isDupesFound = true;
+		}
+	}
 
+	assert (!isDupesFound);
 
 }
 

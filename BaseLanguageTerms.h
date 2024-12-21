@@ -15,13 +15,13 @@
 #include <set>
 #include <map>
 #include <vector>
-#include "common.h"
 #include "Token.h"
 #include "Operator.h"
 #include "Opr8rPrecedenceLvl.h"
 #include "OpCodes.h"
 
 class BaseLanguageTerms {
+
 public:
 	BaseLanguageTerms();
 	virtual ~BaseLanguageTerms();

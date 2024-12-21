@@ -45,7 +45,7 @@ void ExprTreeNode::buildTreeGraph (std::shared_ptr<ExprTreeNode> treeNode, std::
 		else if (_1stOr2ndChild == 2)	{
 			treeGraph[scopeDepth].append(L"(2nd)");
 		}
-		treeGraph[scopeDepth].append (treeNode->originalTkn->_string);
+		treeGraph[scopeDepth].append (treeNode->originalTkn->getValueStr());
 		treeGraph[scopeDepth].append (L"]");
 
 		// Now do the recursive calls
@@ -69,12 +69,12 @@ void ExprTreeNode::showTree (std::wstring fileName, int lineNumber)	{
 	// Handle the ROOT node here
 	treeGraph.push_back(L"");
 	treeGraph[0].append(L"ROOT[");
-	treeGraph[0].append (this->originalTkn->_string);
+	treeGraph[0].append (originalTkn->getValueStr());
 	treeGraph[0].append(L"]");
 
 	// Now do recursive calls
-	buildTreeGraph (this->_1stChild, treeGraph, 1, 1);
-	buildTreeGraph (this->_2ndChild, treeGraph, 1, 2);
+	buildTreeGraph (_1stChild, treeGraph, 1, 1);
+	buildTreeGraph (_2ndChild, treeGraph, 1, 2);
 
 	for (std::vector<std::wstring>::iterator graphR8r = treeGraph.begin(); graphR8r != treeGraph.end(); graphR8r++)	{
 		std::wcout << L"[" << *graphR8r << L"]" << std::endl;

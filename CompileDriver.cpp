@@ -1,10 +1,10 @@
 /* ****************************************************************************
  * NEEDS TESTING:
+ * isRvalue - might already have this covered for [PRE|POST]FIX OPR8Rs....what else is there?
+ * Left, center and right justified parentheses in expressions
  *
  * TODO:
- * isRvalue
- * string variables
- * Left, center and right justified parentheses in expressions
+ * Short circuiting - Will I need to change 12O -> O12?
  * Disassembler?
  * Be clear & consistent about where type checking happens!
  * Look for opportunities to clarify (ie #defines -> enums?) to make debugging easier
@@ -17,6 +17,8 @@
  * file for the location. It can do a quick(er) lookup
  *
  * RECENTLY DONE:
+ * string variables - support was mostly already in place
+ * bool - added;
  * FileParser recognize data types and reserved words.
  * Interpreter act on [PRE|POST]FIX OPR8Rs when doing an expression
  * Type check operand of [PRE|POST]FIX OPR8Rs - this should already happen via exprParser
@@ -98,10 +100,11 @@ int main(int argc, const char * argv[])
 			GeneralParser generalParser (tokenStream, userSrcFileName, srcExecTerms, userMessages, output_file_name, varScope);
 			int compileRetCode = generalParser.rootScopeCompile();
 
-			std::wcout << L"*************** COMPILATION STAGE ***************" << std::endl;
+			std::wcout << L"/* *************** <COMPILATION STAGE> *************** */" << std::endl;
+			std::wcout << L"// compileRetCode = " << compileRetCode << std::endl;
 			userMessages->showMessagesByInsertOrder(true);
 		  varScope->displayVariables();
-			std::wcout << L"*************** </COMPILATION STAGE> ***************" << std::endl;
+			std::wcout << L"/* *************** </COMPILATION STAGE> *************** */" << std::endl;
 
 			// TODO: I expected to be able to re-use userMessages, but having problems
 			userMessages.reset();
@@ -117,11 +120,12 @@ int main(int argc, const char * argv[])
 				// TODO: An option to dump the NameSpace?
 				ret_code = interpreter.rootScopeExec();
 
-				std::wcout << L"*************** EXECUTION STAGE ***************" << std::endl;
+				std::wcout << L"/* *************** <EXECUTION STAGE> *************** */" << std::endl;
+				std::wcout << L"// ret_code = " << ret_code << std::endl;
 				// execMessages->showMessagesByGroup();
 				execMessages->showMessagesByInsertOrder(true);
 			  execVarScope->displayVariables();
-				std::wcout << L"*************** </EXECUTION STAGE> ***************" << std::endl;
+				std::wcout << L"/* *************** </EXECUTION STAGE> *************** */" << std::endl;
 				execMessages.reset();
 				execVarScope.reset();
 			}

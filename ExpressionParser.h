@@ -43,6 +43,15 @@
 #define END_COMMA_IS_EXPECTED				true
 #define END_COMMA_NOT_EXPECTED			false
 
+enum opr8r_ready_state_enum  {
+  OPR8R_NOT_READY
+  ,ATTACH_1ST
+  ,ATTACH_2ND
+  ,ATTACH_BOTH
+};
+
+typedef opr8r_ready_state_enum opr8rReadyState;
+
 class ExpressionParser {
 public:
 	ExpressionParser(CompileExecTerms & inUsrSrcTerms, std::shared_ptr<VariablesScope> inVarScopeStack, std::wstring userSrcFileName
@@ -66,10 +75,13 @@ private:
   std::wstring makeExpectedTknTypesStr (uint32_t expected_tkn_types);
   bool isExpectedTknType (uint32_t allowed_tkn_types, uint32_t & next_legal_tkn_types, std::shared_ptr<Token> curr_tkn);
   int openSubExprScope (TokenPtrVector & tknStream);
-  int makeTreeLinkParent (bool & isOpenParenFndYet);
+  int makeTreeAndLinkParent (bool & isOpenParenFndYet);
   bool isTernaryOpen ();
   int get2ndTernaryCnt ();
-  int closedNestedScopes(Token currTkn, Token expectedEndTkn, bool & isExprClosed, Token & enderTkn);
+  std::wstring getMyParentSymbol ();
+  int closeNestedScopes(Token currTkn, Token expectedEndTkn, bool & isExprClosed, Token & enderTkn);
+  int moveNeighborsIntoTree (Operator & opr8r, ExprTreeNodePtrVector & currScope
+	, int opr8rIdx, opr8rReadyState opr8rState, bool isMoveLeftNbr, bool isMoveRightNbr);
   int turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope);
   int getExpectedEndToken (std::shared_ptr<Token> startTkn, uint32_t & _1stTknTypMsk, Token & expectedEndTkn, bool isEndedByComma);
   void printScopeStack (std::wstring fileName, int lineNumber);

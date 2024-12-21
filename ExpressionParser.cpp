@@ -35,6 +35,7 @@
 #include "ExpressionParser.h"
 
 #include <bits/stdint-uintn.h>
+#include <cstdint>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -43,6 +44,7 @@
 #include "ExprTreeNode.h"
 #include "InfoWarnError.h"
 #include "Operator.h"
+#include "Token.h"
 #include "UserMessages.h"
 #include "common.h"
 
@@ -126,8 +128,8 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 								userMessages->logMsg (INTERNAL_ERROR, L"Expression ender " + currTkn->descr_sans_line_num_col() + L" closed an empty express!", thisSrcFile, __LINE__, 0);
 								isStopFail = true;
 
-							} else if (exprScopeStack[top]->scopedKids.size() > 1)	{
-								if (OK != closedNestedScopes(*currTkn, expectedEndTkn, isExprClosed, enderTkn))	{
+							} else if (top > 0 || exprScopeStack[top]->scopedKids.size() > 1)	{
+								if (OK != closeNestedScopes(*currTkn, expectedEndTkn, isExprClosed, enderTkn))	{
 									// TODO:
 									isStopFail = true;
 								}
@@ -173,7 +175,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 						// Remove Token from stream without destroying - move to flat expression in current scope
 						tknStream.erase(tknStream.begin());
 
-						if (OK != closedNestedScopes (*currTkn, expectedEndTkn, isExprClosed, enderTkn))	{
+						if (OK != closeNestedScopes (*currTkn, expectedEndTkn, isExprClosed, enderTkn))	{
 							isStopFail = true;
 
 						} else if (exprScopeStack.size() == 1 && exprScopeStack[0]->scopedKids.size() == 1)	{
@@ -218,8 +220,10 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 						ret_code = OK;
 						expressionTree = exprScopeStack[0]->scopedKids[0];
 				} else	{
-					std::wstring devMsg = L"Expression was closed but could not be made into a tree! Remaining Token count = ";
+					std::wstring devMsg = L"Expression closed but tree conversion failed! Remaining Token count at stack top = ";
 					devMsg.append ( std::to_wstring(numTknsLeftInExpr));
+					devMsg.append (L"; # scope levels = ");
+					devMsg.append (std::to_wstring(exprScopeStack.size()));
 					devMsg.append (L"; exprCloseLine = ");
 					devMsg.append (std::to_wstring(exprCloseLine));
 					devMsg.append(L";");
@@ -241,24 +245,37 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
  * recursively.  It's turtles all the way down!
  * TODO: Might not need any of these parameters. 
 * ***************************************************************************/
- int ExpressionParser::closedNestedScopes(Token currTkn, Token expectedEndTkn, bool & isExprClosed, Token & enderTkn)	{
+ int ExpressionParser::closeNestedScopes(Token currTkn, Token expectedEndTkn, bool & isExprClosed, Token & enderTkn)	{
 	int ret_code = GENERAL_FAILURE;
 
 	bool isParentLinked = false;
 	bool isRootScope = false;
 	bool isStopFail = false;
 
-	if (OK == makeTreeLinkParent(isParentLinked))	{
+	if (OK == makeTreeAndLinkParent(isParentLinked))	{
+		int  prevStackSize = exprScopeStack.size(), currStackSize;
+	
 		while (!isParentLinked && !isRootScope && !isStopFail)	{
-			if (OK != makeTreeLinkParent(isParentLinked))	{
+			if (OK != makeTreeAndLinkParent(isParentLinked))	{
 				isStopFail = true;
 				break;
-			} else if (exprScopeStack.size() == 1)	{
-				// Only the root scope remains. Check for correctness
-				isRootScope = true;
-				int numRootKids = exprScopeStack[0]->scopedKids.size();
-				// TODO: Should this call be necessary?
-				ret_code = turnClosedScopeIntoTree (exprScopeStack[exprScopeStack.size() - 1]->scopedKids);
+	
+			} else	{
+				currStackSize = exprScopeStack.size();
+				
+				if (exprScopeStack.size() == 1)	{
+					// Only the root scope remains. Check for correctness
+					isRootScope = true;
+					int numRootKids = exprScopeStack[0]->scopedKids.size();
+					// TODO: Should this call be necessary?
+					if (numRootKids > 1 && OK != turnClosedScopeIntoTree (exprScopeStack[exprScopeStack.size() - 1]->scopedKids))	{
+						isStopFail = true;
+					}
+				
+				} else if (prevStackSize <= currStackSize)	{
+					isStopFail = true;
+					userMessages->logMsg(INTERNAL_ERROR, L"Failed to reduce stack size while making tree", thisSrcFile, __LINE__, 0);
+				}
 			}
 		}
 
@@ -277,7 +294,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
  * a single codeToken by working through the precedence of the operators.
  * Decrease the current scope level of the expression
  * ***************************************************************************/
-int ExpressionParser::makeTreeLinkParent (bool & isParentFndYet)  {
+int ExpressionParser::makeTreeAndLinkParent (bool & isParentFndYet)  {
   int ret_code = GENERAL_FAILURE;
 	bool isScopenerFound = false;
 	bool isRootScope = false;
@@ -362,15 +379,14 @@ int ExpressionParser::makeTreeLinkParent (bool & isParentFndYet)  {
 								childList.insert (nodeR8r, subExpr);
 								isExprAttached = true;
 
-							} else if (isScopeTopTernary 
-								&& (subExpr->originalTkn->_string == usrSrcTerms.get_ternary_2nd() || subExpr->originalTkn->_string == usrSrcTerms.get_ternary_1st()))	{
+							} else if (isScopeTopTernary && subExpr->originalTkn->_string == usrSrcTerms.get_ternary_2nd() && scopener->_2ndChild == NULL)	{
 								// The subexpression could be the direct [:] child, but we also need to allow for nested ternarys
 								scopener->_2ndChild = subExpr;
 								subExpr->myParent = scopener;
 								isExprAttached = true;
 								ret_code = OK;
 
-							} else if (isScopeTopTernary)	{
+							} else if (isScopeTopTernary && scopener->_2ndChild == NULL)	{
 								// Scope was opened by TERNARY_1ST, and root of subExpr is NOT direct TERNARY_2ND
 								// The TERNARY_2ND *may* be buried deeper in the tree; probably below an assignment OPR8R
 								// that has lower priority. Tree precedence is inverted; deeper|lower in tree means higher precedence
@@ -378,16 +394,12 @@ int ExpressionParser::makeTreeLinkParent (bool & isParentFndYet)  {
 								// ROOT[=]
 								// [desc, :]
 								//       (2nd)[Third, ?]
-								//                (2nd)[:, ==]
-								//        (1st)[four, MANY](2nd)[count, 4]
-								scopener->_2ndChild = subExpr;
-								subExpr->myParent = scopener;
-								isExprAttached = true;
-								ret_code = OK;
+								//                (2nd)[==, :]
+								//        (1st)[count, 4](2nd)[four, MANY]
 
 								std::shared_ptr<ExprTreeNode> child1 = subExpr->_1stChild;
 								std::shared_ptr<ExprTreeNode> child2 = subExpr->_2ndChild;
-								if (child2 != NULL && child2->originalTkn != NULL && child2->originalTkn->_string == usrSrcTerms.get_ternary_1st())	{
+								if (child2 != NULL && child2->originalTkn != NULL && child2->originalTkn->_string == usrSrcTerms.get_ternary_2nd())	{
 									// TODO: Is there any reason to check child1?
 									scopener->_2ndChild = subExpr;
 									subExpr->myParent = scopener;
@@ -403,6 +415,8 @@ int ExpressionParser::makeTreeLinkParent (bool & isParentFndYet)  {
 									userMessages->logMsg (USER_ERROR, userMsg,  userSrcFileName, scopener->originalTkn->get_line_number(), scopener->originalTkn->get_column_pos());
 									isStopFail = true;
 								}
+							} else {
+							
 							}
 						}
 					}
@@ -429,7 +443,15 @@ int ExpressionParser::makeTreeLinkParent (bool & isParentFndYet)  {
 					}
 
 					if (ret_code != OK)	{
-						if (!isScopenerFound || !isExprAttached)	{
+						if (isScopenerFound && !isExprAttached && exprScopeStack.size() == 1)	{
+							// TODO: Figure out boolz
+							if (exprScopeStack[0]->scopedKids.size() > 1)	{
+								ret_code = turnClosedScopeIntoTree (exprScopeStack[exprScopeStack.size() - 1]->scopedKids);
+							}	else	{
+							 	ret_code = OK;
+							}
+
+						} else if (!isScopenerFound || !isExprAttached)	{
 							std::wstring scopeErrMsg;
 							if (!isScopenerFound)
 								scopeErrMsg = L"Could not match with scope opened by ";
@@ -458,7 +480,7 @@ int ExpressionParser::makeTreeLinkParent (bool & isParentFndYet)  {
 		int stackSzAfter = exprScopeStack.size();
 		if (stackSzAfter >= stackSzB4)	{
 			userMessages->logMsg (INTERNAL_ERROR
-					, L"closeSubExprScope did not reduce expression scope depth. Before call: " + std::__cxx11::to_wstring(stackSzB4)
+					, L"Failed to reduce expression scope depth. Before call: " + std::__cxx11::to_wstring(stackSzB4)
 					+ L"; After call: " + std::__cxx11::to_wstring(stackSzAfter) + L";"
 					, thisSrcFile, __LINE__, 0);
 			printScopeStack(thisSrcFile, __LINE__);
@@ -474,6 +496,234 @@ int ExpressionParser::makeTreeLinkParent (bool & isParentFndYet)  {
 	return (ret_code);
 }
 
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+int ExpressionParser::moveNeighborsIntoTree (Operator & opr8r, ExprTreeNodePtrVector & currScope
+	, int opr8rIdx, opr8rReadyState opr8rState, bool isMoveLeftNbr, bool isMoveRightNbr)	{
+	int ret_code = GENERAL_FAILURE;
+	bool isFailed = false;
+
+	if (opr8rIdx >= 0 && opr8rIdx < currScope.size())	{
+
+		std::shared_ptr<ExprTreeNode> opr8rNode = currScope.at(opr8rIdx);
+		std::shared_ptr<ExprTreeNode> leftNbr = NULL;
+		std::shared_ptr<ExprTreeNode> rightNbr = NULL;
+		Token tmpTkn;
+
+		if (isMoveRightNbr)	{
+			if ((currScope.size() - 1) < (opr8rIdx + 1))	{
+				isFailed = true;
+
+			} else {
+				rightNbr = currScope.at(opr8rIdx + 1);
+				if (rightNbr == NULL)	{
+					isFailed = true;
+				
+				} else {
+					if ((opr8r.type_mask & PREFIX) && (rightNbr->originalTkn->tkn_type != USER_WORD_TKN 
+							|| !usrSrcTerms.isViableVarName(rightNbr->originalTkn->_string)
+							|| OK != varScopeStack->findVar(rightNbr->originalTkn->_string, 0, tmpTkn, READ_ONLY, userMessages)))	{
+						// Make sure our right neighbor is a variable name before moving
+						isFailed = true;
+					
+					} else	{
+						currScope.erase(currScope.begin() + (opr8rIdx + 1));
+						if (opr8rNode != NULL)	{
+							if (opr8rState == ATTACH_1ST && opr8rNode->_1stChild == NULL)
+								opr8rNode->_1stChild = rightNbr;
+							else if ((opr8rState == ATTACH_2ND || opr8rState == ATTACH_BOTH) && opr8rNode->_2ndChild == NULL)
+								opr8rNode->_2ndChild = rightNbr;
+							else
+							 	isFailed = true;
+						} else	{
+							isFailed = true;
+						}
+					}
+				}
+			}
+		}
+
+		if (isMoveLeftNbr)	{
+			if (opr8rIdx - 1 < 0)	{
+				isFailed = true;
+
+			} else {
+				leftNbr = currScope.at(opr8rIdx - 1);
+				if (leftNbr == NULL)	{
+					isFailed = true;
+				
+				} else {
+					if ((opr8r.type_mask & POSTFIX) && (leftNbr->originalTkn->tkn_type != USER_WORD_TKN 
+							|| !usrSrcTerms.isViableVarName(leftNbr->originalTkn->_string)
+							|| OK != varScopeStack->findVar(leftNbr->originalTkn->_string, 0, tmpTkn, READ_ONLY, userMessages)))	{
+						// Make sure our left neighbor is a variable name before moving
+						isFailed = true;
+					
+					} else	{
+						currScope.erase(currScope.begin() + (opr8rIdx - 1));
+						if (opr8rNode != NULL)	{
+							if ((opr8rState == ATTACH_1ST || opr8rState == ATTACH_BOTH) && opr8rNode->_1stChild == NULL)
+								opr8rNode->_1stChild = leftNbr;
+							else if (opr8rState == ATTACH_2ND && opr8rNode->_2ndChild == NULL)
+								opr8rNode->_2ndChild = leftNbr;
+							else
+							 	isFailed = true;
+						
+						} else {
+							isFailed = true;
+						}
+					}
+				}
+			}
+		}
+
+		if (!isFailed && (isMoveLeftNbr || isMoveRightNbr))
+			// We tried to do something and didn't fail at it!
+			ret_code = OK;
+	
+	}
+
+	return (ret_code);
+}
+
+/* ****************************************************************************
+ * For this sub-expression contained in 1 scope level (ie inside 1 set of parentheses)
+ * work through the precedence ordered list of OPR8Rs make a shrubbery
+ * Should wind up as a single OPR8R at the top of a shrub/tree
+ * TODO: This might be where L2R and R2L associativity comes in
+ *
+ * eg 1 + 3 * 2
+ * * has precedence, so it's handled 1st
+ * 1 + *
+ *     3,2
+ * Now handle + OPR8R
+ *   +
+ * 1   *
+ *    3,2
+ * Higher precedence operations get pushed further down the tree
+ * ***************************************************************************/
+int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope)  {
+  int ret_code = GENERAL_FAILURE;
+  bool isStopFail = false;
+  bool isReachedEOL = false;
+  bool isNowTree = false;
+
+  ExprTreeNodePtrVector::iterator currNodeR8r;
+  std::shared_ptr<ExprTreeNode> currNode = NULL;
+  std::list<Opr8rPrecedenceLvl>::iterator outr8r;
+  std::list<Operator>::iterator innr8r;
+  Opr8rPrecedenceLvl precedenceLvl;
+
+  std::wstring unary1stOpr8r = usrSrcTerms.get_ternary_1st();
+  std::wstring unary2ndOpr8r = usrSrcTerms.get_ternary_2nd();
+
+	// TODO: _1stChild of [?] should be the resolved expression directly to the left
+	// TODO: Resolved [:] will need to be removed from the current level and linked to the scopener of the next level down in the scopeStack
+
+  // TODO: Code inspect, comment, simplify if you can
+	for (outr8r = usrSrcTerms.grouped_opr8rs.begin(); outr8r != usrSrcTerms.grouped_opr8rs.end() && !isStopFail && !isNowTree; outr8r++){
+		// Move through each precedence level of OPR8Rs. Note that some precedence levels will have multiple OPR8Rs and they must be
+		// treated as having the same precedence, and therefore we can't rely on an ABSOUTE ordering of OPR8R precedence
+		precedenceLvl = *outr8r;
+		for (innr8r = precedenceLvl.opr8rs.begin(); innr8r != precedenceLvl.opr8rs.end() && !isStopFail && !isNowTree; ++innr8r){
+			Operator currOpr8r = *innr8r;
+
+			if (currOpr8r.valid_for_mask & GNR8D_SRC)	{
+				// Filter out OPR8Rs only valid for USER_SRC ([pre|post]-fix ++,--; unary +|- ) and match on unique GNR8D_SRC equivalent
+				// OPR8R match and it hasn't had any child nodes attached to it yet
+				bool isOpr8rExhausted = false;
+
+				while (!isOpr8rExhausted && !isStopFail && !isNowTree)	{
+					opr8rReadyState opr8rState = OPR8R_NOT_READY;
+					int startSize = currScope.size();
+					bool isMoveLeftNbr = false;
+					bool isMoveRightNbr = false;
+					int listIdx = 0;
+
+					for (currNodeR8r = currScope.begin(); currNodeR8r != currScope.end() && !isStopFail && !isNowTree && !opr8rState; currNodeR8r++)	{
+						// Move left-to-right through the expression. Do some work on match with current OPR8R 
+						// When objects are moved around, the iterator will be invalidated and need to restart.
+
+						std::shared_ptr<ExprTreeNode> currNode = *currNodeR8r;
+						// Make an alias variable for code readability
+						std::shared_ptr <Token> currTkn = currNode->originalTkn;
+
+						if (currNode == NULL)	{
+							userMessages->logMsg (INTERNAL_ERROR, L"ExprTreeNode pointer is NULL! ", thisSrcFile, __LINE__, 0);
+							isStopFail = true;
+
+						} else if (currTkn->tkn_type == SRC_OPR8R_TKN && currTkn->_string == currOpr8r.symbol)	{
+							// IFF OPR8R at current precedence level is encountered at this expression scope, we can move some|all neighbors under this OPR8R
+							if (currOpr8r.symbol == usrSrcTerms.get_ternary_1st())	{
+								if (currNode->_1stChild == NULL && currNode->_2ndChild != NULL)	{
+									// TERNARY_1ST [TRUE|FALSE] paths resolved; conditional to left should be resolved and ready to be our _1stChild
+									opr8rState = ATTACH_1ST;
+									isMoveLeftNbr = true;
+								}
+							} else	{
+								// For this OPR8R, determine which neighbors get removed from list and attached to OPR8R 
+								if ((currOpr8r.type_mask & UNARY) && currNode->_1stChild == NULL)	{
+									opr8rState = ATTACH_1ST;
+									isMoveRightNbr = true;
+								
+								} else if ((currOpr8r.type_mask & PREFIX) && currNode->_1stChild == NULL)	{
+									opr8rState = ATTACH_1ST;
+									isMoveRightNbr = true;
+
+								} else if ((currOpr8r.type_mask & POSTFIX) && currNode->_1stChild == NULL)	{
+									opr8rState = ATTACH_1ST;
+									isMoveLeftNbr = true;
+
+								} else if ((currOpr8r.type_mask & BINARY) && currNode->_1stChild == NULL && currNode->_2ndChild == NULL)	{
+									opr8rState = ATTACH_BOTH;
+									isMoveLeftNbr = true;
+									isMoveRightNbr = true;
+								}
+							}
+						}
+						if (!opr8rState)	
+							listIdx++;
+					}
+
+					if (opr8rState != OPR8R_NOT_READY)	{
+						if (OK != moveNeighborsIntoTree (currOpr8r, currScope, listIdx, opr8rState,isMoveLeftNbr, isMoveRightNbr))
+							isStopFail = true;
+
+						else if (currScope.size() >= startSize)	{
+							isStopFail = true;
+							std::wstring devMsg = L"Source expression not reduced in size while handling OPR8R " + currOpr8r.symbol;
+							userMessages->logMsg(INTERNAL_ERROR, devMsg, thisSrcFile, __LINE__, 0);
+						}
+					} else {
+						isOpr8rExhausted = true;
+					}
+				}
+			}
+		}
+	}
+
+	if (!isStopFail) {
+		// TODO: Check for only OPR8Rs left @ currScope? Check if they're treed up?
+		if (isNowTree)
+			ret_code = OK;
+		else if (currScope.size() == 1)
+			ret_code = OK;
+		else	{
+			userMessages->logMsg (INTERNAL_ERROR, L"Could not make tree", thisSrcFile, __LINE__, 0);
+			isStopFail = true;
+			showDebugInfo (thisSrcFile, __LINE__);
+		}
+	}
+
+	if (ret_code != OK && !isStopFail)	{
+		userMessages->logMsg (INTERNAL_ERROR, L"Unhandled error", thisSrcFile, __LINE__, 0);
+	}
+
+	return (ret_code);
+}
+
+#if 0
 /* ****************************************************************************
  * For this sub-expression contained in 1 scope level (ie inside 1 set of parentheses)
  * work through the precedence ordered list of OPR8Rs make a shrubbery
@@ -512,6 +762,9 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
   std::wstring unary1stOpr8r = usrSrcTerms.get_ternary_1st();
   std::wstring unary2ndOpr8r = usrSrcTerms.get_ternary_2nd();
 
+	// TODO: _1stChild of [?] should be the resolved expression directly to the left
+	// TODO: Resolved [:] will need to be removed from the current level and linked to the scopener of the next level down in the scopeStack
+
   // TODO: Code inspect, comment, simplify if you can
 	for (outr8r = usrSrcTerms.grouped_opr8rs.begin(); outr8r != usrSrcTerms.grouped_opr8rs.end() && !isStopFail && !isNowTree; outr8r++){
 		// Move through each precedence level of OPR8Rs. Note that some precedence levels will have multiple OPR8Rs and they must be
@@ -522,6 +775,7 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 
 		while (!isReachedEOL && !isStopFail && !isNowTree)	{
 			bool isOpr8rReady = false;
+			int startSize = currScope.size();
 
 			for (currNodeR8r = currScope.begin(); currNodeR8r != currScope.end() && !isStopFail && !isNowTree && !isOpr8rReady; currNodeR8r++)	{
 				// Move left-to-right through the expression. When an OPR8R is encountered, check to see if it matches any of the OPR8Rs
@@ -536,10 +790,14 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 					userMessages->logMsg (INTERNAL_ERROR, L"ExprTreeNode pointer is NULL! ", thisSrcFile, __LINE__, 0);
 					isStopFail = true;
 
-				} else if (currTkn->tkn_type == SRC_OPR8R_TKN && ((currTkn->_string != unary1stOpr8r && currNode->_1stChild == NULL)
+				} else if (currTkn->tkn_type == SRC_OPR8R_TKN)	{
+/* 					 && ((currTkn->_string == unary1stOpr8r && currNode->_1stChild == NULL)
 						|| (currTkn->_string == unary1stOpr8r && currNode->_2ndChild == NULL)))	{
-					// IFF OPR8R at current precedence level is encountered at this expression scope, we can move some|all neighbors under this OPR8R
+ */					// IFF OPR8R at current precedence level is encountered at this expression scope, we can move some|all neighbors under this OPR8R
 					Operator tgtOpr8r;
+
+					if (currNode->originalTkn->_string == L":")
+						std::wcout << L"STOP" << std::endl;
 
 					// TODO: Could improve on this loop by re-starting it AFTER the last OPR8R completed on the previous loop
 					for (innr8r = precedenceLvl.opr8rs.begin(); innr8r != precedenceLvl.opr8rs.end() && !isStopFail && !isOpr8rReady; ++innr8r){
@@ -560,8 +818,15 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 							nextNode = NULL;
 							prevNode = NULL;
 
-							if ((tgtOpr8r.type_mask & POSTFIX) || (tgtOpr8r.type_mask & BINARY) || (tgtOpr8r.type_mask & TERNARY_2ND)
-									|| (tgtOpr8r.type_mask & TERNARY_1ST /* TODO: && currNode->_2ndChild != NULL*/))	{
+							// If _2ndChild of [?] (should be [:]) was previously filled on a nested call, we'll need to attach the (hopefully) now 
+							// resolved conditional previous|left of current ExprTreeNode
+							bool isTern1stReadyForConditional = ((tgtOpr8r.type_mask & TERNARY_1ST) && currNode->_1stChild == NULL && currNode->_2ndChild != NULL);
+
+							if (isTern1stReadyForConditional)
+								std::wcout << L"TODO: isTern1stReadyForConditional!" << std::endl;
+
+							if ((tgtOpr8r.type_mask & POSTFIX) || ((tgtOpr8r.type_mask & BINARY) && 0 == (tgtOpr8r.type_mask & TERNARY_1ST)) 
+								|| (tgtOpr8r.type_mask & TERNARY_2ND) || isTern1stReadyForConditional)	{
 								// Remove previous operand node in list and attach to _1stChild
 								// TERNARY_2ND (:) treated similarly to BINARY at this juncture
 
@@ -577,11 +842,7 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 									if (!(tgtOpr8r.type_mask & POSTFIX) || (prevNode->originalTkn->tkn_type == USER_WORD_TKN)) {
 										// POSTFIX OPR8R ([++|--] only works on a variable. Note that BINARY OPR8Rs can work
 										// with OPR8Rs to the left and right if they're at the top of a sub-expression tree
-										if (tgtOpr8r.type_mask & TERNARY_1ST)
-											// TODO: Reversing expected order on TERNARY
-											currNode->_2ndChild = prevNode;
-										else
-											currNode->_1stChild = prevNode;
+										currNode->_1stChild = prevNode;
 										prevNode->myParent = currNode;
 									} else	{
 										userMessages->logMsg (USER_ERROR
@@ -599,11 +860,12 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 							}
 
 							if ((tgtOpr8r.type_mask & PREFIX) || (tgtOpr8r.type_mask & UNARY)
-									|| ((tgtOpr8r.type_mask & BINARY) && TERNARY_1ST != (tgtOpr8r.type_mask & TERNARY_1ST)))	{
+									|| ((tgtOpr8r.type_mask & BINARY) && !isTern1stReadyForConditional))	{
 								// Remove next operand node in list and attach to _1stChild or _2ndChild, depending on OPR8R type
-								// TERNARY_2ND (:) treated similarly to BINARY at this juncture
+								// TERNARY_2ND (:) treated similarly to BINARY here
 								nextNodeR8r = currNodeR8r;
 								nextNodeR8r++;
+
 								if (nextNodeR8r != currScope.end())	{
 									nextNode = *nextNodeR8r;
 
@@ -623,6 +885,9 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 												, userSrcFileName, currNode->originalTkn->get_line_number(), currNode->originalTkn->get_column_pos());
 										isStopFail = true;
 									}
+								} else if (currNode->_1stChild != NULL && currNode->_2ndChild != NULL)	{
+									// TODO: Both children !NULL?  ????
+									isReachedEOL = true;
 								} else	{
 									userMessages->logMsg (USER_ERROR
 											, L"Expected a Token after " + currNode->originalTkn->descr_sans_line_num_col() + L" but nothing follows it at current scope of expression."
@@ -652,55 +917,62 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 									isNowTree = true;
 
 								} else if (currScope.size() == 2 && !isStopFail)	{
-									// Special case check for TERNARY that has HIGHER PRECEDENCE and has already the 2nd child
-									// resolved but 1st child is still NULL (because TERNARYs swap Op1<->Op2 position
-									// ROOT[=]							            ROOT[?]
-									// [desc, :]						            [NULL,:]
-									//       (2nd)[Third, ==]			            (2nd)[four, MANY]
-									//                  (2nd)[count, 4]
-									// and move the other ExprTreeNode underneath ? _1stChild
 									std::shared_ptr <Token> branch0Tkn = currScope[0]->originalTkn;
 									std::shared_ptr <Token> branch1Tkn = currScope[1]->originalTkn;
-									if (branch1Tkn->_string == usrSrcTerms.get_ternary_1st() && currScope[1]->_1stChild == NULL)	{
+									std::wstring openedBy = getMyParentSymbol();
 
-										delR8r = currScope.begin();
-										std::shared_ptr<ExprTreeNode> kidToMove = NULL;
-										kidToMove = *delR8r;
-										currScope.erase(delR8r);
-										currScope[0]->_1stChild = kidToMove;
-										isNowTree = true;
-									}
-								}
+ 									if (openedBy == usrSrcTerms.get_ternary_1st())	{
+										currScope[0]->showTree(thisSrcFile, __LINE__);
+										currScope[1]->showTree(thisSrcFile, __LINE__);
+
+										int top = exprScopeStack.size() - 1;
+
+										if (top > 0)	{
+											std::shared_ptr<ExprTreeNode> scopener = exprScopeStack[top]->myParentScopener;
+											if (scopener != NULL && scopener->_2ndChild == NULL)	{
+												scopener->_2ndChild = currScope[0];
+												currScope.erase(currScope.begin());
+												isNowTree = true;
+											}
+										}
+									} 
+ 								}
 							}
 						}
 					}
 				}
 			}
-
 			if (currNodeR8r == currScope.end())
 				isReachedEOL = true;
+		
+				int endSize = currScope.size();
+				if (endSize >= startSize)
+		
 		}
-	}
+	
 
-	if (!isStopFail) {
-		// TODO: Check for only OPR8Rs left @ currScope? Check if they're treed up?
-		if (isNowTree)
-			ret_code = OK;
-		else if (currScope.size() == 1)
-			ret_code = OK;
-		else	{
-			userMessages->logMsg (INTERNAL_ERROR, L"Could not make tree", thisSrcFile, __LINE__, 0);
-			showDebugInfo (thisSrcFile, __LINE__);
+		if (!isStopFail) {
+			// TODO: Check for only OPR8Rs left @ currScope? Check if they're treed up?
+			if (isNowTree)
+				ret_code = OK;
+			else if (currScope.size() == 1)
+				ret_code = OK;
+			else	{
+				userMessages->logMsg (INTERNAL_ERROR, L"Could not make tree", thisSrcFile, __LINE__, 0);
+				isStopFail = true;
+				showDebugInfo (thisSrcFile, __LINE__);
+			}
 		}
-	}
 
-	if (ret_code != OK && !isStopFail)	{
-		userMessages->logMsg (INTERNAL_ERROR, L"Unhandled error", thisSrcFile, __LINE__, 0);
+		if (ret_code != OK && !isStopFail)	{
+			userMessages->logMsg (INTERNAL_ERROR, L"Unhandled error", thisSrcFile, __LINE__, 0);
+		}
 	}
 
 
 	return (ret_code);
 }
+#endif
 
 /* ****************************************************************************
  * When an unexpected Token type is encountered in an expression, this proc will
@@ -812,6 +1084,30 @@ bool ExpressionParser::isTernaryOpen ()  {
 }
 
 /* ****************************************************************************
+ * Check if the TERNARY_1st OPR8R was encountered previously at the currently
+ * opened scope.
+ * ***************************************************************************/
+std::wstring ExpressionParser::getMyParentSymbol ()  {
+  std::wstring symbol;
+
+	int stackSize = exprScopeStack.size();
+	if (stackSize >= 1)	{
+		std::shared_ptr<NestedScopeExpr> currScope = exprScopeStack[stackSize - 1];
+
+		if (currScope->myParentScopener != 0)	{
+			std::shared_ptr<ExprTreeNode> scopener = (std::shared_ptr<ExprTreeNode>)currScope->myParentScopener;
+
+			if (scopener->originalTkn != NULL 
+				&& (scopener->originalTkn->tkn_type == SRC_OPR8R_TKN || scopener->originalTkn->tkn_type == EXEC_OPR8R_TKN))	{
+				symbol = scopener->originalTkn->_string;
+			}
+		}
+	}
+
+	return (symbol);
+}
+
+/* ****************************************************************************
  * Return the count of TERNARY_2ND OPR8Rs encountered at the current scope.
  * There should be only 1 per scope
  * ***************************************************************************/
@@ -861,7 +1157,7 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
 				|| curr_tkn->tkn_type == UINT32_TKN || curr_tkn->tkn_type == UINT64_TKN
   			|| curr_tkn->tkn_type == INT8_TKN || curr_tkn->tkn_type == INT16_TKN
 				|| curr_tkn->tkn_type == INT32_TKN || curr_tkn->tkn_type == INT64_TKN
-				|| curr_tkn->tkn_type == DOUBLE_TKN)	{
+				|| curr_tkn->tkn_type == DOUBLE_TKN || curr_tkn->tkn_type == BOOL_TKN)	{
     	// LITERAL
   		isTknTypeOK = true;
   		next_legal_tkn_types = (BINARY_OPR8R_NXT_OK|TERNARY_OPR8R_1ST_NXT_OK|CLOSE_PAREN_NXT_OK);
@@ -1015,8 +1311,8 @@ int ExpressionParser::getExpectedEndToken (std::shared_ptr<Token> startTkn, uint
 		} else if (startTkn->tkn_type == SRC_OPR8R_TKN && (UNARY & usrSrcTerms.get_type_mask(startTkn->_string)))	{
 			_1stTknType = UNARY_OPR8R_NXT_OK;
 
-		} else if (startTkn->tkn_type == SRC_OPR8R_TKN && (startTkn->_string == usrSrcTerms.getSrcOpr8rStrFor (PRE_INCR_NO_OP_OPCODE)
-					|| startTkn->_string == usrSrcTerms.getSrcOpr8rStrFor (PRE_DECR_NO_OP_OPCODE)))	{
+		} else if (startTkn->tkn_type == SRC_OPR8R_TKN && (startTkn->_string == usrSrcTerms.getSrcOpr8rStrFor (PRE_INCR_OPR8R_OPCODE)
+					|| startTkn->_string == usrSrcTerms.getSrcOpr8rStrFor (PRE_DECR_OPR8R_OPCODE)))	{
 			_1stTknType = PREFIX_OPR8R_NXT_OK;
 
 		} else if (startTkn->tkn_type == STRING_TKN
@@ -1102,3 +1398,236 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
 		}
 	}
 }
+
+
+#if 0
+/* ****************************************************************************
+ * For this sub-expression contained in 1 scope level (ie inside 1 set of parentheses)
+ * work through the precedence ordered list of OPR8Rs make a shrubbery
+ * Should wind up as a single OPR8R at the top of a shrub/tree
+ * TODO: This might be where L2R and R2L associativity comes in
+ *
+ * eg 1 + 3 * 2
+ * * has precedence, so it's handled 1st
+ * 1 + *
+ *     3,2
+ * Now handle + OPR8R
+ *   +
+ * 1   *
+ *    3,2
+ * Higher precedence operations get pushed further down the tree
+ * ***************************************************************************/
+int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope)  {
+  int ret_code = GENERAL_FAILURE;
+  bool isStopFail = false;
+  bool isReachedEOL = false;
+  bool isNowTree = false;
+
+  std::vector<Operator>::iterator opr8rItr8r;
+  std::wstring tgtOpr8r;
+  ExprTreeNodePtrVector::iterator prevNodeR8r;
+  ExprTreeNodePtrVector::iterator currNodeR8r;
+  ExprTreeNodePtrVector::iterator nextNodeR8r;
+  std::shared_ptr<ExprTreeNode> prevNode = NULL;
+  std::shared_ptr<ExprTreeNode> currNode = NULL;
+  std::shared_ptr<ExprTreeNode> nextNode = NULL;
+
+  std::list<Opr8rPrecedenceLvl>::iterator outr8r;
+  std::list<Operator>::iterator innr8r;
+  Opr8rPrecedenceLvl precedenceLvl;
+
+  std::wstring unary1stOpr8r = usrSrcTerms.get_ternary_1st();
+  std::wstring unary2ndOpr8r = usrSrcTerms.get_ternary_2nd();
+
+  // TODO: Code inspect, comment, simplify if you can
+	for (outr8r = usrSrcTerms.grouped_opr8rs.begin(); outr8r != usrSrcTerms.grouped_opr8rs.end() && !isStopFail && !isNowTree; outr8r++){
+		// Move through each precedence level of OPR8Rs. Note that some precedence levels will have multiple OPR8Rs and they must be
+		// treated as having the same precedence, and therefore we can't rely on an ABSOUTE ordering of OPR8R precedence
+		precedenceLvl = *outr8r;
+
+		isReachedEOL = false;
+
+		while (!isReachedEOL && !isStopFail && !isNowTree)	{
+			bool isOpr8rReady = false;
+
+			for (currNodeR8r = currScope.begin(); currNodeR8r != currScope.end() && !isStopFail && !isNowTree && !isOpr8rReady; currNodeR8r++)	{
+				// Move left-to-right through the expression. When an OPR8R is encountered, check to see if it matches any of the OPR8Rs
+				// within the current precedence level
+				// When objects are moved around, the iterator will be invalidated and need to restart.
+
+				currNode = *currNodeR8r;
+				// Make an alias variable for code readability
+				std::shared_ptr <Token> currTkn = currNode->originalTkn;
+
+				if (currNode == NULL)	{
+					userMessages->logMsg (INTERNAL_ERROR, L"ExprTreeNode pointer is NULL! ", thisSrcFile, __LINE__, 0);
+					isStopFail = true;
+
+				} else if (currTkn->tkn_type == SRC_OPR8R_TKN && ((currTkn->_string != unary1stOpr8r && currNode->_1stChild == NULL)
+						|| (currTkn->_string == unary1stOpr8r && currNode->_2ndChild == NULL)))	{
+					// IFF OPR8R at current precedence level is encountered at this expression scope, we can move some|all neighbors under this OPR8R
+					Operator tgtOpr8r;
+
+					// TODO: Could improve on this loop by re-starting it AFTER the last OPR8R completed on the previous loop
+					for (innr8r = precedenceLvl.opr8rs.begin(); innr8r != precedenceLvl.opr8rs.end() && !isStopFail && !isOpr8rReady; ++innr8r){
+						Operator pssblOpr8r = *innr8r;
+
+						if (pssblOpr8r.valid_for_mask & GNR8D_SRC && currNode->originalTkn->_string == pssblOpr8r.symbol)	{
+							// Filter out OPR8Rs only valid for USER_SRC ([pre|post]-fix ++,--; unary +|- ) and match on unique GNR8D_SRC equivalent
+							// OPR8R match and it hasn't had any child nodes attached to it yet
+							isOpr8rReady = true;
+							// TODO: Could use an "=" operator override for Operator class
+							tgtOpr8r.symbol = pssblOpr8r.symbol;
+							tgtOpr8r.numReqSrcOperands = pssblOpr8r.numReqSrcOperands;
+							tgtOpr8r.type_mask = pssblOpr8r.type_mask;
+							tgtOpr8r.valid_for_mask = pssblOpr8r.valid_for_mask;
+						}
+
+						if (isOpr8rReady)	{
+							nextNode = NULL;
+							prevNode = NULL;
+
+							if ((tgtOpr8r.type_mask & POSTFIX) || (tgtOpr8r.type_mask & BINARY) || (tgtOpr8r.type_mask & TERNARY_2ND)
+									|| (tgtOpr8r.type_mask & TERNARY_1ST /* TODO: && currNode->_2ndChild != NULL*/))	{
+								// Remove previous operand node in list and attach to _1stChild
+								// TERNARY_2ND (:) treated similarly to BINARY at this juncture
+
+								// For TERNARY_1ST:
+								// Both the TRUE and the FALSE paths of the TERNARY statement have been resolved at deeper scopes
+								// The conditional that precedes the ? OPR8R should also have been resolved (operator precedence)
+
+								if (currNodeR8r != currScope.begin())	{
+									prevNodeR8r = currNodeR8r;
+									prevNodeR8r--;
+									prevNode = *prevNodeR8r;
+
+									if (!(tgtOpr8r.type_mask & POSTFIX) || (prevNode->originalTkn->tkn_type == USER_WORD_TKN)) {
+										// POSTFIX OPR8R ([++|--] only works on a variable. Note that BINARY OPR8Rs can work
+										// with OPR8Rs to the left and right if they're at the top of a sub-expression tree
+										// TODO: DEBUG
+/* 										if (tgtOpr8r.type_mask & TERNARY_1ST)
+											// TODO: Reversing expected order on TERNARY
+											currNode->_2ndChild = prevNode;
+										else
+ */											currNode->_1stChild = prevNode;
+										prevNode->myParent = currNode;
+									} else	{
+										userMessages->logMsg (USER_ERROR
+												, L"Expected an variable name before " + currNode->originalTkn->descr_sans_line_num_col() + L" but instead got: " + prevNode->originalTkn->descr_sans_line_num_col()
+												, userSrcFileName, currNode->originalTkn->get_line_number(), currNode->originalTkn->get_column_pos());
+										isStopFail = true;
+									}
+
+								} else	{
+									userMessages->logMsg (USER_ERROR
+											, L"Expected a Token before " + currNode->originalTkn->descr_sans_line_num_col() + L" but nothing precedes it at current scope of expression."
+											, userSrcFileName, currNode->originalTkn->get_line_number(), currNode->originalTkn->get_column_pos());
+									isStopFail = true;
+								}
+							}
+
+							if ((tgtOpr8r.type_mask & PREFIX) || (tgtOpr8r.type_mask & UNARY)
+									|| ((tgtOpr8r.type_mask & BINARY) && TERNARY_1ST != (tgtOpr8r.type_mask & TERNARY_1ST)))	{
+								// Remove next operand node in list and attach to _1stChild or _2ndChild, depending on OPR8R type
+								// TERNARY_2ND (:) treated similarly to BINARY at this juncture
+								nextNodeR8r = currNodeR8r;
+								nextNodeR8r++;
+								if (nextNodeR8r != currScope.end())	{
+									nextNode = *nextNodeR8r;
+
+									if (!(tgtOpr8r.type_mask & PREFIX) || (nextNode->originalTkn->tkn_type == USER_WORD_TKN)) {
+										// PREFIX OPR8Rs can only work on variables
+
+										if ((tgtOpr8r.type_mask & PREFIX) || (tgtOpr8r.type_mask & UNARY))
+											currNode->_1stChild = nextNode;
+										else
+											currNode->_2ndChild = nextNode;
+
+										nextNode->myParent = currNode;
+
+									} else {
+										userMessages->logMsg (USER_ERROR
+												, L"Expected a USER_WORD after " + currNode->originalTkn->descr_sans_line_num_col() + L" but instead got: " + nextNode->originalTkn->descr_sans_line_num_col()
+												, userSrcFileName, currNode->originalTkn->get_line_number(), currNode->originalTkn->get_column_pos());
+										isStopFail = true;
+									}
+								} else	{
+									userMessages->logMsg (USER_ERROR
+											, L"Expected a Token after " + currNode->originalTkn->descr_sans_line_num_col() + L" but nothing follows it at current scope of expression."
+											,  userSrcFileName, currNode->originalTkn->get_line_number(), currNode->originalTkn->get_column_pos());
+									isStopFail = true;
+								}
+							}
+
+							if (prevNode != NULL || nextNode != NULL)	{
+								// Need to do some housekeeping on our list
+								ExprTreeNodePtrVector::iterator delR8r;
+								for (delR8r = currScope.begin(); delR8r != currScope.end();)	{
+									// For moved nodes, remove from list in reverse order
+									std::shared_ptr<ExprTreeNode> delNode = *delR8r;
+									if (nextNode != NULL && delNode.get() == nextNode.get())	{
+										currScope.erase (delR8r);
+									}
+									else if (prevNode != NULL && delNode.get() == prevNode.get())	{
+										currScope.erase (delR8r);
+									} else {
+										delR8r++;
+									}
+								}
+
+								if (currScope.size() == 1 && !isStopFail)	{
+									// Flat list of multiple ExprTreeNodes has been TREED down to 1
+									isNowTree = true;
+
+								} else if (currScope.size() == 2 && !isStopFail)	{
+									// Special case check for TERNARY that has HIGHER PRECEDENCE and has already the 2nd child
+									// resolved but 1st child is still NULL (because TERNARYs swap Op1<->Op2 position
+									// ROOT[=]							            ROOT[?]
+									// [desc, :]						            [NULL,:]
+									//       (2nd)[Third, ==]			            (2nd)[four, MANY]
+									//                  (2nd)[count, 4]
+									// and move the other ExprTreeNode underneath ? _1stChild
+									std::shared_ptr <Token> branch0Tkn = currScope[0]->originalTkn;
+									std::shared_ptr <Token> branch1Tkn = currScope[1]->originalTkn;
+									if (branch1Tkn->_string == usrSrcTerms.get_ternary_1st() && currScope[1]->_1stChild == NULL)	{
+
+										delR8r = currScope.begin();
+										std::shared_ptr<ExprTreeNode> kidToMove = NULL;
+										kidToMove = *delR8r;
+										currScope.erase(delR8r);
+										currScope[0]->_1stChild = kidToMove;
+										isNowTree = true;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			if (currNodeR8r == currScope.end())
+				isReachedEOL = true;
+		}
+	}
+
+	if (!isStopFail) {
+		// TODO: Check for only OPR8Rs left @ currScope? Check if they're treed up?
+		if (isNowTree)
+			ret_code = OK;
+		else if (currScope.size() == 1)
+			ret_code = OK;
+		else	{
+			userMessages->logMsg (INTERNAL_ERROR, L"Could not make tree", thisSrcFile, __LINE__, 0);
+			showDebugInfo (thisSrcFile, __LINE__);
+		}
+	}
+
+	if (ret_code != OK && !isStopFail)	{
+		userMessages->logMsg (INTERNAL_ERROR, L"Unhandled error", thisSrcFile, __LINE__, 0);
+	}
+
+
+	return (ret_code);
+}
+
+#endif

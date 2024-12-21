@@ -39,7 +39,6 @@ public:
 	int resolveOpr8r (uint8_t op_code, Token & nxtTkn);
 	int readFixedRange (uint8_t op_code, Token & nxtTkn);
 	int readString (uint8_t op_code, Token & nxtTkn);
-	int readPrePostFix (uint8_t op_code, Token & nxtTkn);
 
 
 protected:

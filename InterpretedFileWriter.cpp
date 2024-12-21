@@ -14,6 +14,7 @@
 #include "InterpretedFileWriter.h"
 #include "InfoWarnError.h"
 #include "OpCodes.h"
+#include "Token.h"
 #include <cstdint>
 #include <iostream>
 #include <map>
@@ -47,127 +48,6 @@ InterpretedFileWriter::~InterpretedFileWriter() {
 		outputStream.close();
 }
 
-#if 0
-/* ****************************************************************************
- * writeExpr_12_Opr8r will recursively walk an expression tree in
- * [1st child][2nd child][current] order to create a flat stream of op_code
- * Tokens the Interpreter can use to resolve the expression at execution time.
- *
- * **************************************************************************************************************************************************************
- * Example C expression
- * (1 + 2 * (3 + 4 * (5 + 6 * 7 * (8 + 9))))
- *
- * And how it will get written to interpreted file.
- * NOTE that we'll go L2R through this list until we find an OPR8R *preceded* by the
- * required # of operands in this case [8] [9] [+]. Note that in the above C expression,
- * 8 + 9 is in the most deeply nested parentheses and therefore has the highest precedence
- * [1] [2] [3] [4] [5] [42] [8] [9] [+] [*] [+] [*] [+] [*] [+]
- * [1] [2] [3] [4] [5] [42] [17] [*] [+] [*] [+] [*] [+]
- * [1] [2] [3] [4] [5] [714] [+] [*] [+] [*] [+]
- * [1] [2] [3] [4] [719] [*] [+] [*] [+]
- * [1] [2] [3] [2876] [+] [*] [+]
- * [1] [2] [2879] [*] [+]
- * [1] [5758] [+]
- * [5759]
- *
- * **************************************************************************************************************************************************************
- * NOTE the position of the [?] and [:] ternary OPR8Rs their placement differs from other OPR8Rs. At run time, [?] is treated more like a UNARY in that the
- * conditional expression will have already been resolved as [TRUE|FALSE] ahead of time.  The [:] is placed BETWEEN the TRUE and FALSE path expressions as a hint
- * for the Interpreter to know where each path begins and ends. Normal OPR8Rs would be placed AFTER the two expressions. The Interpreter probably *could* execute
- * both expressions but only commit results on the chosen path, but that seems performative and not especially useful.
- *
- * Example nested ternary C expression - TRUE path taken
- * (1 + 2 * (3 + 4 * (5 + 6 * 7 * (count == 1 ? 10 : count == 2 ? 11 : count == 3 ? 12 : count == 4 ? 13 : 33))))
- *
- * count = 1
- * [1] [2] [3] [4] [5] [6] [7] [*] [count] [1] [==] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
- *                      ^^ 1st ^^^ ^^^ 2nd ^^^^^^^^
- * [1] [2] [3] [4] [5] [42] [1] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
- *                      1st 2nd
- * [1] [2] [3] [4] [5] [42] [1] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
- *                           ^^^1st - TRUE path leave expression before [:] (e.g. [10]) in the stream and consume the FALSE path (1 complete sub-expression within)
- * [1] [2] [3] [4] [5] [42] [1] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
- *                              numOperands: 1       2   1    1(?) - but need to consume this nested TERNARY - if this was a BINARY OPR8R (UNARY? POSTFIX? PREFIX? STATEMENT_ENDER?)
- *                                                                   then we'd be done with it. Consume everything up to and including the [:] OPR8R, then consume the next expression
- *
- * [1] [2] [3] [4] [5] [42] [1] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
- *                                                             numOprands: 1       2   1    1(?) ^^^ ^^^  1       2   1   1(?) ^^^ ^^^ 1    ^ Not enough operands for this OPR8R, so
- *                                                                                                                                            we've closed off the nested TERNARYs
- *                                                                                                                                            and need to preserve these OPR8Rs
-
- * **************************************************************************************************************************************************************
- * Example nested ternary C expression - All FALSE paths taken
- * (1 + 2 * (3 + 4 * (5 + 6 * 7 * (count == 1 ? 10 : count == 2 ? 11 : count == 3 ? 12 : count == 4 ? 13 : 33))))
- *
- * count = 5
- * [1] [2] [3] [4] [5] [6] [7] [*] [count] [1] [==] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
- * [1] [2] [3] [4] [5]        [42]              [0] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
- * [1] [2] [3] [4] [5]        [42]              [0] [?] [10] [:] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
- *                                              ^ FALSE remove^
- * [1] [2] [3] [4] [5] [42] [count] [2] [==] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
- * [1] [2] [3] [4] [5] [42]              [0] [?] [11] [:] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
- *                                       ^ FALSE remove^
- * [1] [2] [3] [4] [5] [42] [count] [3] [==] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
- * [1] [2] [3] [4] [5] [42] [0] [?] [12] [:] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
- *                          ^ FALSE remove^
- * [1] [2] [3] [4] [5] [42] [count] [4] [==] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
- * [1] [2] [3] [4] [5] [42]             [0] [?] [13] [:] [33] [*] [+] [*] [+] [*] [+]
- *                                      ^ FALSE remove^
- * [1] [2] [3] [4] [5] [42] [33] [*] [+] [*] [+] [*] [+]
- * [1] [2] [3] [4] [5]           [1386] [+] [*] [+] [*] [+]
- * [1] [2] [3] [4]            		 [1391] [*] [+] [*] [+]
- * [1] [2] [3]             		 		 [5564] [+] [*] [+]
- * [1] [2]              		 		 	 [5567] [*] [+]
- * [1]               		 		 	        [11134] [+]
- * [11135]
- *
- * ***************************************************************************/
-int InterpretedFileWriter::writeExpr_12_Opr8r (std::shared_ptr<ExprTreeNode> currBranch, std::vector<std::shared_ptr<Token>> & flatExprTknList)	{
-	int ret_code = GENERAL_FAILURE
-	bool isFailed = false
-	bool isTernary1st = false
-	bool isTernary2nd = false
-	bool isTernary1or2 = false
-
-	if (currBranch != NULL)	{
-
-		if (currBranch->originalTkn->tkn_type == SRC_OPR8R_TKN && (currBranch->originalTkn->_string == execTerms->get_ternary_1st()
-				|| currBranch->originalTkn->_string == execTerms->get_ternary_2nd()))	{
-			isTernary1or2 = true
-		}
-
-		if (currBranch->_1stChild != NULL)	{
-			if (OK != writeExpr_12_Opr8r (currBranch->_1stChild, flatExprTknList))
-				isFailed = true
-
-			if (isTernary1or2)	{
-				// TODO: 'Splain yo self
-				std::wcout << "[" << currBranch->originalTkn->_string << "] "
-				if (OK != writeToken(currBranch->originalTkn, flatExprTknList))
-					isFailed = true
-			}
-
-			if (!isFailed && currBranch->_2ndChild != NULL)	{
-				if (OK != writeExpr_12_Opr8r (currBranch->_2ndChild, flatExprTknList))
-					isFailed = true
-			}
-		}
-
-		if (!isFailed)	{
-			if (!isTernary1or2)	{
-				std::wcout << "[" << currBranch->originalTkn->_string << "] "
-				ret_code = writeToken(currBranch->originalTkn, flatExprTknList)
-
-			} else	{
-				ret_code = OK
-			}
-		}
-	}
-
-	return (ret_code);
-}
-#endif
-
 /* ****************************************************************************
  * Tree that represents an expression has already been flattened.  This fxn
  * just needs to write the Token stream out to the interpreted file as a
@@ -194,8 +74,11 @@ int InterpretedFileWriter::writeFlatExprToFile (std::vector<Token> & flatExprTkn
 			// write 0s to it. It will get filled in later when writing the entire expression out has
 			// been completed.
 			for (idx = 0; idx < flatExprTknList.size() && !isFailed; idx++)	{
-				if (OK != writeToken(flatExprTknList[idx]))
+				if (OK != writeToken(flatExprTknList[idx]))	{
 					isFailed = true;
+				 	userMessages->logMsg (INTERNAL_ERROR, L"Failure writing Token in flat expression list out to interpreted file"
+						, thisSrcFile, __LINE__, 0);
+				}
 			}
 
 			if (!isFailed)
@@ -218,6 +101,8 @@ int InterpretedFileWriter::writeObjectLen (uint32_t objStartPos, uint32_t objLen
 	// Need fill in now known length of this expression
 	uint32_t currFilePos = outputStream.tellp();
 	uint32_t exprLen = (currFilePos - objStartPos);
+
+	assert (exprLen > 0);
 
 	// Write the current object's length
 	outputStream.seekp(objLengthPos, std::fstream::beg);
@@ -449,6 +334,10 @@ int InterpretedFileWriter::writeToken (Token token)	{
 			if (OK == writeAtomicOpCode(DATETIME_OPCODE))
 				ret_code = writeRawString(token._string);
 			break;
+		case BOOL_TKN :
+			if (OK == writeRawUnsigned (BOOL_DATA_OPCODE, NUM_BITS_IN_BYTE))
+				ret_code = writeRawUnsigned (token._unsigned > 0 ? 1 : 0, NUM_BITS_IN_BYTE);
+			break;
 		case UINT8_TKN :
 			tkn8Val = token._unsigned;
 			if (OK == writeRawUnsigned (UINT8_OPCODE, NUM_BITS_IN_BYTE))
@@ -490,20 +379,7 @@ int InterpretedFileWriter::writeToken (Token token)	{
 				ret_code = writeString (DOUBLE_OPCODE, token._string);
 			break;
 		case EXEC_OPR8R_TKN :
-				if (token._unsigned == POST_INCR_OPR8R_OPCODE || token._unsigned == POST_DECR_OPR8R_OPCODE 
-					|| token._unsigned == PRE_INCR_OPR8R_OPCODE || token._unsigned == PRE_DECR_OPR8R_OPCODE)		{
-					// Actionable [PRE|POST]FIX OPR8R with a list of variable names to affect
-					uint32_t objStartPos = outputStream.tellp();
-					uint32_t length_pos = writeFlexLenOpCode (token._unsigned);
-					if (0 != length_pos)	{
-						// Save off the position where the expression's total length is stored and
-						if (OK == writeString (STRING_OPCODE, token._string))	{
-							ret_code = writeObjectLen (objStartPos, length_pos);
-						}
-					}
-				} else	{
-					ret_code = writeRawUnsigned (token._unsigned, NUM_BITS_IN_BYTE);
-				}
+			ret_code = writeRawUnsigned (token._unsigned, NUM_BITS_IN_BYTE);
 			break;
 		case SPR8R_TKN :
 		case SRC_OPR8R_TKN :
@@ -542,6 +418,7 @@ int InterpretedFileWriter::addTokenToFlatList (std::shared_ptr<Token> token, std
 		case USER_WORD_TKN :
 		case STRING_TKN :
 		case DATETIME_TKN :
+		case BOOL_TKN :
 		case UINT8_TKN :
 		case UINT16_TKN :
 		case UINT32_TKN :
@@ -567,13 +444,18 @@ int InterpretedFileWriter::addTokenToFlatList (std::shared_ptr<Token> token, std
 				token->resetToken();
 				token->tkn_type = EXEC_OPR8R_TKN;
 				token->_unsigned = op_code;
+				Operator opr8r;
+				if (OK == execTerms->getExecOpr8rDetails (op_code, opr8r))	{
+					token->_string = opr8r.symbol;
+				}
 				if (op_code == INVALID_OPCODE)
 					isFailed = true;
 
 			}
 
-			// Store a copy of this Token in the flattened list
-			flatExprTknList.push_back (*token);
+			if (!(token->tkn_type == EXEC_OPR8R_TKN && token->_unsigned == TERNARY_2ND_OPR8R_OPCODE))
+				// No need to put the [:] OPR8R in the stream
+				flatExprTknList.push_back (*token);
 			token.reset();
 			if (!isFailed)
 				ret_code = OK;
@@ -657,7 +539,7 @@ int InterpretedFileWriter::addTokenToFlatList (std::shared_ptr<Token> token, std
  * [11135]
  *
  * ***************************************************************************/
-int InterpretedFileWriter::makeFlatExpr_12_Opr8r (std::shared_ptr<ExprTreeNode> currBranch, std::vector<Token> & flatExprTknList)	{
+int InterpretedFileWriter::makeFlatExpr_LRO (std::shared_ptr<ExprTreeNode> currBranch, std::vector<Token> & flatExprTknList)	{
 	int ret_code = GENERAL_FAILURE;
 	bool isFailed = false;
 	bool isTernary1st = false;
@@ -672,7 +554,7 @@ int InterpretedFileWriter::makeFlatExpr_12_Opr8r (std::shared_ptr<ExprTreeNode> 
 		}
 
 		if (currBranch->_1stChild != NULL)	{
-			if (OK != makeFlatExpr_12_Opr8r (currBranch->_1stChild, flatExprTknList))
+			if (OK != makeFlatExpr_LRO (currBranch->_1stChild, flatExprTknList))
 				isFailed = true;
 
 			if (isTernary1or2)	{
@@ -681,7 +563,7 @@ int InterpretedFileWriter::makeFlatExpr_12_Opr8r (std::shared_ptr<ExprTreeNode> 
 			}
 
 			if (!isFailed && currBranch->_2ndChild != NULL)	{
-				if (OK != makeFlatExpr_12_Opr8r (currBranch->_2ndChild, flatExprTknList))
+				if (OK != makeFlatExpr_LRO (currBranch->_2ndChild, flatExprTknList))
 					isFailed = true;
 			}
 		}
@@ -700,107 +582,32 @@ int InterpretedFileWriter::makeFlatExpr_12_Opr8r (std::shared_ptr<ExprTreeNode> 
 }
 
 /* ****************************************************************************
- * Check for PREFIX OPR8Rs and POSTFIX OPR8Rs in the flattened expression. These
- * OPR8Rs will be treated as NO-OPs, so we need to add the "active" PREFIX OPR8Rs
- * BEFORE the main expression, and POSTFIX OPR8Rs AFTER the main expression.  
- * This fxn will check that variables only participate ONCE in a [PRE|POST]FIX
- * operation.
- * TODO: Variable name existence and type checking should have happened ealier
- * by the expression parser, but double check this later.
  * ***************************************************************************/
-int InterpretedFileWriter::checkPrePostFix (std::vector<Token> & flatExprTknList, std::vector<std::wstring> & preIncList
-	, std::vector<std::wstring> & preDecList, std::vector<std::wstring> & postIncList, std::vector<std::wstring> & postDecList
-	, std::wstring userSrcFileName, int usrSrcLineNum, int usrSrcColPos)	{
-
+int InterpretedFileWriter::makeFlatExpr_OLR (std::shared_ptr<ExprTreeNode> currBranch, std::vector<Token> & flatExprTknList)	{
 	int ret_code = GENERAL_FAILURE;
 	bool isFailed = false;
+	bool isTernary2nd = false;
 
-	std::map<std::wstring, int> varRefCnt;
-	std::set<std::wstring> multiRefVars;
+	if (currBranch != NULL)	{
 
-	for (int idx = 1; idx < flatExprTknList.size() && !isFailed; idx++)	{
-		// Go through flattened expression list and look for [PRE|POST]FIX OPR8Rs
-		// and what should be variable names they affect 
-		Token currTkn = flatExprTknList[idx];
-		Token prevTkn = flatExprTknList[idx-1];
-		bool isInserted = false;
-		bool isPrePostFix = false;
+		if (OK != addTokenToFlatList(currBranch->originalTkn, flatExprTknList))
+			isFailed = true;
 
-		if (currTkn.tkn_type == EXEC_OPR8R_TKN)	{
-			if (currTkn._unsigned == POST_INCR_NO_OP_OPCODE)	{
-				isPrePostFix = true;
-				if (prevTkn.tkn_type != USER_WORD_TKN)
-					isFailed = true;
-				else	{
-					postIncList.push_back(prevTkn._string);
-					isInserted = true;
-				}
-
-			} else if (currTkn._unsigned == POST_DECR_NO_OP_OPCODE)	{
-				isPrePostFix = true;
-				if (prevTkn.tkn_type != USER_WORD_TKN)
-					isFailed = true;
-				else	{
-				postDecList.push_back(prevTkn._string);
-				isInserted = true;
-				}
-			} else if (currTkn._unsigned == PRE_INCR_NO_OP_OPCODE)	{
-				isPrePostFix = true;
-				if (prevTkn.tkn_type != USER_WORD_TKN)
-					isFailed = true;
-				else	{
-					preIncList.push_back(prevTkn._string);
-					isInserted = true;
-				}
-			} else if (currTkn._unsigned == PRE_DECR_NO_OP_OPCODE)	{
-				isPrePostFix = true;
-				if (prevTkn.tkn_type != USER_WORD_TKN)
-					isFailed = true;
-				else	{
-					preDecList.push_back(prevTkn._string);
-					isInserted = true;
-				}
-			}
-
-			if (isPrePostFix && !isInserted)	{
+		if (!isFailed && currBranch->_1stChild != NULL)	{
+			if (OK != makeFlatExpr_OLR (currBranch->_1stChild, flatExprTknList))
 				isFailed = true;
-				userMessages->logMsg(USER_ERROR
-				, L"Expected a USER_WORD associated with [" + execTerms->getSrcOpr8rStrFor(currTkn._unsigned) + L"] but instead got " + prevTkn.descr_sans_line_num_col()
-				, userSrcFileName, usrSrcLineNum, usrSrcColPos);
-			}
 
-			if (isInserted)	{
-				if (auto search = varRefCnt.find (prevTkn._string); search != varRefCnt.end())	{
-					// Increment the ref count.....est no bueno!
-					search->second++;
-					multiRefVars.insert(prevTkn._string);
-				} else {
-					varRefCnt.insert(std::pair {prevTkn._string, 1});
-				}
+			if (!isFailed && currBranch->_2ndChild != NULL)	{
+				if (OK != makeFlatExpr_OLR (currBranch->_2ndChild, flatExprTknList))
+					isFailed = true;
 			}
+		}
+
+		if (!isFailed)	{
+			ret_code = OK;
 		}
 	}
 
-	// No variable should be referenced by a PREFIX|POSTFIX OPR8R more than once
-	int multiRefCnt = multiRefVars.size();
-	if (multiRefCnt > 0)	{
-		std::wstring errMsg = L"A variable can use a single [pre|post]fix operator in an expression these did not: ";
-		std::wstring badVars;
-		
-		for (auto itr8r = multiRefVars.begin(); itr8r != multiRefVars.end(); itr8r++)	{
-			if (!badVars.empty())
-				badVars.append(L", ");
-			badVars.append (*itr8r);
-		}
-		errMsg.append(badVars);
-		userMessages->logMsg(USER_ERROR, errMsg, userSrcFileName, usrSrcLineNum, usrSrcColPos);
-		isFailed = true;
-	}
-
-	// TODO: Check that all the listed variables exist and are of type SIGNED or UNSIGNED
-	if (!isFailed)
-		ret_code = OK;
-	
 	return (ret_code);
 }
 
@@ -817,59 +624,10 @@ int InterpretedFileWriter::flattenExprTree (std::shared_ptr<ExprTreeNode> rootOf
 	int usrSrcLineNum;
 	int usrSrcColPos;
 
-	if (rootOfExpr == NULL)	{
+	if (rootOfExpr == NULL)
   	userMessages->logMsg (INTERNAL_ERROR, L"rootOfExpr is NULL!", thisSrcFile, __LINE__, 0);
-
-	} else	{
-		usrSrcLineNum = rootOfExpr->originalTkn->get_line_number();
-		usrSrcColPos = rootOfExpr->originalTkn->get_column_pos();
-
-		if (OK == makeFlatExpr_12_Opr8r (rootOfExpr, flatExprTknList))	{
-			std::vector<std::wstring> preIncList;
-			std::vector<std::wstring> preDecList;
-			std::vector<std::wstring> postIncList;
-			std::vector<std::wstring> postDecList;
-
-			if (OK != checkPrePostFix (flatExprTknList, preIncList, preDecList, postIncList, postDecList, userSrcFileName, usrSrcLineNum, usrSrcColPos))
-				isFailed = true;
-
-			// NOTE: [PRE|POST]_[INCR|DECR]_NO_OP_OPCODE still get written out to the expression for disassembly purposes,
-			// but are treated as NO-OPs
-			std::wstring prefixIncVars = util.joinStrings(preIncList, L",", true);
-			std::wstring prefixDecVars = util.joinStrings(preDecList, L",", true);
-			std::wstring postfixIncVars = util.joinStrings(postIncList, L",", true);
-			std::wstring postfixDecVars = util.joinStrings(postDecList, L",", true);
-			// Put PREFIX list BEFORE expression
-			if (!prefixIncVars.empty())	{
-				Token preIncList (EXEC_OPR8R_TKN, prefixIncVars);
-				preIncList._unsigned = PRE_INCR_OPR8R_OPCODE;
-				flatExprTknList.insert(flatExprTknList.begin(), preIncList);
-			}
-
-			if (!prefixDecVars.empty())	{
-				Token preDecList (EXEC_OPR8R_TKN, prefixDecVars);
-				preDecList._unsigned = PRE_DECR_OPR8R_OPCODE;
-				flatExprTknList.insert(flatExprTknList.begin(), preDecList);
-			}
-
-			// Put POSTFIX list AFTER expression
-			if (!postfixIncVars.empty())	{
-				Token postIncList (EXEC_OPR8R_TKN, postfixIncVars);
-				postIncList._unsigned = POST_INCR_OPR8R_OPCODE;
-				flatExprTknList.push_back(postIncList);
-			}
-
-			if (!postfixDecVars.empty())	{
-				Token postDecList (EXEC_OPR8R_TKN, postfixDecVars);
-				postDecList._unsigned = POST_DECR_OPR8R_OPCODE;
-				flatExprTknList.push_back(postDecList);
-			}
-
-			if (!isFailed)
-				ret_code = OK;
-
-		}
-	}
+	else	
+		ret_code = makeFlatExpr_OLR (rootOfExpr, flatExprTknList);
 
 	return (ret_code);
 }

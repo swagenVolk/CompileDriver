@@ -118,7 +118,6 @@ int InterpretedFileReader::readNextWord (uint16_t & nextWord)	{
 	ret_code = readRawUnsigned (qword, NUM_BYTES_IN_WORD);
 	nextWord = qword;
 
-	if (ret_code != OK) { std::wcout << L"FAILED on line " << __LINE__ << std::endl; }	// TODO
 	return (ret_code);
 }
 
@@ -131,8 +130,7 @@ int InterpretedFileReader::readNextDword (uint32_t & nextDword)	{
 
 	ret_code = readRawUnsigned (qword, NUM_BYTES_IN_DWORD);
 	nextDword = qword;
-
-	if (ret_code != OK) { std::wcout << L"FAILED on line " << __LINE__ << std::endl; }	// TODO
+	
 	return (ret_code);
 }
 
@@ -143,8 +141,7 @@ int InterpretedFileReader::readNextQword (uint64_t & nextQword)	{
 	int ret_code = GENERAL_FAILURE;
 
 	ret_code = readRawUnsigned (nextQword, NUM_BYTES_IN_QWORD);
-
-	if (ret_code != OK) { std::wcout << L"FAILED on line " << __LINE__ << std::endl; }	// TODO
+	
 	return (ret_code);
 }
 
@@ -176,8 +173,7 @@ int InterpretedFileReader::readRawUnsigned (uint64_t & payload, int payloadByteS
 		if (!isFailed)
 			ret_code = OK;
 	}
-
-	if (ret_code != OK) { std::wcout << L"FAILED on line " << __LINE__ << std::endl; }	// TODO
+	
 	return (ret_code);
 }
 
@@ -214,6 +210,14 @@ int InterpretedFileReader::readFixedRange (uint8_t op_code, Token & nxtTkn)	{
 	bool isFailed = false;
 
 	switch (op_code)	{
+		case BOOL_DATA_OPCODE:
+			// [op_code][8-bit #]
+			if (OK == readNextByte (byte))	{
+				nxtTkn.tkn_type = BOOL_TKN;
+				nxtTkn._unsigned = (byte == 1 ? 1 : 0);
+			}
+			break;
+
 		case UINT8_OPCODE:
 			// [op_code][8-bit #]
 			if (OK == readNextByte (byte))	{
@@ -243,7 +247,6 @@ int InterpretedFileReader::readFixedRange (uint8_t op_code, Token & nxtTkn)	{
 				nxtTkn.tkn_type = INT16_TKN;
 				nxtTkn._signed = word;
 			}
-			break;
 			break;
 		case UINT32_OPCODE:
 			// [op_code][32-bit #]
@@ -284,7 +287,6 @@ int InterpretedFileReader::readFixedRange (uint8_t op_code, Token & nxtTkn)	{
 		ret_code = OK;
 	}
 
-	if (ret_code != OK) { std::wcout << L"FAILED on line " << __LINE__ << std::endl; }	// TODO
 	return (ret_code);
 }
 
@@ -348,30 +350,6 @@ int InterpretedFileReader::readString (uint8_t op_code, Token & nxtTkn)	{
 			}
 		}
 	}
-	if (ret_code != OK) { 
-		std::wcout << L"FAILED on line " << __LINE__ << std::endl; 
-	}	// TODO
-	return (ret_code);
-}
-
-/* ****************************************************************************
- * [op_code][total_length][string of comma separated var names]
- * ***************************************************************************/
-
-int InterpretedFileReader::readPrePostFix (uint8_t op_code, Token & nxtTkn)	{
-	int ret_code = GENERAL_FAILURE;
-	uint32_t objLen;
-	uint8_t stringOpCode;
-
-	if (op_code == POST_INCR_OPR8R_OPCODE || op_code == POST_DECR_OPR8R_OPCODE || op_code == PRE_INCR_OPR8R_OPCODE || op_code == PRE_DECR_OPR8R_OPCODE)	{
-		if (OK == readNextDword(objLen) && OK == readNextByte(stringOpCode))	{
-			if (OK == readString(stringOpCode, nxtTkn))	{
-				nxtTkn.tkn_type = EXEC_OPR8R_TKN;
-				nxtTkn._unsigned = op_code;
-				ret_code = OK;
-			}
-		}
-	}
 
 	return (ret_code);
 }
@@ -410,7 +388,7 @@ int InterpretedFileReader::readExprIntoList (std::vector<Token> & exprTknStream)
 				if (currFilePos == std::istream::traits_type::eof())	{
 					isItTheEnd = true;
 
-				} else if (currFilePos == nxtObjStartPos)	{
+				} else if (currFilePos >= nxtObjStartPos)	{
 					isItTheEnd = true;
 
 				} else if (OK != readNextByte (op_code)) {
@@ -444,21 +422,12 @@ int InterpretedFileReader::readExprIntoList (std::vector<Token> & exprTknStream)
 						else
 						 	exprTknStream.push_back(nxtTkn);
 
-					} else if (op_code == POST_INCR_OPR8R_OPCODE || op_code == POST_DECR_OPR8R_OPCODE || op_code == PRE_INCR_OPR8R_OPCODE || op_code == PRE_DECR_OPR8R_OPCODE)	{
-						if (OK != readPrePostFix (op_code, nxtTkn))	
-							isFailed = true;
-						else
-						 	exprTknStream.push_back(nxtTkn);
 					} else {
 						isFailed = true;
-						std::wcout << L"exprStartPos = 0x" << std::hex << exprStartPos << L"; nxtObjStartPos = " << nxtObjStartPos << L"; op_code = 0x" << op_code << std::dec << std::endl;
+						std::wcout << L"exprStartPos = 0x" << std::hex << exprStartPos << L"; exprLen = 0x" << exprLen << L"; currFilePos = 0x" << currFilePos << L"; exprStartPos = 0x" << exprStartPos << L"; nxtObjStartPos = 0x" << nxtObjStartPos << L"; op_code = 0x" << op_code << std::dec << std::endl;
 					}
 				}
 			}
-
-			/* ********* <DEBUG> ********* */
-			// util.dumpTokenList(exprTknStream, *execTerms, thisSrcFile, __LINE__);
-			/* ********* </DEBUG> ********* */
 
 			if (!isFailed && isItTheEnd && exprTknStream.size() > 0)	{
 				ret_code = OK;
@@ -466,15 +435,5 @@ int InterpretedFileReader::readExprIntoList (std::vector<Token> & exprTknStream)
 		}
 	}
 
-	if (ret_code != OK) { std::wcout << L"FAILED on line " << __LINE__ << std::endl; }	// TODO
-
 	return (ret_code);
 }
-
-
-
-
-
-
-
-

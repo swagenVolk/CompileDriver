@@ -561,8 +561,19 @@ void FileParser::resolve_final_tkn_type (std::shared_ptr<Token>  tkn_of_ambiguit
       case USER_WORD_TKN:
         if (compilerTerms.isDataType(tkn_of_ambiguity->_string))
           tkn_of_ambiguity->tkn_type = DATA_TYPE_TKN;
-        else if (compilerTerms.isReservedWord (tkn_of_ambiguity->_string))
-          tkn_of_ambiguity->tkn_type = RESERVED_WORD_TKN;
+        else if (compilerTerms.isReservedWord (tkn_of_ambiguity->_string))  {
+          if (tkn_of_ambiguity->_string == FALSE_RESERVED_WORD) {
+            tkn_of_ambiguity->tkn_type = BOOL_TKN;
+            tkn_of_ambiguity->_unsigned = 0;
+
+          } else if (tkn_of_ambiguity->_string == TRUE_RESERVED_WORD) {
+            tkn_of_ambiguity->tkn_type = BOOL_TKN;
+            tkn_of_ambiguity->_unsigned = 1;
+
+          } else  {
+            tkn_of_ambiguity->tkn_type = RESERVED_WORD_TKN;
+          }
+        }
         break;
 
       // Illegal for a *committed* Token(s) or syntactic sugar
@@ -674,7 +685,7 @@ int FileParser::is_end_olde_skul_cmmnt (std::fstream & input_stream, wchar_t cur
       is_end = 1;
 
       // Need to consume this character since we only peeked @ it above
-      this->prev_char = curr_char;
+      prev_char = curr_char;
       if (OK != get_next_char (input_stream, peeked)) {
         // TODO: Check for valid END_OF_FILE
         ret_code = CATASTROPHIC_FAILURE;
@@ -797,6 +808,7 @@ int FileParser::gnr8_token_stream(std::string file_name, TokenPtrVector & token_
           if (iswspace(curr_char) || compilerTerms.is_sngl_char_spr8r(curr_char) || (iswpunct(curr_char) && curr_char != '_') )  {
             // Space, spr8r or punctuation (except _) ends a USER_WORD
             std::shared_ptr<Token> tkn = std::make_shared<Token>(curr_tkn_type, curr_str, fileName, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
+            resolve_final_tkn_type (tkn);
             token_stream.push_back(tkn);
             curr_str.clear();
 
@@ -828,7 +840,7 @@ int FileParser::gnr8_token_stream(std::string file_name, TokenPtrVector & token_
           */
         case DATETIME_TKN            :
           // TODO: Can strings cross multiple lines? ???
-          if (curr_char == '"' && this->prev_char != '\\') {
+          if (curr_char == '"' && prev_char != '\\') {
             // We got our closing quote and it was *NOT* escaped
             std::shared_ptr<Token> tkn = std::make_shared <Token> (curr_tkn_type, curr_str, fileName, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
             resolve_final_tkn_type (tkn);
@@ -925,11 +937,11 @@ int FileParser::gnr8_token_stream(std::string file_name, TokenPtrVector & token_
           break;
         default:
           failed_on_src_line_num = __LINE__;
-          std::wcout << "failed_on_src_line_num = " << failed_on_src_line_num << "; prev_char = " << std::hex << this->prev_char << "; curr_char = " << curr_char << ";" << std::endl << std::dec;
+          std::wcout << "failed_on_src_line_num = " << failed_on_src_line_num << "; prev_char = " << std::hex << prev_char << "; curr_char = " << curr_char << ";" << std::endl << std::dec;
           break;
       }
 
-      this->prev_char = curr_char;
+      prev_char = curr_char;
       nxt_ret = get_next_char(input_stream, curr_char);
 
       if (nxt_ret == END_OF_FILE)

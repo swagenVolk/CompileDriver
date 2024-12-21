@@ -20,6 +20,10 @@ FileLineCol::FileLineCol(std::wstring in_fileName, int in_lineNumber, int in_col
 
 FileLineCol::~FileLineCol() {
 	// TODO Auto-generated destructor stub
+	if (fileName.length() > 0)	{
+		fileName.erase(0, fileName.length());
+	}
+
 }
 
 FileLineCol& FileLineCol::operator= (const FileLineCol & src)
@@ -29,8 +33,11 @@ FileLineCol& FileLineCol::operator= (const FileLineCol & src)
 		return (*this);
 
 	// if data exists in the current string, delete it
-	fileName.clear();
-	fileName = src.fileName;
+	if (!fileName.empty())
+		fileName.clear();
+
+	if (!src.fileName.empty())
+		fileName = src.fileName;
 	lineNumber = src.lineNumber;
 	columnPos = src.columnPos;
 

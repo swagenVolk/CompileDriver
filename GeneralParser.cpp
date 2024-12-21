@@ -148,9 +148,17 @@ int GeneralParser::rootScopeCompile () 	{
 								isStopFail = true;
 						}
 					}
+				} else if (currTkn->tkn_type == USER_WORD_TKN 
+						&& OK != varScopeStack->findVar(currTkn->_string, 0, scratchTkn, READ_ONLY, userMessages))	{
+			  		userMessages->logMsg (USER_ERROR, L"Unrecognized USER_WORD: " + currTkn->descr_sans_line_num_col()
+							, userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
+
+						if (isProgressBlocked ())
+							isStopFail = true;
+
 				} else if ((currTkn->tkn_type == USER_WORD_TKN && OK == varScopeStack->findVar(currTkn->_string, 0, scratchTkn, READ_ONLY, userMessages))
-					|| currTkn->tkn_type == SRC_OPR8R_TKN && (currTkn->_string == usrSrcTerms.getSrcOpr8rStrFor (PRE_INCR_NO_OP_OPCODE)
-					|| currTkn->_string == usrSrcTerms.getSrcOpr8rStrFor (PRE_DECR_NO_OP_OPCODE)))	{
+					|| currTkn->tkn_type == SRC_OPR8R_TKN && (currTkn->_string == usrSrcTerms.getSrcOpr8rStrFor (PRE_INCR_OPR8R_OPCODE)
+					|| currTkn->_string == usrSrcTerms.getSrcOpr8rStrFor (PRE_DECR_OPR8R_OPCODE)))	{
 					// Put the current Token back; exprParser will need it!
 					tknStream.insert(tknStream.begin(), currTkn);
 
@@ -183,7 +191,7 @@ int GeneralParser::rootScopeCompile () 	{
 						// Write out to interpreted file BEFORE we destructively resolve the flat stream of Tokens that make up the expression
 						isStopFail = true;
 
-					} else if (OK != interpreter.resolveFlattenedExpr(flatExprTkns))	{
+					} else if (OK != interpreter.resolveFlatExpr(flatExprTkns))	{
 						isStopFail = true;
 
 					} else	{
@@ -423,7 +431,7 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
 		// Write out the expression BEFORE we destructively resolve it
 		isFailed = true;
 
-	} else if (OK != interpreter.resolveFlattenedExpr(flatExprTkns))	{
+	} else if (OK != interpreter.resolveFlatExpr(flatExprTkns))	{
 		isFailed = true;
 
 	} else if (!isFailed)	{

@@ -5,12 +5,14 @@
 #include <sstream>
 #include "TokenCompareResult.h"
 #include "FileLineCol.h"
+#include "locale_strings.h"
 #include <string>
 #include <stdint.h>
 #include <cassert>
 #include <vector>
 #include <memory>
 #include <cmath>
+#include "OpCodes.h"
 
 #define END_OF_STREAM_STR L"END_OF_STREAM"
 
@@ -31,6 +33,7 @@ enum tkn_type_enum {
   ,OLD_SCHOOL_CMMNT_TKN     // Illegal for a *committed* token - syntactic sugar
   ,TIL_EOL_CMMNT_TKN        // Illegal for a *committed* token - syntactic sugar
 	// TODO: Are 16 & 32 bit representations necessary? Useful?  Might be useful from a user's perspective....enforce size limits
+  ,BOOL_TKN
   ,UINT8_TKN
 	,UINT16_TKN
 	,UINT32_TKN
@@ -81,6 +84,7 @@ class Token {
     bool isUnsigned ();
     bool isSigned ();
     void resetToken ();
+    void resetToBool (bool isTrue);
     void resetToUnsigned (uint64_t newValue);
     void resetToSigned (int64_t newValue);
     void resetToDouble (double newValue);

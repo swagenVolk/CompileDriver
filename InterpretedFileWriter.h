@@ -45,11 +45,9 @@ private:
 	int write64BitOpCode (uint8_t op_code, uint64_t payload);
 	int writeRawString (std::wstring tokenStr);
 	int writeToken (Token token);
-  int makeFlatExpr_12_Opr8r (std::shared_ptr<ExprTreeNode> currBranch, std::vector<Token> & flatExprTknList);
+  int makeFlatExpr_LRO (std::shared_ptr<ExprTreeNode> currBranch, std::vector<Token> & flatExprTknList);
+	int makeFlatExpr_OLR (std::shared_ptr<ExprTreeNode> currBranch, std::vector<Token> & flatExprTknList);
 	int addTokenToFlatList (std::shared_ptr<Token> token, std::vector<Token> & flatExprTknList);
-	int checkPrePostFix (std::vector<Token> & flatExprTknList, std::vector<std::wstring> & preIncList
-		, std::vector<std::wstring> & preDecList, std::vector<std::wstring> & postIncList, std::vector<std::wstring> & postDecList
-		, std::wstring userSrcFileName, int usrSrcLineNum, int usrSrcColPos);
 
 };
 

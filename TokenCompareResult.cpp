@@ -9,11 +9,11 @@
 
 TokenCompareResult::TokenCompareResult() {
 	// TODO Auto-generated constructor stub
-	this->gr8rThan = compareFailed;
-	this->gr8rEquals = compareFailed;
-	this->lessThan = compareFailed;
-	this->lessEquals = compareFailed;
-	this->equals = compareFailed;
+	gr8rThan = compareFailed;
+	gr8rEquals = compareFailed;
+	lessThan = compareFailed;
+	lessEquals = compareFailed;
+	equals = compareFailed;
 
 }
 

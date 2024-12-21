@@ -8,6 +8,8 @@
  * Column position in the line that the Token started on
  * ***************************************************************************/
 #include "Token.h"
+#include "TokenCompareResult.h"
+#include "locale_strings.h"
 #include <iostream>
 
 using namespace std;
@@ -69,8 +71,8 @@ Token::Token (tkn_type_enum found_type, std::wstring tokenized_str, std::wstring
 
 Token::~Token()	{
 
-	if (this->_string.length() > 0)	{
-		this->_string.erase(0, this->_string.length());
+	if (_string.length() > 0)	{
+		_string.erase(0, _string.length());
 	}
 }
 
@@ -88,13 +90,9 @@ Token& Token::operator= (const Token & srcTkn)
 	_unsigned = srcTkn._unsigned;
 	_signed = srcTkn._signed;
 	_double = srcTkn._double;
-
-	src.fileName = srcTkn.src.fileName;
-	src.lineNumber = srcTkn.src.lineNumber;
-	src.columnPos = srcTkn.src.columnPos;
-
 	is_Rvalue = srcTkn.is_Rvalue;
 
+	src = srcTkn.src;
 
 	// TODO: I don't understand the comment below
 	// return the existing object so we can chain this operator
@@ -107,7 +105,7 @@ Token& Token::operator= (const Token & srcTkn)
 std::wstring Token::get_type_str()  {
   wstring ret_string;
 
-  switch (this->tkn_type)  {
+  switch (tkn_type)  {
 
     case BRKN_TKN                :
       ret_string = L"BRKN_TKN";
@@ -142,6 +140,9 @@ std::wstring Token::get_type_str()  {
     case TIL_EOL_CMMNT_TKN       :
       ret_string = L"TIL_EOL_CMMNT_TKN";
       break;
+		case BOOL_TKN:
+		ret_string = L"BOOL_TKN";
+			break;
     case UINT8_TKN								:
 			ret_string = L"UINT8_TKN";
 			break;
@@ -192,113 +193,13 @@ std::wstring Token::get_type_str()  {
 /* ****************************************************************************
  *
  * ***************************************************************************/
-std::wstring Token::descr_sans_line_num_col ()	{
-	std::wstring desc = get_type_str();
-
-	desc.append(L"(");
-	desc.append (isInitialized ? L"I)" : L"U)");
-	desc.append (L" ");
-
-	// Give STRINGs, DATETIMEs and SPR8Rs some context clues
-	if (this->tkn_type == STRING_TKN || this->tkn_type == DATETIME_TKN)
-		desc.append (L"\"");
-	else if (this->tkn_type == SPR8R_TKN)
-		desc.append (L"'");
-
-	if (!_string.empty())	{
-		desc.append (this->_string);
-	}
-
-	// Give STRINGs, DATETIMEs and SPR8Rs some context clues
-	if (this->tkn_type == STRING_TKN || this->tkn_type == DATETIME_TKN)
-		desc.append (L"\"");
-	else if (this->tkn_type == SPR8R_TKN)
-		desc.append (L"'");
-
-	if (isUnsigned())	{
-		std::wstringstream wstream;
-		wstream << L"[0x" << std::hex << _unsigned;
-		desc.append (wstream.str());
-		desc.append (L"]");
-
-	} else if (isSigned())	{
-		desc.append (L"[");
-		desc.append (std::to_wstring (_signed));
-		desc.append (L"]");
-
-	} else if (tkn_type == DOUBLE_TKN)	{
-		desc.append (L"[");
-		desc.append (std::to_wstring (_double));
-		desc.append (L"]");
-	}
-
-	desc.append (L";");
-
-	return (desc);
-}
-
-/* ****************************************************************************
- *
- * ***************************************************************************/
-std::wstring Token::descr_line_num_col ()	{
-	std::wstring desc = get_type_str();
-
-	desc.append(L"(");
-	desc.append (isInitialized ? L"I)" : L"U)");
-	desc.append (L" ");
-
-	// Give STRINGs, DATETIMEs and SPR8Rs some context clues
-	if (this->tkn_type == STRING_TKN || this->tkn_type == DATETIME_TKN)
-		desc.append (L"\"");
-	else if (this->tkn_type == SPR8R_TKN)
-		desc.append (L"'");
-
-	if (!_string.empty())	{
-		desc.append (this->_string);
-	}
-
-	// Give STRINGs, DATETIMEs and SPR8Rs some context clues
-	if (this->tkn_type == STRING_TKN || this->tkn_type == DATETIME_TKN)
-		desc.append (L"\"");
-	else if (this->tkn_type == SPR8R_TKN)
-		desc.append (L"'");
-
-	if (isUnsigned())	{
-		std::wstringstream wstream;
-		wstream << L"[0x" << std::hex << _unsigned;
-		desc.append (wstream.str());
-		desc.append (L"]");
-
-	} else if (isSigned())	{
-		desc.append (L"[");
-		desc.append (std::to_wstring (_signed));
-		desc.append (L"]");
-
-	} else if (tkn_type == DOUBLE_TKN)	{
-		desc.append (L"[");
-		desc.append (std::to_wstring (_double));
-		desc.append (L"]");
-	}
-
-	desc.append (L";");
-
-	// TODO: Filename?
-	desc.append (L" on line ");
-	desc.append (std::to_wstring(src.lineNumber));
-	desc.append (L" column ");
-	desc.append (std::to_wstring(src.columnPos));
-
-	return (desc);
-}
-/* ****************************************************************************
- *
- * ***************************************************************************/
 std::wstring Token::getValueStr ()	{
 	std::wstring value;
 	std::wstringstream hexStream;
 
 	hexStream.str (L"");
 	hexStream << L"0x" << std::hex << _unsigned;
+	std::wstring hexStr = hexStream.str();
 
 	// Give STRINGs, DATETIMEs and SPR8Rs some context clues
 	if (tkn_type == STRING_TKN || tkn_type == DATETIME_TKN)	{
@@ -313,14 +214,24 @@ std::wstring Token::getValueStr ()	{
 	
 	} else if (tkn_type == USER_WORD_TKN || tkn_type == DATA_TYPE_TKN || tkn_type == SRC_OPR8R_TKN)	{
 		value.append (_string);
+
+	} else if (tkn_type == BOOL_TKN)	{
+		if (_unsigned > 0)
+			value.append (TRUE_RESERVED_WORD);
+		else
+			value.append (FALSE_RESERVED_WORD);
 	
 	} else if (tkn_type == EXEC_OPR8R_TKN)	{
-		value.append (L"EXEC_OPR8R_TKN->");
-		value.append (hexStream.str());
+		if (!_string.empty())	{
+			value.append (_string);
+		} else {
+			value.append (L"EXEC_OPR8R_TKN->");
+			value.append (hexStr);
+		}
 	}
 
 	if (isUnsigned())	{
-		value.append (hexStream.str());
+		value.append (hexStr);
 
 	} else if (isSigned())	{
 		value.append (std::to_wstring (_signed));
@@ -335,28 +246,60 @@ std::wstring Token::getValueStr ()	{
 
 	return (value);
 }
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+std::wstring Token::descr_sans_line_num_col ()	{
+	std::wstring desc = get_type_str();
+
+	desc.append(L"(");
+	desc.append (isInitialized ? L"I)" : L"U)");
+	desc.append (L" ");
+	desc.append(getValueStr());
+	desc.append (L";");
+
+	return (desc);
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+std::wstring Token::descr_line_num_col ()	{
+	std::wstring desc = descr_sans_line_num_col();
+
+	// TODO: Filename?
+	desc.append (L" on line ");
+	desc.append (std::to_wstring(src.lineNumber));
+	desc.append (L" column ");
+	desc.append (std::to_wstring(src.columnPos));
+
+	return (desc);
+}
+
 /* ****************************************************************************
  *
  * ***************************************************************************/
 TokenCompareResult Token::compare (Token & otherTkn)	{
 	TokenCompareResult compareRez;
 
-	if ((this->tkn_type == UINT8_TKN || this->tkn_type == UINT16_TKN || this->tkn_type == UINT32_TKN || this->tkn_type == UINT64_TKN
-			|| this->tkn_type == INT8_TKN || this->tkn_type == INT16_TKN || this->tkn_type == INT32_TKN || this->tkn_type == INT64_TKN
-			|| this->tkn_type == STRING_TKN || this->tkn_type == DATETIME_TKN || this->tkn_type == DOUBLE_TKN)
-			&& (otherTkn.tkn_type == UINT8_TKN || otherTkn.tkn_type == UINT16_TKN || otherTkn.tkn_type == UINT32_TKN || otherTkn.tkn_type == UINT64_TKN
-					|| otherTkn.tkn_type == INT8_TKN || otherTkn.tkn_type == INT16_TKN || otherTkn.tkn_type == INT32_TKN || otherTkn.tkn_type == INT64_TKN
-					|| otherTkn.tkn_type == STRING_TKN || otherTkn.tkn_type == DATETIME_TKN || otherTkn.tkn_type == DOUBLE_TKN))	{
+	if (tkn_type == BOOL_TKN && otherTkn.tkn_type == BOOL_TKN)	{
+		if (_unsigned == otherTkn._unsigned)
+			compareRez.equals = isTrue;
+		else
+		 	compareRez.equals = isFalse;
+
+	} else if (tkn_type != BOOL_TKN && isDirectOperand() && otherTkn.tkn_type != BOOL_TKN && otherTkn.isDirectOperand())	{
 		// Both types are valid for comparison. Will check later if these 2 types can be compared against one another
 
-		if (this->tkn_type == otherTkn.tkn_type)	{
-			switch (this->tkn_type)	{
+		if (tkn_type == otherTkn.tkn_type)	{
+			switch (tkn_type)	{
 				case STRING_TKN:
-					this->_string > otherTkn._string ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
-					this->_string >= otherTkn._string ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
-					this->_string < otherTkn._string ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
-					this->_string <= otherTkn._string ? compareRez.lessEquals = isTrue : compareRez.lessEquals = isFalse;
-					this->_string == otherTkn._string ? compareRez.equals = isTrue : compareRez.equals = isFalse;
+					_string > otherTkn._string ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
+					_string >= otherTkn._string ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
+					_string < otherTkn._string ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
+					_string <= otherTkn._string ? compareRez.lessEquals = isTrue : compareRez.lessEquals = isFalse;
+					_string == otherTkn._string ? compareRez.equals = isTrue : compareRez.equals = isFalse;
 					break;
 
 				case DATETIME_TKN:
@@ -364,82 +307,82 @@ TokenCompareResult Token::compare (Token & otherTkn)	{
 				case UINT16_TKN:
 				case UINT32_TKN:
 				case UINT64_TKN:
-					this->_unsigned > otherTkn._unsigned ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
-					this->_unsigned >= otherTkn._unsigned ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
-					this->_unsigned < otherTkn._unsigned ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
-					this->_unsigned <= otherTkn._unsigned ? compareRez.lessEquals = isTrue : compareRez.lessEquals = isFalse;
-					this->_unsigned == otherTkn._unsigned ? compareRez.equals = isTrue : compareRez.equals = isFalse;
+					_unsigned > otherTkn._unsigned ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
+					_unsigned >= otherTkn._unsigned ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
+					_unsigned < otherTkn._unsigned ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
+					_unsigned <= otherTkn._unsigned ? compareRez.lessEquals = isTrue : compareRez.lessEquals = isFalse;
+					_unsigned == otherTkn._unsigned ? compareRez.equals = isTrue : compareRez.equals = isFalse;
 					break;
 
 				case INT8_TKN:
 				case INT16_TKN:
 				case INT32_TKN:
 				case INT64_TKN:
-					this->_signed > otherTkn._signed ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
-					this->_signed >= otherTkn._signed ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
-					this->_signed < otherTkn._signed ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
-					this->_signed <= otherTkn._signed ? compareRez.lessEquals = isTrue : compareRez.lessEquals = isFalse;
-					this->_signed == otherTkn._signed ? compareRez.equals = isTrue : compareRez.equals = isFalse;
+					_signed > otherTkn._signed ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
+					_signed >= otherTkn._signed ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
+					_signed < otherTkn._signed ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
+					_signed <= otherTkn._signed ? compareRez.lessEquals = isTrue : compareRez.lessEquals = isFalse;
+					_signed == otherTkn._signed ? compareRez.equals = isTrue : compareRez.equals = isFalse;
 					break;
 
 				case DOUBLE_TKN:
-					this->_unsigned > otherTkn._double ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
-					this->_unsigned >= otherTkn._double ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
-					this->_unsigned < otherTkn._double ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
-					this->_unsigned <= otherTkn._double ? compareRez.lessEquals = isTrue : compareRez.lessEquals = isFalse;
-					this->_unsigned == otherTkn._double ? compareRez.equals = isTrue : compareRez.equals = isFalse;
+					_unsigned > otherTkn._double ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
+					_unsigned >= otherTkn._double ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
+					_unsigned < otherTkn._double ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
+					_unsigned <= otherTkn._double ? compareRez.lessEquals = isTrue : compareRez.lessEquals = isFalse;
+					_unsigned == otherTkn._double ? compareRez.equals = isTrue : compareRez.equals = isFalse;
 					break;
 				default:
 					break;
 
 			}
 
-		} else if (this->tkn_type == UINT8_TKN || this->tkn_type == UINT16_TKN || this->tkn_type == UINT32_TKN || this->tkn_type == UINT64_TKN)	{
+		} else if (tkn_type == UINT8_TKN || tkn_type == UINT16_TKN || tkn_type == UINT32_TKN || tkn_type == UINT64_TKN)	{
 			if (otherTkn.tkn_type == INT8_TKN || otherTkn.tkn_type == INT16_TKN || otherTkn.tkn_type == INT32_TKN || otherTkn.tkn_type == INT64_TKN) {
-				this->_unsigned > otherTkn._signed ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
-				this->_unsigned >= otherTkn._signed ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
-				this->_unsigned < otherTkn._signed ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
-				this->_unsigned <= otherTkn._signed ? compareRez.lessEquals = isTrue : compareRez.lessEquals = isFalse;
-				this->_unsigned == otherTkn._signed ? compareRez.equals = isTrue : compareRez.equals = isFalse;
+				_unsigned > otherTkn._signed ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
+				_unsigned >= otherTkn._signed ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
+				_unsigned < otherTkn._signed ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
+				_unsigned <= otherTkn._signed ? compareRez.lessEquals = isTrue : compareRez.lessEquals = isFalse;
+				_unsigned == otherTkn._signed ? compareRez.equals = isTrue : compareRez.equals = isFalse;
 
 			} else if (otherTkn.tkn_type == DOUBLE_TKN)	{
-				this->_unsigned > otherTkn._double ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
-				this->_unsigned >= otherTkn._double ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
-				this->_unsigned < otherTkn._double ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
-				this->_unsigned <= otherTkn._double ? compareRez.lessEquals = isTrue : compareRez.lessEquals = isFalse;
-				this->_unsigned == otherTkn._double ? compareRez.equals = isTrue : compareRez.equals = isFalse;
+				_unsigned > otherTkn._double ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
+				_unsigned >= otherTkn._double ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
+				_unsigned < otherTkn._double ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
+				_unsigned <= otherTkn._double ? compareRez.lessEquals = isTrue : compareRez.lessEquals = isFalse;
+				_unsigned == otherTkn._double ? compareRez.equals = isTrue : compareRez.equals = isFalse;
 			}
 
-		} else if (this->tkn_type == INT8_TKN || this->tkn_type == INT16_TKN || this->tkn_type == INT32_TKN || this->tkn_type == INT64_TKN) {
+		} else if (tkn_type == INT8_TKN || tkn_type == INT16_TKN || tkn_type == INT32_TKN || tkn_type == INT64_TKN) {
 			if (otherTkn.tkn_type == UINT8_TKN || otherTkn.tkn_type == UINT16_TKN || otherTkn.tkn_type == UINT32_TKN || otherTkn.tkn_type == UINT64_TKN)	{
-				this->_signed > otherTkn._unsigned ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
-				this->_signed >= otherTkn._unsigned ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
-				this->_signed < otherTkn._unsigned ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
-				this->_signed <= otherTkn._unsigned ? compareRez.lessEquals = isTrue : compareRez.lessEquals = isFalse;
-				this->_signed == otherTkn._unsigned ? compareRez.equals = isTrue : compareRez.equals = isFalse;
+				_signed > otherTkn._unsigned ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
+				_signed >= otherTkn._unsigned ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
+				_signed < otherTkn._unsigned ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
+				_signed <= otherTkn._unsigned ? compareRez.lessEquals = isTrue : compareRez.lessEquals = isFalse;
+				_signed == otherTkn._unsigned ? compareRez.equals = isTrue : compareRez.equals = isFalse;
 
 			} else if (otherTkn.tkn_type == DOUBLE_TKN)	{
-				this->_unsigned > otherTkn._double ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
-				this->_unsigned >= otherTkn._double ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
-				this->_unsigned < otherTkn._double ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
-				this->_unsigned <= otherTkn._double ? compareRez.lessEquals = isTrue : compareRez.lessEquals = isFalse;
-				this->_unsigned == otherTkn._double ? compareRez.equals = isTrue : compareRez.equals = isFalse;
+				_unsigned > otherTkn._double ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
+				_unsigned >= otherTkn._double ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
+				_unsigned < otherTkn._double ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
+				_unsigned <= otherTkn._double ? compareRez.lessEquals = isTrue : compareRez.lessEquals = isFalse;
+				_unsigned == otherTkn._double ? compareRez.equals = isTrue : compareRez.equals = isFalse;
 			}
 
-		} else if (this->tkn_type == DOUBLE_TKN)	{
+		} else if (tkn_type == DOUBLE_TKN)	{
 			if (otherTkn.tkn_type == UINT8_TKN || otherTkn.tkn_type == UINT16_TKN || otherTkn.tkn_type == UINT16_TKN || otherTkn.tkn_type == UINT32_TKN || otherTkn.tkn_type == UINT64_TKN)	{
-				this->_double > otherTkn._unsigned ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
-				this->_double >= otherTkn._unsigned ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
-				this->_double < otherTkn._unsigned ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
-				this->_double <= otherTkn._unsigned ? compareRez.lessEquals = isTrue : compareRez.lessEquals = isFalse;
-				this->_double == otherTkn._unsigned ? compareRez.equals = isTrue : compareRez.equals = isFalse;
+				_double > otherTkn._unsigned ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
+				_double >= otherTkn._unsigned ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
+				_double < otherTkn._unsigned ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
+				_double <= otherTkn._unsigned ? compareRez.lessEquals = isTrue : compareRez.lessEquals = isFalse;
+				_double == otherTkn._unsigned ? compareRez.equals = isTrue : compareRez.equals = isFalse;
 
 			} else if (otherTkn.tkn_type == INT8_TKN || otherTkn.tkn_type == INT16_TKN || otherTkn.tkn_type == INT32_TKN || otherTkn.tkn_type == INT64_TKN) {
-				this->_double > otherTkn._signed ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
-				this->_double >= otherTkn._signed ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
-				this->_double < otherTkn._signed ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
-				this->_double <= otherTkn._signed ? compareRez.lessEquals = isTrue : compareRez.lessEquals = isFalse;
-				this->_double == otherTkn._signed ? compareRez.equals = isTrue : compareRez.equals = isFalse;
+				_double > otherTkn._signed ? compareRez.gr8rThan = isTrue : compareRez.gr8rThan = isFalse;
+				_double >= otherTkn._signed ? compareRez.gr8rEquals = isTrue : compareRez.gr8rEquals = isFalse;
+				_double < otherTkn._signed ? compareRez.lessThan = isTrue : compareRez.lessThan = isFalse;
+				_double <= otherTkn._signed ? compareRez.lessEquals = isTrue : compareRez.lessEquals = isFalse;
+				_double == otherTkn._signed ? compareRez.equals = isTrue : compareRez.equals = isFalse;
 			}
 		}
 	}
@@ -452,7 +395,7 @@ TokenCompareResult Token::compare (Token & otherTkn)	{
  *
  * ***************************************************************************/
 bool Token::isDirectOperand ()	{
-	bool isRand = isDirectOperand(this->tkn_type);
+	bool isRand = isDirectOperand(tkn_type);
 	return (isRand);
 }
 
@@ -463,6 +406,7 @@ bool Token::isDirectOperand (TokenTypeEnum tokenType)	{
 	bool isRand = false;
 
 		switch (tokenType)	{
+			case BOOL_TKN :
 			case STRING_TKN :
 			case DATETIME_TKN :
 			case UINT8_TKN :
@@ -498,6 +442,7 @@ bool Token::evalResolvedTokenAsIf ()	{
 			if (_string.size() > 0)
 				isTrue = true;
 			break;
+		case BOOL_TKN :
 		case UINT8_TKN :
 		case UINT16_TKN :
 		case UINT32_TKN :
@@ -515,7 +460,6 @@ bool Token::evalResolvedTokenAsIf ()	{
 		case DOUBLE_TKN :
 			if (_double)
 				isTrue = true;
-			break;
 			break;
 		default:
 			break;
@@ -561,6 +505,20 @@ bool Token::isSigned ()	{
 	}
 	return (isSigned);
 }
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+void Token::resetToBool (bool isTrue)	{
+	resetToken();
+	tkn_type = BOOL_TKN;
+
+	if (isTrue)
+		_unsigned = 1;
+	else
+	 	_unsigned = 0;
+}
+
 
 /* ****************************************************************************
  *
@@ -617,7 +575,7 @@ void Token::resetToDouble (double newValue)	{
 void Token::resetToString (std::wstring newValue)	{
 	resetToken();
 
-	_string = newValue;
+	_string.append (newValue);
 	tkn_type = STRING_TKN;
 }
 
@@ -631,22 +589,38 @@ int Token::convertTo (Token newValTkn)	{
 		*this = newValTkn;
 		ret_code = OK;
 
+	} else if (isUnsigned() && newValTkn.tkn_type == BOOL_TKN)	{
+		if (_unsigned > 0)
+			resetToBool(true);
+		else
+		 	resetToBool(false);
+
+		ret_code = OK;
+
+	} else if (isSigned() && newValTkn.tkn_type == BOOL_TKN)	{
+		if (_signed > 0)
+			resetToBool(true);
+		else
+		 	resetToBool(false);
+
+		ret_code = OK;
+
 	} else if (isUnsigned() && newValTkn.isUnsigned())	{
-		// Both are UNSIGNED
+		// Both are UNSIGNED, but of diffeent sizes
 		if (tkn_type >= newValTkn.tkn_type)
 			// Keep the user declared larger data_type size
 			_unsigned = newValTkn._unsigned;
 		else
-			this->resetToUnsigned (newValTkn._unsigned);
+			resetToUnsigned (newValTkn._unsigned);
 		ret_code = OK;
 
 	}	else if (isSigned() && newValTkn.isSigned())	{
-		// Both are SIGNED
+		// Both are SIGNED, but of diffeent sizes
 		if (tkn_type >= newValTkn.tkn_type)
 			// Keep the user declared larger data_type size
 			_signed = newValTkn._signed;
 		else
-			this->resetToSigned (newValTkn._signed);
+			resetToSigned (newValTkn._signed);
 		ret_code = OK;
 
 	} else if (tkn_type == DOUBLE_TKN && newValTkn.isSigned())	{

@@ -24,10 +24,10 @@
 #define ATOMIC_OPCODE_RANGE_END					0x2F
 
 
-#define	POST_INCR_NO_OP_OPCODE					0x1			// PREFIX & POSTFIX OPR8Rs are executed before|after the expression
-#define	POST_DECR_NO_OP_OPCODE					0x2			// that contains them. We still want to keep a reference in the Interpreted
-#define	PRE_INCR_NO_OP_OPCODE					  0x3			// expression stream for when the Interpreted file get disassembled.
-#define	PRE_DECR_NO_OP_OPCODE					  0x4
+#define	POST_INCR_OPR8R_OPCODE					0x1			// PREFIX & POSTFIX OPR8Rs are executed before|after the expression
+#define	POST_DECR_OPR8R_OPCODE					0x2			// that contains them. We still want to keep a reference in the Interpreted
+#define	PRE_INCR_OPR8R_OPCODE					  0x3			// expression stream for when the Interpreted file get disassembled.
+#define	PRE_DECR_OPR8R_OPCODE					  0x4
 
 #define UNARY_PLUS_OPR8R_OPCODE					0x5
 #define	UNARY_MINUS_OPR8R_OPCODE				0x6
@@ -80,7 +80,8 @@
 #define DATA_TYPE_STRING_OPCODE					0x38
 #define DATA_TYPE_DATETIME_OPCODE				0x39
 #define DATA_TYPE_DOUBLE_OPCODE					0x3A
-#define LAST_VALID_DATA_TYPE_OPCODE			0x3A		// Change this value if new data_types in this range are created
+#define DATA_TYPE_BOOL_OPCODE           0x3B
+#define LAST_VALID_DATA_TYPE_OPCODE			0x3B		// Change this value if new data_types in this range are created
 
 // Opcodes [0x40-0x47] have an 8-bit payload
 #define FIXED_OPCODE_RANGE_BEGIN				0x40
@@ -88,6 +89,7 @@
 
 #define UINT8_OPCODE										0x40	// [op_code][8-bit #]
 #define INT8_OPCODE											0x42	// [op_code][8-bit #]
+#define BOOL_DATA_OPCODE                0x43
 
 // Opcodes [0x48-0x4F] have a 16-bit payload
 #define UINT16_OPCODE										0x48	// [op_code][16-bit #]
@@ -113,10 +115,6 @@
 // TODO: Should I store doubles as something other than a literal string?
 #define DATETIME_OPCODE									0x62	// [op_code][total_length][datetime string]
 #define DOUBLE_OPCODE										0x63	// [op_code][total_length][double string]
-#define	POST_INCR_OPR8R_OPCODE					0x64	// [op_code][total_length][string of comma separated var names]
-#define	POST_DECR_OPR8R_OPCODE					0x65	// [op_code][total_length][string of comma separated var names]
-#define	PRE_INCR_OPR8R_OPCODE						0x66	// [op_code][total_length][string of comma separated var names]
-#define	PRE_DECR_OPR8R_OPCODE						0x67	// [op_code][total_length][string of comma separated var names]
 
 // TODO: Should code_blocks also have their own total_length field?
 // TODO: Could these code_blocks be considered unnamed scopes instead?

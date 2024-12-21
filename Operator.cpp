@@ -22,7 +22,7 @@ Operator::Operator()	{
 
 Operator::Operator(std::wstring in_symbol, uint8_t in_type_mask, uint8_t in_valid_for_mask, int in_num_src_operands, int in_num_exec_operands, uint8_t in_op_code) {
 	// TODO Auto-generated constructor stub
-	this->symbol = in_symbol;
+	symbol = in_symbol;
 
 	// UNARY doesn't play well with others
 	if (in_type_mask & UNARY)

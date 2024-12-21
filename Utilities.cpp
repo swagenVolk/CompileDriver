@@ -7,9 +7,12 @@
  */
 
 #include "Utilities.h"
+#include "Token.h"
 #include "common.h"
+#include "locale_strings.h"
 #include <cctype>
 #include <cwctype>
+#include <iostream>
 #include <stdint.h>
 #include <string>
 
@@ -145,47 +148,7 @@ void Utilities::dumpTokenList (std::vector<Token> & tokenStream, CompileExecTerm
 	int idx;
 	for (idx = 0; idx < tokenStream.size(); idx++)	{
 		Token listTkn = tokenStream[idx];
-		std::wcout << L"[" ;
-
-		switch (listTkn.tkn_type)	{
-			case EXEC_OPR8R_TKN:
-			if (listTkn._unsigned == PRE_INCR_OPR8R_OPCODE)	
-				std::wcout << L"++(" << listTkn._string << L")";
-			else if (listTkn._unsigned == PRE_DECR_OPR8R_OPCODE)
-				std::wcout << L"--(" << listTkn._string << L")";
-			else if (listTkn._unsigned == POST_INCR_OPR8R_OPCODE)
-				std::wcout << L"(" << listTkn._string << L")++";
-			else if (listTkn._unsigned == POST_DECR_OPR8R_OPCODE)
-				std::wcout << L"(" << listTkn._string << L")--";
-			else
-				std::wcout << execTerms.getSrcOpr8rStrFor(listTkn._unsigned);
-			break;
-			case UINT8_TKN:
-			case UINT16_TKN:
-			case UINT32_TKN:
-			case UINT64_TKN:
-				std::wcout << listTkn._unsigned;
-				break;
-			case INT8_TKN:
-			case INT16_TKN:
-			case INT32_TKN:
-			case INT64_TKN:
-				std::wcout << listTkn._signed;
-				break;
-			case DOUBLE_TKN:
-				std::wcout << listTkn._double;
-				break;
-			case STRING_TKN:
-			case DATETIME_TKN:
-			case USER_WORD_TKN:
-			case SRC_OPR8R_TKN:
-				std::wcout << listTkn._string;
-				break;
-			default:
-				std::wcout << L"???";
-				break;
-		}
-		std::wcout << L"] ";
+		std::wcout << L"[" << listTkn.getValueStr() << L"]";
 	}
 
 	std::wcout << std::endl;

@@ -105,7 +105,7 @@ void VariablesScope::displayVariables()	{
 	int maxNameLen = 0;
 
 	for (int currIdx = scopeTopIdx; currIdx >= 0; currIdx--)	{
-		std::wcout << L"********** BEGIN SCOPE LEVEL " << currIdx << L" **********" << std::endl;
+		std::wcout << L"/* ********** <SCOPE LEVEL " << currIdx << L"> ********** " << std::endl;
 		std::shared_ptr<ScopeFrame> currScope = scopeStack[currIdx];
 		varNames.clear();
 		for (auto mapr8r = currScope->variables.begin(); mapr8r != currScope->variables.end(); mapr8r++)	{
@@ -127,6 +127,6 @@ void VariablesScope::displayVariables()	{
 			std::wcout << alignedName << L" = " << nxtVarTkn->getValueStr() << L";" << std::endl;
 		}
 
-		std::wcout << L"********** <END> SCOPE LEVEL " << currIdx << L" **********" << std::endl;
+		std::wcout << L"   ********** </SCOPE LEVEL " << currIdx << L"> ********** */" << std::endl;
 	}
 }
