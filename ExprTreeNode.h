@@ -18,7 +18,7 @@ public:
 	virtual ~ExprTreeNode();
 
   std::shared_ptr<Token> originalTkn;
-  std::shared_ptr<ExprTreeNode> myParent;
+  std::shared_ptr<ExprTreeNode> myParentScope;
   std::shared_ptr<ExprTreeNode> _1stChild;		// Left operand for a BINARY, POSTFIX or the TERNARY FALSE* branch
   std::shared_ptr<ExprTreeNode> _2ndChild;		// Right operand for a BINARY, PREFIX or the TERNARY TRUE* branch
   														                // Ordering is opposite initial expectations to account for tree recursively 

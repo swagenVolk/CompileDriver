@@ -144,14 +144,27 @@ void Utilities::splitString (std::wstring inStr, std::wstring spr8r, std::vector
 void Utilities::dumpTokenList (std::vector<Token> & tokenStream, CompileExecTerms execTerms, std::wstring callersSrcFile, int lineNum)	{
 	std::wstring tknStrmStr = L"";
 
+	dumpTokenList (tokenStream, 0, execTerms, callersSrcFile, lineNum);
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+void Utilities::dumpTokenList (std::vector<Token> & tokenStream, int startIdx, CompileExecTerms execTerms, std::wstring callersSrcFile, int lineNum)	{
+	std::wstring tknStrmStr = L"";
+
+
 	std::wcout << L"********** dumpTokenList called from " << callersSrcFile << L":" << lineNum << L" **********" << std::endl;
-	int idx;
-	for (idx = 0; idx < tokenStream.size(); idx++)	{
-		Token listTkn = tokenStream[idx];
-		std::wcout << L"[" << listTkn.getValueStr() << L"]";
+	if (startIdx >= 0 && startIdx < tokenStream.size())	{
+		for (int idx = startIdx; idx < tokenStream.size(); idx++)	{
+			Token listTkn = tokenStream[idx];
+			std::wcout << L"[" << listTkn.getValueStr() << L"]";
+		}
+	
+	} else {
+		std::wcout << L"tokenStream size = " << tokenStream.size() << L" but passed in startIdx = " << startIdx;
 	}
 
 	std::wcout << std::endl;
 
 }
-

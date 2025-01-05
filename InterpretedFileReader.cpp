@@ -4,6 +4,7 @@
  *  Created on: Oct 24, 2024
  *      Author: Mike Volk
  *
+ * Utility class used by Interpreter to grab objects from the compiled object file. 
  * TODO: Does it make sense to change the endian-ness of the file?
  */
 

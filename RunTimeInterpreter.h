@@ -52,8 +52,8 @@ private:
 	std::wstring userSrcFileName;
 	int usageMode;
 	InterpretedFileReader fileReader;
+	int failOnSrcLine;
 
-  int execFlatExpr_LRO(std::vector<Token> & exprTknStream);
   int execFlatExpr_OLR(std::vector<Token> & exprTknStream, int startIdx);
 	int execOperation (Operator opr8r, int opr8rIdx, std::vector<Token> & flatExprTkns);
 	int execVarDeclaration (uint32_t objStartPos, uint32_t objectLen);
@@ -61,17 +61,15 @@ private:
 	int execUnaryOp (std::vector<Token> & exprTknStream, int opr8rIdx);
 	int execAssignmentOp(std::vector<Token> & exprTknStream, int opr8rIdx);
 	int execBinaryOp (std::vector<Token> & exprTknStream, int opr8rIdx);
-	int findNextTernary2ndIdx (std::vector<Token> & exprTknStream, int ternary1stOpIdx);
 	int getEndOfSubExprIdx (std::vector<Token> & exprTknStream, int startIdx, int & lastIdxOfExpr);
 	int execTernary1stOp (std::vector<Token> & exprTknStream, int opr8rIdx);
-	int takeTernaryTrue (std::vector<Token> & exprTknStream, int opr8rIdx);
-	int takeTernaryFalse (std::vector<Token> & exprTknStream, int opr8rIdx);
-
+	int execLogicalAndOp (std::vector<Token> & exprTknStream, int opr8rIdx);
+	int execLogicalOrOp (std::vector<Token> & exprTknStream, int opr8rIdx);
 	int execEquivalenceOp (std::vector<Token> & exprTknStream, int opr8rIdx);
 	int execShift (std::vector<Token> & exprTknStream, int opr8rIdx);
 	int execBitWiseOp (std::vector<Token> & exprTknStream, int opr8rIdx);
 	int execStandardMath (std::vector<Token> & exprTknStream, int opr8rIdx);
-	int resolveIfVariable (Token & originalTkn, Token & resolvedTkn, std::wstring & varName);
+	int resolveTknOrVar (Token & originalTkn, Token & resolvedTkn, std::wstring & varName);
 
 };
 

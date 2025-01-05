@@ -293,3 +293,29 @@ void UserMessages::showMessagesByInsertOrder (bool isOrderAscending)	{
 	}
 
 }
+
+/* ****************************************************************************
+ * Helper fxn used when a class tracks failure by internal source line number
+ * but didn't use UserMessages to store a detailed message. Useful for some cases
+ * where the error condition was never really expected, and adding in a lot of
+ * verbiage via a logMsg call seems overblown. The class destructor can do a check
+ * via this call, and if there is no corresponding message it can dump out a message
+ * indicating the source file and line number of the failure. This will hopefully
+ * speed up debug efforts.
+ * ***************************************************************************/
+bool UserMessages::isExistsInternalError (std::wstring fileName, int lineNum)	{
+	bool isExists = false;
+
+	for (auto outr8r = internalErrorMessages.begin(); outr8r != internalErrorMessages.end() && !isExists; outr8r++)	{
+		std::wstring unqMsg = outr8r->first;
+		std::shared_ptr<std::vector<FileLineCol>> msgInstances = outr8r->second;
+
+		for (auto innr8r = msgInstances->begin(); innr8r != msgInstances->end() && !isExists; innr8r++)	{
+			if (innr8r->fileName == fileName && innr8r->lineNumber == lineNum)
+				isExists = true;
+
+		}
+	}
+
+	return (isExists);
+}

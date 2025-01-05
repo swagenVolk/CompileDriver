@@ -4,6 +4,7 @@
  *  Created on: Oct 14, 2024
  *      Author: Mike Volk
  *
+ * Utility class used by the Compiler to write objects out to the Interpreted file.
  *	TODO:
  *	Make sure error messages are captured
  *	Make recursive fxn that only builds a Token list that will be written out separately

@@ -12,7 +12,6 @@ add_executable(
 	OpCodes.h Opr8rPrecedenceLvl.h Opr8rPrecedenceLvl.cpp
 	BaseLanguageTerms.h BaseLanguageTerms.cpp CompileExecTerms.h CompileExecTerms.cpp RunTimeInterpreter.h RunTimeInterpreter.cpp
 	ExprTreeNode.h ExprTreeNode.cpp
-	NameSpaceObject.h NameSpaceObject.cpp
 	FileParser.h FileParser.cpp
 	NestedScopeExpr.h NestedScopeExpr.cpp
 	ScopeFrame.h ScopeFrame.cpp

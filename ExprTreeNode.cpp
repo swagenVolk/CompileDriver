@@ -2,7 +2,6 @@
  * ExprTreeNode.cpp
  * This class holds a Token that originally came from the user's source file.  It has multiple child pointers that allow for linking
  * multiple ExprTreeNode instances together in hierarchical tree structure.
- * TODO: Check that myParent is getting filled in properly.
  *
  *  Created on: Jun 5, 2024
  *      Author: Mike Volk
@@ -14,7 +13,7 @@
 ExprTreeNode::ExprTreeNode(std::shared_ptr<Token> startOpr8rTkn) {
 	// Attach this shared_ptr to an already existing shared_ptr of type Token
 	originalTkn = startOpr8rTkn;
-  myParent = NULL;
+  myParentScope = NULL;
   _1stChild = NULL;
   _2ndChild = NULL;
 }

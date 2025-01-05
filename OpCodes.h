@@ -3,10 +3,8 @@
  *
  * This file defines OpCodes that will be produced by the Compiler and consumed by the Interpreter.
  *
- * Create OPR8R op_codes in precedence order.  Might make it easier to remember what OPR8Rs the op_codes refer to.
- *
  *  Created on: Oct 10, 2024
- *      Author: mike
+ *      Author: Mike Volk
  */
 
 #ifndef OPCODES_H_

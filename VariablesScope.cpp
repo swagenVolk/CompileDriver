@@ -3,6 +3,8 @@
  *
  *  Created on: Nov 18, 2024
  *      Author: Mike Volk
+ * 
+ * Conceptually this is a NameSpace that holds variables in their respective scope levels
  */
 
 #include "VariablesScope.h"

@@ -4,19 +4,23 @@
  * Left, center and right justified parentheses in expressions
  *
  * TODO:
- * Short circuiting - Will I need to change 12O -> O12?
+ * Method to regression test lots of expressions and compare results against regular compiler
+ * Use a static analyzer
+ * How can I check for memory leaks|danglers?
+ * USER_ERROR should never cause an INTERNAL_ERROR. Maybe try using an unknown data type to re-create the issue.
  * Disassembler?
  * Be clear & consistent about where type checking happens!
  * Look for opportunities to clarify (ie #defines -> enums?) to make debugging easier
  * How many pointers can I replace with essentially a copy? (grep -HEn "\bnew\b" *.cpp -> [0])
- * How can I check for memory leaks|danglers?
- * Method to regression test lots of expressions and compare results against regular compiler
  * Compile fxn calls and put into NameSpace
  *
  * Directory/index for fxn calls so Interpreter doesn't have to search through the object
  * file for the location. It can do a quick(er) lookup
  *
  * RECENTLY DONE:
+ * isFailed -> failedOnSrcLine at RunTimeInterpreter class level - Display via destructor if set
+ * Test short circuit for [||],[&&] and [?] OPR8Rs
+ * Short circuiting - Changed 12O -> O12
  * string variables - support was mostly already in place
  * bool - added;
  * FileParser recognize data types and reserved words.
@@ -62,7 +66,6 @@
 #include "GeneralParser.h"
 #include <iostream>
 #include <string>
-#include <vector>
 
 using namespace std;
 

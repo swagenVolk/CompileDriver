@@ -22,6 +22,7 @@ public:
 	std::wstring trim (std::wstring inStr);
 	void splitString (std::wstring inStr, std::wstring spr8r, std::vector<std::wstring> & strVector);
 	void dumpTokenList (std::vector<Token> & tokenStream, CompileExecTerms execTerms, std::wstring callersSrcFile, int lineNum);
+	void dumpTokenList (std::vector<Token> & tokenStream, int startIdx, CompileExecTerms execTerms, std::wstring callersSrcFile, int lineNum);
 
 };
 

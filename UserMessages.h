@@ -29,6 +29,7 @@ public:
 	void getInternalErrorCnt (int & numUnique, int & numTotal);
 	void showMessagesByGroup ();
 	void showMessagesByInsertOrder (bool isOrderAscending);
+	bool isExistsInternalError (std::wstring fileName, int lineNum);
 
 private:
 	std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> infoMessages;
