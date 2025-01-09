@@ -43,6 +43,7 @@
 #include "CompileExecTerms.h"
 #include "ExprTreeNode.h"
 #include "InfoWarnError.h"
+#include "OpCodes.h"
 #include "Operator.h"
 #include "Token.h"
 #include "UserMessages.h"
@@ -68,6 +69,7 @@ ExpressionParser::~ExpressionParser() {
  * Parse through the current expression and if it's well formed, commit it to
  * the interpreted stream. If it's not well formed, generate a clear error
  * message to the user.
+ * TODO: isEndedByComma -> isEnclosedByParens? isParenBound?
  * ***************************************************************************/
 int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree
 		, Token & enderTkn, bool isEndedByComma, bool & isExprClosed)  {
@@ -129,7 +131,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 								isStopFail = true;
 
 							} else if (top > 0 || exprScopeStack[top]->scopedKids.size() > 1)	{
-								if (OK != closeNestedScopes(*currTkn, expectedEndTkn, isExprClosed, enderTkn))	{
+								if (OK != closeNestedScopes())	{
 									// TODO:
 									isStopFail = true;
 								}
@@ -175,11 +177,12 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 						// Remove Token from stream without destroying - move to flat expression in current scope
 						tknStream.erase(tknStream.begin());
 
-						if (OK != closeNestedScopes (*currTkn, expectedEndTkn, isExprClosed, enderTkn))	{
+						if (OK != closeNestedScopes ())	{
 							isStopFail = true;
 
-						} else if (exprScopeStack.size() == 1 && exprScopeStack[0]->scopedKids.size() == 1)	{
+						} else if (!isEndedByComma && exprScopeStack.size() == 1 && exprScopeStack[0]->scopedKids.size() == 1)	{
 							isExprClosed = true;
+							enderTkn = *currTkn;
 							exprCloseLine = __LINE__;
 						}
 
@@ -245,7 +248,8 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
  * recursively.  It's turtles all the way down!
  * TODO: Might not need any of these parameters. 
 * ***************************************************************************/
- int ExpressionParser::closeNestedScopes(Token currTkn, Token expectedEndTkn, bool & isExprClosed, Token & enderTkn)	{
+ //int ExpressionParser::closeNestedScopes(Token currTkn, Token expectedEndTkn, bool & isExprClosed, Token & enderTkn)	{
+ int ExpressionParser::closeNestedScopes()	{
 	int ret_code = GENERAL_FAILURE;
 
 	bool isParentLinked = false;
@@ -299,7 +303,7 @@ int ExpressionParser::makeTreeAndLinkParent (bool & isParentFndYet)  {
 	bool isScopenerFound = false;
 	bool isRootScope = false;
 	bool isExprAttached = false;
-	bool isScopeTopTernary = false;
+	bool isOpenedByTernary = false;
 	bool isStopFail = false;
 
 	// Start off expecting we won't find the matching opening '(' or [?] at this scope
@@ -325,7 +329,7 @@ int ExpressionParser::makeTreeAndLinkParent (bool & isParentFndYet)  {
 			// exprScopeStack[exprScopeStack.size() - 1]->myParentScopener = NULL;
 
 		} else if (scopener->originalTkn->tkn_type == SRC_OPR8R_TKN && scopener->originalTkn->_string == usrSrcTerms.get_ternary_1st())	{
-			isScopeTopTernary = true;
+			isOpenedByTernary = true;
 
 		} else	{
 			userMessages->logMsg (USER_ERROR, L"Current scope NOT opened by either '(' or " + usrSrcTerms.get_ternary_1st() + L" but with " + scopenerDesc
@@ -344,10 +348,10 @@ int ExpressionParser::makeTreeAndLinkParent (bool & isParentFndYet)  {
 	} else {
 		int stackSzB4 = exprScopeStack.size();
 
-		if (!isStopFail && isParentFndYet != isScopeTopTernary)	{
+		if (!isStopFail && isParentFndYet != isOpenedByTernary)	{
 			// Call turnClosedScopeIntoTree to collapse the current flat list of ExprTreeNodes into
 			// a hierarchical tree based on OPR8R precedence - a root ExprTreeNode
-			if (OK == turnClosedScopeIntoTree (exprScopeStack[exprScopeStack.size() - 1]->scopedKids))	{
+			if (OK == turnClosedScopeIntoTree (exprScopeStack[exprScopeStack.size() - 1]->scopedKids, isOpenedByTernary))	{
 				// Update the placeholder "(" ExprTreeNode so that it now points to the parent ExprTreeNode
 				// TODO: After expression is completed, then remove the intermediary "(" objects ???????
 				std::shared_ptr<NestedScopeExpr> stackTop = exprScopeStack[exprScopeStack.size() - 1];
@@ -379,14 +383,14 @@ int ExpressionParser::makeTreeAndLinkParent (bool & isParentFndYet)  {
 								childList.insert (nodeR8r, subExpr);
 								isExprAttached = true;
 
-							} else if (isScopeTopTernary && subExpr->originalTkn->_string == usrSrcTerms.get_ternary_2nd() && scopener->_2ndChild == NULL)	{
+							} else if (isOpenedByTernary && subExpr->originalTkn->_string == usrSrcTerms.get_ternary_2nd() && scopener->_2ndChild == NULL)	{
 								// The subexpression could be the direct [:] child, but we also need to allow for nested ternarys
 								scopener->_2ndChild = subExpr;
 								subExpr->myParentScope = scopener;
 								isExprAttached = true;
 								ret_code = OK;
 
-							} else if (isScopeTopTernary && scopener->_2ndChild == NULL)	{
+							} else if (isOpenedByTernary && scopener->_2ndChild == NULL)	{
 								// Scope was opened by TERNARY_1ST, and root of subExpr is NOT direct TERNARY_2ND
 								// The TERNARY_2ND *may* be buried deeper in the tree; probably below an assignment OPR8R
 								// that has lower priority. Tree precedence is inverted; deeper|lower in tree means higher precedence
@@ -407,6 +411,7 @@ int ExpressionParser::makeTreeAndLinkParent (bool & isParentFndYet)  {
 									ret_code = OK;
 
 								} else	{
+									subExpr->showTree(thisSrcFile, __LINE__);
 									std::wstring userMsg = L"Current scope opened by [";
 									userMsg.append(usrSrcTerms.get_ternary_1st());
 									userMsg.append (L"] but could not find paired [");
@@ -523,7 +528,7 @@ int ExpressionParser::moveNeighborsIntoTree (Operator & opr8r, ExprTreeNodePtrVe
 				} else {
 					if ((opr8r.type_mask & PREFIX) && (rightNbr->originalTkn->tkn_type != USER_WORD_TKN 
 							|| !usrSrcTerms.isViableVarName(rightNbr->originalTkn->_string)
-							|| OK != varScopeStack->findVar(rightNbr->originalTkn->_string, 0, tmpTkn, READ_ONLY, userMessages)))	{
+							|| OK != varScopeStack->findSourceVar(rightNbr->originalTkn->_string, 0, tmpTkn, READ_ONLY, userMessages)))	{
 						// Make sure our right neighbor is a variable name before moving
 						isFailed = true;
 					
@@ -556,7 +561,7 @@ int ExpressionParser::moveNeighborsIntoTree (Operator & opr8r, ExprTreeNodePtrVe
 				} else {
 					if ((opr8r.type_mask & POSTFIX) && (leftNbr->originalTkn->tkn_type != USER_WORD_TKN 
 							|| !usrSrcTerms.isViableVarName(leftNbr->originalTkn->_string)
-							|| OK != varScopeStack->findVar(leftNbr->originalTkn->_string, 0, tmpTkn, READ_ONLY, userMessages)))	{
+							|| OK != varScopeStack->findSourceVar(leftNbr->originalTkn->_string, 0, tmpTkn, READ_ONLY, userMessages)))	{
 						// Make sure our left neighbor is a variable name before moving
 						isFailed = true;
 					
@@ -588,6 +593,12 @@ int ExpressionParser::moveNeighborsIntoTree (Operator & opr8r, ExprTreeNodePtrVe
 }
 
 /* ****************************************************************************
+ * ***************************************************************************/
+int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope)  {
+	return turnClosedScopeIntoTree(currScope, false);
+}
+
+/* ****************************************************************************
  * For this sub-expression contained in 1 scope level (ie inside 1 set of parentheses)
  * work through the precedence ordered list of OPR8Rs make a shrubbery
  * Should wind up as a single OPR8R at the top of a shrub/tree
@@ -603,7 +614,7 @@ int ExpressionParser::moveNeighborsIntoTree (Operator & opr8r, ExprTreeNodePtrVe
  *    3,2
  * Higher precedence operations get pushed further down the tree
  * ***************************************************************************/
-int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope)  {
+int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope, bool isOpenedByTernary)  {
   int ret_code = GENERAL_FAILURE;
   bool isStopFail = false;
   bool isReachedEOL = false;
@@ -614,7 +625,7 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
   std::list<Opr8rPrecedenceLvl>::iterator outr8r;
   std::list<Operator>::iterator innr8r;
   Opr8rPrecedenceLvl precedenceLvl;
-
+	Operator tern2ndOpr8r;
   std::wstring unary1stOpr8r = usrSrcTerms.get_ternary_1st();
   std::wstring unary2ndOpr8r = usrSrcTerms.get_ternary_2nd();
 
@@ -633,6 +644,12 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 				// Filter out OPR8Rs only valid for USER_SRC ([pre|post]-fix ++,--; unary +|- ) and match on unique GNR8D_SRC equivalent
 				// OPR8R match and it hasn't had any child nodes attached to it yet
 				bool isOpr8rExhausted = false;
+
+				if (isOpenedByTernary && currOpr8r.op_code == TERNARY_2ND_OPR8R_OPCODE)	{
+					// We need to special case the [:] OPR8R and make its precedence LOWER than anything else in the current scope
+					isOpr8rExhausted = true;
+					tern2ndOpr8r = currOpr8r;
+				}
 
 				while (!isOpr8rExhausted && !isStopFail && !isNowTree)	{
 					opr8rReadyState opr8rState = OPR8R_NOT_READY;
@@ -687,7 +704,7 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 					}
 
 					if (opr8rState != OPR8R_NOT_READY)	{
-						if (OK != moveNeighborsIntoTree (currOpr8r, currScope, listIdx, opr8rState,isMoveLeftNbr, isMoveRightNbr))
+						if (OK != moveNeighborsIntoTree (currOpr8r, currScope, listIdx, opr8rState, isMoveLeftNbr, isMoveRightNbr))
 							isStopFail = true;
 
 						else if (currScope.size() >= startSize)	{
@@ -702,6 +719,21 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 			}
 		}
 	}
+
+	if (!isStopFail && isOpenedByTernary)	{
+		// Time to take care of the delayed [:] OPR8R
+		for (int idx = 0; idx < currScope.size(); idx++)	{
+			if (currScope[idx]->originalTkn->tkn_type == SRC_OPR8R_TKN && currScope[idx]->originalTkn->_string == usrSrcTerms.get_ternary_2nd())	{
+				if (OK != moveNeighborsIntoTree (tern2ndOpr8r, currScope, idx, ATTACH_BOTH, true, true))	{
+					isStopFail = true;
+					userMessages->logMsg (INTERNAL_ERROR, L"Failed to attach branches to OPR8R [" + usrSrcTerms.get_ternary_2nd() + L"]"
+						, thisSrcFile, __LINE__, 0);
+				}
+				break;
+			}
+		}
+	}
+
 
 	if (!isStopFail) {
 		// TODO: Check for only OPR8Rs left @ currScope? Check if they're treed up?
@@ -891,7 +923,7 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   		// TODO: && found in NameSpace.  If it's not in the NameSpace, we can accumulate this error but still keep
   		// compiling and looking for additional user errors.  Same same for compile time interpretation.
   		std::shared_ptr<UserMessages> tmpUsrMsg = std::make_shared<UserMessages>();
-  		if (OK != varScopeStack->findVar(curr_tkn->_string, 0, scratchTkn, READ_ONLY, tmpUsrMsg))	{
+  		if (OK != varScopeStack->findSourceVar(curr_tkn->_string, 0, scratchTkn, READ_ONLY, tmpUsrMsg))	{
 					userMessages->logMsg (USER_ERROR, L"Variable " + curr_tkn->_string + L" was not declared"
 						, userSrcFileName, curr_tkn->get_line_number(), curr_tkn->get_column_pos());
   		}
@@ -1046,7 +1078,7 @@ int ExpressionParser::getExpectedEndToken (std::shared_ptr<Token> startTkn, uint
 
 	if (startTkn != NULL)	{
 		expectedEndTkn.resetToken();
-
+	
 		if (startTkn->tkn_type == SPR8R_TKN && startTkn->_string == L"(")	{
 			// TODO: What about uint32 someVar = (3 + 2 *5), <-- We could miss this in the caller
 			expectedEndTkn.tkn_type = SPR8R_TKN;
@@ -1084,7 +1116,8 @@ int ExpressionParser::getExpectedEndToken (std::shared_ptr<Token> startTkn, uint
   		userMessages->logMsg (INTERNAL_ERROR, L"Could not determine _1stTknType for " + startTkn->descr_sans_line_num_col(), thisSrcFile, __LINE__, 0);
 		}
 
-		if (!isStopFail && isEndedByComma)	{
+		if (isEndedByComma)	{
+			expectedEndTkn.resetToken();
 			expectedEndTkn.tkn_type = SPR8R_TKN;
 			expectedEndTkn._string = L",";
 		}

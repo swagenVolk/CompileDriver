@@ -21,17 +21,27 @@
 #define COMMIT_WRITE true
 #define READ_ONLY false
 
+enum caller_mode_enum	{
+	COMPILE_TIME
+	,EXEC_TIME
+};
+
+typedef caller_mode_enum VarScopeCallerMode;
+
+
 class VariablesScope {
 public:
 	VariablesScope();
 	virtual ~VariablesScope();
 	void reset();
 
-	int findVar(std::wstring varName, int maxLevels, Token & readOrWriteTkn, bool isWrite, std::shared_ptr<UserMessages> userMessages);
+	int findSourceVar(std::wstring varName, int maxLevels, Token & readOrWriteTkn, bool isWrite, std::shared_ptr<UserMessages> userMessages);
+	int findExecVar(std::wstring varName, int maxLevels, Token & readOrWriteTkn, bool isWrite, std::shared_ptr<UserMessages> userMessages);
 	int insertNewVarAtCurrScope (std::wstring varName, Token varValue);
 	void displayVariables();
 
 private:
+	int findVar(std::wstring varName, int maxLevels, Token & readOrWriteTkn, bool isWrite, std::shared_ptr<UserMessages> userMessages, VarScopeCallerMode mode);
   std::vector<std::shared_ptr<ScopeFrame>> scopeStack;
   Utilities util;
   std::wstring thisSrcFile;

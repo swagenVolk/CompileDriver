@@ -101,7 +101,7 @@ CompileExecTerms::CompileExecTerms() {
   //	TODO: # of expected operands for Ternary? Especially since I'll be pushing a new scope when the "?"
   //	opr8r is encountered.
 	grouped_opr8rs.push_back(Opr8rPrecedenceLvl ());
-	grouped_opr8rs.back().opr8rs.push_back ( Operator (L"?", (BINARY|TERNARY_1ST), (USR_SRC|GNR8D_SRC), 2, 1, TERNARY_1ST_OPR8R_OPCODE));
+	grouped_opr8rs.back().opr8rs.push_back ( Operator (L"?", (BINARY|TERNARY_1ST), (USR_SRC|GNR8D_SRC), 2, 3, TERNARY_1ST_OPR8R_OPCODE));
 
   grouped_opr8rs.push_back(Opr8rPrecedenceLvl ());
   grouped_opr8rs.back().opr8rs.push_back ( Operator (L":", (BINARY|TERNARY_2ND), (USR_SRC|GNR8D_SRC), 2, 2, TERNARY_2ND_OPR8R_OPCODE));

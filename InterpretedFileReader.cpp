@@ -5,7 +5,6 @@
  *      Author: Mike Volk
  *
  * Utility class used by Interpreter to grab objects from the compiled object file. 
- * TODO: Does it make sense to change the endian-ness of the file?
  */
 
 #include "InterpretedFileReader.h"
@@ -189,6 +188,7 @@ int InterpretedFileReader::resolveOpr8r (uint8_t op_code, Token & nxtTkn)	{
 	if (OK == execTerms->getExecOpr8rDetails(op_code, chkOpr8r))	{
 		nxtTkn.tkn_type = EXEC_OPR8R_TKN;
 		nxtTkn._unsigned = op_code;
+		nxtTkn._string = chkOpr8r.symbol;
 		ret_code = OK;
 	}
 
@@ -301,6 +301,9 @@ int InterpretedFileReader::readString (uint8_t op_code, Token & nxtTkn)	{
 	std::wstring tknStr;
 	uint16_t nxtWideChar;
 
+	tknStr.clear();
+	nxtTkn.resetToken();
+
 	if (inputStream.is_open())	{
 		uint32_t initPos = inputStream.tellg();
 
@@ -336,6 +339,7 @@ int InterpretedFileReader::readString (uint8_t op_code, Token & nxtTkn)	{
 						nxtTkn.tkn_type = DATETIME_TKN;
 						break;
 					case DOUBLE_OPCODE:
+						// TODO: Probably need to do something here
 						nxtTkn.tkn_type = DOUBLE_TKN;
 						break;
 					default:
@@ -363,6 +367,8 @@ int InterpretedFileReader::readExprIntoList (std::vector<Token> & exprTknStream)
 	uint32_t exprStartPos;
 	uint8_t op_code;
 	uint32_t exprLen;
+
+	exprTknStream.clear();
 
 	if (inputStream.is_open())	{
 		exprStartPos = inputStream.tellg();

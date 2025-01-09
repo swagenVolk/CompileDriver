@@ -4,16 +4,20 @@
  * Left, center and right justified parentheses in expressions
  *
  * TODO:
+ * USER_ERROR should never cause an INTERNAL_ERROR. Maybe try using an unknown data type to re-create the issue.
+ * Check that all operations are acting on initialized operands.
+ * Be clear & consistent about where type checking happens!
+ * Maintain data type until assignment, then do data type conversion if necessary
  * Method to regression test lots of expressions and compare results against regular compiler
  * Use a static analyzer
  * How can I check for memory leaks|danglers?
- * USER_ERROR should never cause an INTERNAL_ERROR. Maybe try using an unknown data type to re-create the issue.
- * Disassembler?
- * Be clear & consistent about where type checking happens!
  * Look for opportunities to clarify (ie #defines -> enums?) to make debugging easier
  * How many pointers can I replace with essentially a copy? (grep -HEn "\bnew\b" *.cpp -> [0])
  * Compile fxn calls and put into NameSpace
  *
+ * FUTURE:
+ * Disassembler
+ * Array support
  * Directory/index for fxn calls so Interpreter doesn't have to search through the object
  * file for the location. It can do a quick(er) lookup
  *
@@ -101,9 +105,9 @@ int main(int argc, const char * argv[])
 			// TODO: Previously passing &, but it appeared to be behaving like a copy: UserMessages userMessages;
 			std::shared_ptr<UserMessages> userMessages = std::make_shared <UserMessages> ();
 			GeneralParser generalParser (tokenStream, userSrcFileName, srcExecTerms, userMessages, output_file_name, varScope);
-			int compileRetCode = generalParser.rootScopeCompile();
 
 			std::wcout << L"/* *************** <COMPILATION STAGE> *************** */" << std::endl;
+			int compileRetCode = generalParser.rootScopeCompile();
 			std::wcout << L"// compileRetCode = " << compileRetCode << std::endl;
 			userMessages->showMessagesByInsertOrder(true);
 		  varScope->displayVariables();
@@ -120,10 +124,10 @@ int main(int argc, const char * argv[])
 				std::shared_ptr<VariablesScope> execVarScope = std::make_shared <VariablesScope> ();
 	
 				RunTimeInterpreter interpreter (interpretedFileName, userSrcFileName, execVarScope, execMessages);
-				// TODO: An option to dump the NameSpace?
-				ret_code = interpreter.rootScopeExec();
 
+				// TODO: An option to dump the NameSpace?
 				std::wcout << L"/* *************** <EXECUTION STAGE> *************** */" << std::endl;
+				ret_code = interpreter.rootScopeExec();
 				std::wcout << L"// ret_code = " << ret_code << std::endl;
 				// execMessages->showMessagesByGroup();
 				execMessages->showMessagesByInsertOrder(true);

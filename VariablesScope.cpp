@@ -8,6 +8,7 @@
  */
 
 #include "VariablesScope.h"
+#include "InfoWarnError.h"
 #include <memory>
 
 VariablesScope::VariablesScope() {
@@ -34,10 +35,28 @@ void VariablesScope::reset()	{
 }
 
 /* ****************************************************************************
+ * Look up this variable in our scopeStack|NameSpace at COMPILE time. 
+ * Only update the variable if isCommitUpdate = COMMIT_UPDATE (true)
+ * ***************************************************************************/
+int VariablesScope::findSourceVar(std::wstring varName, int maxLevels, Token & readOrWriteTkn, bool isWrite, std::shared_ptr<UserMessages> userMessages)	{
+	return findVar (varName, maxLevels, readOrWriteTkn, isWrite, userMessages, COMPILE_TIME);
+}
+
+/* ****************************************************************************
+ * Look up this variable in our scopeStack|NameSpace at EXEC|INTERPRETER time. 
+ * Only update the variable if isCommitUpdate = COMMIT_UPDATE (true)
+ * ***************************************************************************/
+int VariablesScope::findExecVar(std::wstring varName, int maxLevels, Token & readOrWriteTkn, bool isWrite, std::shared_ptr<UserMessages> userMessages)	{
+	return findVar (varName, maxLevels, readOrWriteTkn, isWrite, userMessages, EXEC_TIME);
+}
+
+
+/* ****************************************************************************
  * Look up this variable in our scopeStack|NameSpace. Only update the variable
  * if isCommitUpdate = COMMIT_UPDATE (true)
  * ***************************************************************************/
-int VariablesScope::findVar(std::wstring varName, int maxLevels, Token & updateValTkn, bool isCommitUpdate, std::shared_ptr<UserMessages> userMessages)	{
+int VariablesScope::findVar(std::wstring varName, int maxLevels, Token & updateValTkn, bool isCommitUpdate
+	, std::shared_ptr<UserMessages> userMessages, VarScopeCallerMode mode)	{
 	int ret_code = GENERAL_FAILURE;
 	bool isFound = false;
 
@@ -57,8 +76,13 @@ int VariablesScope::findVar(std::wstring varName, int maxLevels, Token & updateV
 			if (isCommitUpdate)	{
 				if (OK != existingTkn->convertTo(updateValTkn))	{
 					// TODO: What info can I supply to user to resolve src line # etc?
-//					callersErrInfo.set(USER_ERROR, thisSrcFile, __LINE__
-//							, L"Data type mismatch on assignment to " + varName + L" " + existingTkn->descr_sans_line_num_col());
+					if (mode == COMPILE_TIME)
+						userMessages->logMsg(USER_ERROR, L"Data type mismatch on assignment to " + varName + L" with " + updateValTkn.descr_sans_line_num_col()
+							, thisSrcFile, __LINE__, 0);
+					else
+						userMessages->logMsg(INTERNAL_ERROR, L"Data type mismatch on assignment to " + varName + L" with " + updateValTkn.descr_sans_line_num_col()
+							, thisSrcFile, __LINE__, 0);
+
 				} else	{
 					existingTkn->isInitialized = true;
 					ret_code = OK;

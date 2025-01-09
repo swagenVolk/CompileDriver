@@ -79,10 +79,12 @@ private:
   bool isTernaryOpen ();
   int get2ndTernaryCnt ();
   std::wstring getMyParentSymbol ();
-  int closeNestedScopes(Token currTkn, Token expectedEndTkn, bool & isExprClosed, Token & enderTkn);
+  //int closeNestedScopes(Token currTkn, Token expectedEndTkn, bool & isExprClosed, Token & enderTkn);
+  int closeNestedScopes();
   int moveNeighborsIntoTree (Operator & opr8r, ExprTreeNodePtrVector & currScope
 	, int opr8rIdx, opr8rReadyState opr8rState, bool isMoveLeftNbr, bool isMoveRightNbr);
   int turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope);
+  int turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope, bool isOpenedByTernary);
   int getExpectedEndToken (std::shared_ptr<Token> startTkn, uint32_t & _1stTknTypMsk, Token & expectedEndTkn, bool isEndedByComma);
   void printScopeStack (std::wstring fileName, int lineNumber);
   void showDebugInfo (std::wstring srcFileName, int lineNum);

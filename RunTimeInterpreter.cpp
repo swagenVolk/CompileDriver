@@ -38,11 +38,11 @@
  * ***************************************************************************/
 RunTimeInterpreter::RunTimeInterpreter() {
 	// TODO Auto-generated constructor stub
-  oneTkn = std::make_shared<Token> (INT64_TKN, L"1");
+  oneTkn = std::make_shared<Token> (UINT64_TKN, L"1");
   // TODO: Token value not automatically filled in currently
-  oneTkn->_signed = 1;
-  zeroTkn = std::make_shared<Token> (INT64_TKN, L"0");
-  zeroTkn->_signed = 0;
+  oneTkn->_unsigned = 1;
+  zeroTkn = std::make_shared<Token> (UINT64_TKN, L"0");
+  zeroTkn->_unsigned = 0;
 	thisSrcFile = util.getLastSegment(util.stringToWstring(__FILE__), L"/");
 	failOnSrcLine = 0;
 	// The no parameter constructor should never get called
@@ -55,11 +55,11 @@ RunTimeInterpreter::RunTimeInterpreter() {
 RunTimeInterpreter::RunTimeInterpreter(CompileExecTerms & execTerms, std::shared_ptr<VariablesScope> inVarScopeStack
 		, std::wstring userSrcFileName, std::shared_ptr<UserMessages> userMessages) {
 	// TODO Auto-generated constructor stub
-  oneTkn = std::make_shared<Token> (INT64_TKN, L"1");
+  oneTkn = std::make_shared<Token> (UINT64_TKN, L"1");
   // TODO: Token value not automatically filled in currently
-  oneTkn->_signed = 1;
-  zeroTkn = std::make_shared<Token> (INT64_TKN, L"0");
-  zeroTkn->_signed = 0;
+  oneTkn->_unsigned = 1;
+  zeroTkn = std::make_shared<Token> (UINT64_TKN, L"0");
+  zeroTkn->_unsigned = 0;
   this->execTerms = execTerms;
 	thisSrcFile = util.getLastSegment(util.stringToWstring(__FILE__), L"/");
 	varScopeStack = inVarScopeStack;
@@ -77,11 +77,11 @@ RunTimeInterpreter::RunTimeInterpreter(std::string interpretedFileName, std::wst
 		: execTerms ()
 		, fileReader (interpretedFileName, execTerms)	{
 	// TODO Auto-generated constructor stub
-  oneTkn = std::make_shared<Token> (INT64_TKN, L"1");
+  oneTkn = std::make_shared<Token> (UINT64_TKN, L"1");
   // TODO: Token value not automatically filled in currently
-  oneTkn->_signed = 1;
-  zeroTkn = std::make_shared<Token> (INT64_TKN, L"0");
-  zeroTkn->_signed = 0;
+  oneTkn->_unsigned = 1;
+  zeroTkn = std::make_shared<Token> (UINT64_TKN, L"0");
+  zeroTkn->_unsigned = 0;
 	thisSrcFile = util.getLastSegment(util.stringToWstring(__FILE__), L"/");
 	varScopeStack = inVarScope;
 	this->userMessages = userMessages;
@@ -139,11 +139,11 @@ int RunTimeInterpreter::rootScopeExec()	{
 				isDone = true;
 
 			else if (OK != fileReader.readNextByte (op_code))	{
-				failOnSrcLine = __LINE__;
+				failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 			
 			} else if (op_code >= FIRST_VALID_FLEX_LEN_OPCODE && op_code <= LAST_VALID_FLEX_LEN_OPCODE)		{
 				if (OK != fileReader.readNextDword (objectLen))	{
-					failOnSrcLine = __LINE__;
+					failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 					hexStream.str(L"");
 					hexStream << L"0x" << std::hex << op_code;
 					std::wstring msg = L"Failed to get length of object (opcode = ";
@@ -157,14 +157,14 @@ int RunTimeInterpreter::rootScopeExec()	{
 				} else {
 					if (op_code == VARIABLES_DECLARATION_OPCODE)	{
 						if (OK != execVarDeclaration (objStartPos, objectLen))	{
-							failOnSrcLine = __LINE__;
+							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 						}
 
 					} else if (op_code == EXPRESSION_OPCODE)	{			
 						if (OK != fileReader.setFilePos(objStartPos))	{
 							// Follow on fxn expects to start at beginning of expression
 							// TODO: Standardize on this?
-							failOnSrcLine = __LINE__;
+							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							hexStream.str(L"");
 							hexStream << L"0x" << std::hex << objStartPos;
 							userMessages->logMsg(INTERNAL_ERROR
@@ -173,56 +173,60 @@ int RunTimeInterpreter::rootScopeExec()	{
 						} else {
 							std::vector<Token> exprTkns;
 							if (OK != fileReader.readExprIntoList(exprTkns))	{
-								failOnSrcLine = __LINE__;
+								failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 								hexStream.str(L"");
-								hexStream << L"0x" << std::hex << op_code;
+								hexStream << L"0x" << std::hex << objStartPos;
 								userMessages->logMsg(INTERNAL_ERROR
 									, L"Failed to retrieve expression starting at " + hexStream.str(), thisSrcFile, failOnSrcLine, 0);
 							
 							}	else 	{
 								if (OK != resolveFlatExpr(exprTkns)) {
-									failOnSrcLine = __LINE__;
+									failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+									hexStream.str(L"");
+									hexStream << L"0x" << std::hex << objStartPos;
+									userMessages->logMsg(INTERNAL_ERROR
+										, L"Failed to resolve flat expression starting at " + hexStream.str(), thisSrcFile, failOnSrcLine, 0);
 								}
 							}
 						}
 					} else if (op_code == IF_BLOCK_OPCODE)	{									
-							failOnSrcLine = __LINE__;
+							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
 
 					} else if (op_code == ELSE_IF_BLOCK_OPCODE)	{						
-							failOnSrcLine = __LINE__;
+							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
 
 					} else if (op_code == ELSE_BLOCK_OPCODE)	{								
-							failOnSrcLine = __LINE__;
+							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
 
 					} else if (op_code == WHILE_LOOP_OPCODE)	{								
-							failOnSrcLine = __LINE__;
+							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
 
 					} else if (op_code == FOR_LOOP_OPCODE)	{									
-							failOnSrcLine = __LINE__;
+							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
 
 					} else if (op_code == SCOPE_OPEN_OPCODE)	{								
-							failOnSrcLine = __LINE__;
+							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
 
 					} else if (op_code == FXN_DECLARATION_OPCODE)	{					
-							failOnSrcLine = __LINE__;
+							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
 
 					} else if (op_code == FXN_CALL_OPCODE)	{									
-							failOnSrcLine = __LINE__;
+							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
 
 					} else if (op_code == SYSTEM_CALL_OPCODE)	{							
-							failOnSrcLine = __LINE__;
+							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
 
 					} else {
-						failOnSrcLine = __LINE__;
+						failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 						hexStream.str(L"");
 						hexStream << L"0x" << std::hex << op_code;
 						std::wstring msg = L"Unknown opcode [";
@@ -274,7 +278,7 @@ int RunTimeInterpreter::execVarDeclaration (uint32_t objStartPos, uint32_t objec
 		// Got the DATA_TYPE_[]_OPCODE
 		TokenTypeEnum tknType = execTerms.getTokenTypeForOpCode (op_code);
 		if (tknType == USER_WORD_TKN || !Token::isDirectOperand (tknType))	{
-			failOnSrcLine = __LINE__;
+			failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 			hexStrOpCode.str(L"");
 			hexStrOpCode << L"0x" << std::hex << op_code;
 			std::wstring devMsg = L"Expected op_code that would resolve to a datatype but got ";
@@ -307,31 +311,35 @@ int RunTimeInterpreter::execVarDeclaration (uint32_t objStartPos, uint32_t objec
 						hexStrFilePos << L"0x" << std::hex << currObjStartPos;
 
 					if (OK != fileReader.readNextByte(op_code) || VAR_NAME_OPCODE != op_code)	{
-						failOnSrcLine = __LINE__;
+						failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 						devMsg = L"Did not get expected VAR_NAME_OPCODE at file position " + hexStrFilePos.str();
 						userMessages->logMsg(INTERNAL_ERROR, devMsg, thisSrcFile, failOnSrcLine, 0);
 			
 					} else if (OK != fileReader.readString (op_code, varNameTkn))	{
-						failOnSrcLine = __LINE__;
+						failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 						devMsg = L"Failed reading variable name in declaration after file position " + hexStrFilePos.str();
 						userMessages->logMsg(INTERNAL_ERROR, devMsg, thisSrcFile, failOnSrcLine, 0);
 
 					} else if (!execTerms.isViableVarName(varNameTkn._string))	{
-						failOnSrcLine = __LINE__;
+						failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 						devMsg = L"Variable name in declaration is invalid [" + varNameTkn._string + L"] after file position " + hexStrFilePos.str();
 						userMessages->logMsg(INTERNAL_ERROR, devMsg, thisSrcFile, failOnSrcLine, 0);
 					
 					} else if (OK != varScopeStack->insertNewVarAtCurrScope(varNameTkn._string, varTkn))	{
-							failOnSrcLine = __LINE__;
+							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							devMsg = L"Failed to insert variable into NameSpace [" + varNameTkn._string + L"] after file position " + hexStrFilePos.str();
 							userMessages->logMsg(INTERNAL_ERROR, devMsg, thisSrcFile, failOnSrcLine, 0);
 					
+					} else if (pastLimitFilePos <= (fileReader.getReadFilePos()))	{
+						// NOTE: Need to check where we are; variable declaration might not have initialization expression(s)
+						isDone = true;
+
 					} else if (OK != fileReader.peekNextByte(op_code))	{
 							if (fileReader.isEOF())	{
 								isDone = true;
 							
 							} else {
-								failOnSrcLine = __LINE__;
+								failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 								userMessages->logMsg(INTERNAL_ERROR, L"Peek failed", thisSrcFile, failOnSrcLine, 0);
 							}
 					} else if (op_code == EXPRESSION_OPCODE)	{
@@ -344,28 +352,34 @@ int RunTimeInterpreter::execVarDeclaration (uint32_t objStartPos, uint32_t objec
 
 						std::vector<Token> exprTkns;
 						if (OK != fileReader.readExprIntoList(exprTkns))	{
-							failOnSrcLine = __LINE__;
+							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							userMessages->logMsg(INTERNAL_ERROR, L"Failed to retrieve expression starting at " + hexStrFilePos.str(), thisSrcFile, failOnSrcLine, 0);
 						
 						}	else if (OK != resolveFlatExpr(exprTkns)) {
-							failOnSrcLine = __LINE__;
+							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+							devMsg = L"Failed to resolve variable initialization expression for [" + varNameTkn._string + L"] after file position " + hexStrFilePos.str();
+							userMessages->logMsg (INTERNAL_ERROR, devMsg, thisSrcFile, failOnSrcLine, 0);
 						
 						} else if (exprTkns.size() != 1)	{
+							// TODO: Should not have returned OK!
 							// flattenedExpr should have 1 Token left - the result of the expression
-							failOnSrcLine = __LINE__;
+							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							devMsg = L"Failed to resolve variable initialization expression for [" + varNameTkn._string + L"] after file position " + hexStrFilePos.str();
 							userMessages->logMsg (INTERNAL_ERROR, devMsg, thisSrcFile, failOnSrcLine, 0);
 
-						} else if (OK != varScopeStack->findVar(varNameTkn._string, 0, exprTkns[0], COMMIT_WRITE, userMessages))	{
+						} else if (OK != varScopeStack->findExecVar(varNameTkn._string, 0, exprTkns[0], COMMIT_WRITE, userMessages))	{
 							// Don't limit search to current scope
-							failOnSrcLine = __LINE__;
+							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							userMessages->logMsg (INTERNAL_ERROR
-									, L"After resolving initialization expression, could not find " + varNameTkn._string, thisSrcFile, failOnSrcLine, 0);
+									, L"After resolving initialization expression starting on|near " + hexStrFilePos.str() + L", could not find " + varNameTkn._string
+									, thisSrcFile, failOnSrcLine, 0);
 						}
 					}
 				}
 			}
 		}
+	} else {
+			uint32_t currFilePos = fileReader.getReadFilePos();
 	}
 
 	if (isDone && !failOnSrcLine)
@@ -427,7 +441,7 @@ int RunTimeInterpreter::execPrePostFixOp (std::vector<Token> & exprTknStream, in
 		}
 
 		if (isSuccess)	{
-			ret_code = varScopeStack->findVar(varName1, 0, operand1, COMMIT_WRITE, userMessages);
+			ret_code = varScopeStack->findExecVar(varName1, 0, operand1, COMMIT_WRITE, userMessages);
 		}
 
 	} else	{
@@ -466,7 +480,7 @@ int RunTimeInterpreter::execEquivalenceOp(std::vector<Token> & exprTknStream, in
 				else if (compareRez.lessThan == isFalse)
 					exprTknStream[opr8rIdx] = *zeroTkn;
 				else
-					failOnSrcLine = __LINE__;
+					failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 				break;
 			case LESS_EQUALS_OPR8R8_OPCODE :
 				if (compareRez.lessEquals == isTrue)
@@ -474,7 +488,7 @@ int RunTimeInterpreter::execEquivalenceOp(std::vector<Token> & exprTknStream, in
 				else if (compareRez.lessEquals == isFalse)
 					exprTknStream[opr8rIdx] = *zeroTkn;
 				else
-					failOnSrcLine = __LINE__;
+					failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 				break;
 			case GREATER_THAN_OPR8R_OPCODE :
 				if (compareRez.gr8rThan == isTrue)
@@ -482,7 +496,7 @@ int RunTimeInterpreter::execEquivalenceOp(std::vector<Token> & exprTknStream, in
 				else if (compareRez.gr8rThan == isFalse)
 					exprTknStream[opr8rIdx] = *zeroTkn;
 				else
-					failOnSrcLine = __LINE__;
+					failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 				break;
 			case GREATER_EQUALS_OPR8R8_OPCODE :
 				if (compareRez.gr8rEquals == isTrue)
@@ -490,7 +504,7 @@ int RunTimeInterpreter::execEquivalenceOp(std::vector<Token> & exprTknStream, in
 				else if (compareRez.gr8rEquals == isFalse)
 					exprTknStream[opr8rIdx] = *zeroTkn;
 				else
-					failOnSrcLine = __LINE__;
+					failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 				break;
 			case EQUALITY_OPR8R_OPCODE :
 				if (compareRez.equals == isTrue)
@@ -498,7 +512,7 @@ int RunTimeInterpreter::execEquivalenceOp(std::vector<Token> & exprTknStream, in
 				else if (compareRez.equals == isFalse)
 					exprTknStream[opr8rIdx] = *zeroTkn;
 				else
-					failOnSrcLine = __LINE__;
+					failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 				break;
 			case NOT_EQUALS_OPR8R_OPCODE:
 				if (compareRez.equals == isFalse)
@@ -506,10 +520,10 @@ int RunTimeInterpreter::execEquivalenceOp(std::vector<Token> & exprTknStream, in
 				else if (compareRez.equals == isTrue)
 					exprTknStream[opr8rIdx] = *zeroTkn;
 				else
-					failOnSrcLine = __LINE__;
+					failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 				break;
 			default:
-				failOnSrcLine = __LINE__;
+				failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 				break;
 		}
 
@@ -1182,11 +1196,15 @@ int RunTimeInterpreter::execUnaryOp (std::vector<Token> & exprTknStream, int opr
 			}
 
 		} else if (op_code == LOGICAL_NOT_OPR8R_OPCODE)	{
-			if (operand1.isUnsigned())	{
+			if (operand1.isUnsigned() || operand1.tkn_type == BOOL_TKN)	{
 				if (operand1._unsigned == 0)
 					exprTknStream[opr8rIdx] = *oneTkn;
 				else
 					exprTknStream[opr8rIdx] = *zeroTkn;
+
+				if (operand1.tkn_type == BOOL_TKN)
+					// Preserve the data type
+					exprTknStream[opr8rIdx].tkn_type = BOOL_TKN;
 
 				ret_code = OK;
 
@@ -1195,7 +1213,6 @@ int RunTimeInterpreter::execUnaryOp (std::vector<Token> & exprTknStream, int opr
 					exprTknStream[opr8rIdx] = *oneTkn;
 				else
 					exprTknStream[opr8rIdx] = *zeroTkn;
-
 				ret_code = OK;
 
 			} else if (operand1.tkn_type == DOUBLE_TKN)	{
@@ -1203,11 +1220,20 @@ int RunTimeInterpreter::execUnaryOp (std::vector<Token> & exprTknStream, int opr
 					exprTknStream[opr8rIdx] = *oneTkn;
 				else
 					exprTknStream[opr8rIdx] = *zeroTkn;
-
 				ret_code = OK;
 			}
 		} else if (op_code == BITWISE_NOT_OPR8R_OPCODE && operand1.isUnsigned())	{
-			operand1._unsigned = ~(operand1._unsigned);
+			// Need to guard against uncalled for overflow
+			// TODO: Chicken|egg problem with warning user about overflow
+			uint64_t mask = ~(0x0);
+			if (operand1.tkn_type == UINT8_TKN)
+				mask = 0xFF;
+			else if (operand1.tkn_type == UINT16_TKN)
+				mask = 0xFFFF;
+			else if (operand1.tkn_type == UINT32_TKN)
+				mask = 0xFFFFFFFF;
+			
+			operand1._unsigned = ~(operand1._unsigned) & mask;
 			exprTknStream[opr8rIdx] = operand1;
 			ret_code = OK;
 		}
@@ -1254,7 +1280,7 @@ int RunTimeInterpreter::execAssignmentOp(std::vector<Token> & exprTknStream, int
 		} else	{
 			switch (original_op_code)	{
 				case ASSIGNMENT_OPR8R_OPCODE :
-					if (OK == varScopeStack->findVar(varName1, 0, operand2, COMMIT_WRITE, userMessages))	{
+					if (OK == varScopeStack->findExecVar(varName1, 0, operand2, COMMIT_WRITE, userMessages))	{
 						// We've updated the NS Variable Token; now overwrite the OPR8R with the result also
 						exprTknStream[opr8rIdx] = operand2;
 						isOpSuccess = true;
@@ -1318,7 +1344,7 @@ int RunTimeInterpreter::execAssignmentOp(std::vector<Token> & exprTknStream, int
 
 		if (isOpSuccess)	{
 			if (original_op_code != ASSIGNMENT_OPR8R_OPCODE
-					&& OK == varScopeStack->findVar(varName1, 0, exprTknStream[opr8rIdx], COMMIT_WRITE, userMessages))	{
+					&& OK == varScopeStack->findExecVar(varName1, 0, exprTknStream[opr8rIdx], COMMIT_WRITE, userMessages))	{
 				// Commit the result to the stored NS variable. OPR8R Token (previously @ opr8rIdx) has already been overwritten with result 
 				ret_code = OK;
 			}
@@ -1434,7 +1460,7 @@ int RunTimeInterpreter::execLogicalAndOp (std::vector<Token> & exprTknStream, in
 	
 	if (OK != execFlatExpr_OLR(exprTknStream, opr8rIdx + 1))	{
 		// Resolve the 1st expression
-		failOnSrcLine = __LINE__;
+		failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 	
 	} else if (exprTknStream[opr8rIdx + 1].evalResolvedTokenAsIf())	{
 		// 1st expression evaluated as TRUE
@@ -1442,7 +1468,7 @@ int RunTimeInterpreter::execLogicalAndOp (std::vector<Token> & exprTknStream, in
 
 		if (OK != execFlatExpr_OLR(exprTknStream, opr8rIdx + 2))	{
 			// Resolve the 2nd expression
-			failOnSrcLine = __LINE__;
+			failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 		
 		} else if (exprTknStream[opr8rIdx + 2].evalResolvedTokenAsIf())	{
 			// 2nd expression evaluated as TRUE
@@ -1461,7 +1487,7 @@ int RunTimeInterpreter::execLogicalAndOp (std::vector<Token> & exprTknStream, in
 		// 1st|Left [operand|expression] evaluated FALSE; short-circuit 2nd|Right side
 		int lastIdxOfSubExpr;
 		if (OK != getEndOfSubExprIdx (exprTknStream, opr8rIdx + 2, lastIdxOfSubExpr))	{
-			failOnSrcLine = __LINE__;
+			failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 		} else	{
 			if (lastIdxOfSubExpr == opr8rIdx + 1)
 				exprTknStream.erase (exprTknStream.begin() + lastIdxOfSubExpr);
@@ -1487,7 +1513,7 @@ int RunTimeInterpreter::execLogicalOrOp (std::vector<Token> & exprTknStream, int
 
 	if (OK != execFlatExpr_OLR(exprTknStream, opr8rIdx + 1))	{
 		// Resolve the 1st expression
-		failOnSrcLine = __LINE__;
+		failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 	
 	} else {
 		bool is1RandTrue = exprTknStream[opr8rIdx + 1].evalResolvedTokenAsIf();
@@ -1499,7 +1525,7 @@ int RunTimeInterpreter::execLogicalOrOp (std::vector<Token> & exprTknStream, int
 
 			int lastIdxOfSubExpr;
 			if (OK != getEndOfSubExprIdx (exprTknStream, opr8rIdx + 1, lastIdxOfSubExpr))	{
-				failOnSrcLine = __LINE__;
+				failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 			} else	{
 				// Erase the 2nd|Right expression|operand
 				if (lastIdxOfSubExpr == opr8rIdx + 1)
@@ -1515,7 +1541,7 @@ int RunTimeInterpreter::execLogicalOrOp (std::vector<Token> & exprTknStream, int
 
 			if (OK != execFlatExpr_OLR(exprTknStream, opr8rIdx + 1))	{
 				// Resolve the 2nd expression
-				failOnSrcLine = __LINE__;
+				failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 			
 			} else if (exprTknStream[opr8rIdx + 1].evalResolvedTokenAsIf())	{
 				// 2nd expression evaluated as TRUE
@@ -1550,7 +1576,7 @@ int RunTimeInterpreter::execTernary1stOp(std::vector<Token> & exprTknStream, int
 	
 	if (OK != execFlatExpr_OLR(exprTknStream, opr8rIdx + 1))	{
 		// Resolve the conditional
-		failOnSrcLine = __LINE__;
+		failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 	
 	} else {
 		bool isTernaryConditionTrue = exprTknStream[opr8rIdx + 1].evalResolvedTokenAsIf();
@@ -1561,11 +1587,11 @@ int RunTimeInterpreter::execTernary1stOp(std::vector<Token> & exprTknStream, int
 		if (isTernaryConditionTrue)	{
 			if (exprTknStream[opr8rIdx].tkn_type == EXEC_OPR8R_TKN && OK != execFlatExpr_OLR(exprTknStream, opr8rIdx))	
 				// Must resolve the TRUE path 
-				failOnSrcLine = __LINE__;
+				failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 		
 			if (!failOnSrcLine && OK != getEndOfSubExprIdx (exprTknStream, opr8rIdx + 1, lastIdxOfSubExpr))
 				// Determine the end of the FALSE path
-				failOnSrcLine = __LINE__;
+				failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 
 			else if (!failOnSrcLine)	{
 				// Short-circuit the FALSE path
@@ -1578,14 +1604,14 @@ int RunTimeInterpreter::execTernary1stOp(std::vector<Token> & exprTknStream, int
 		} else {
 			// Determine the end of the TRUE path sub-expression. NOTE: [?] and [conditional] have already been removed
 			if (OK != getEndOfSubExprIdx (exprTknStream, opr8rIdx, lastIdxOfSubExpr))
-				failOnSrcLine = __LINE__;
+				failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 			else	{
 				// Short-circuit the TRUE path
 				exprTknStream.erase(exprTknStream.begin() + opr8rIdx, exprTknStream.begin() + lastIdxOfSubExpr + 1);
 				if (exprTknStream[opr8rIdx].tkn_type == EXEC_OPR8R_TKN)	{
 					if (OK != execFlatExpr_OLR(exprTknStream, opr8rIdx))
 						// Resolving the FALSE path failed
-						failOnSrcLine = __LINE__;
+						failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 				}
 			}
 		}
@@ -1628,11 +1654,11 @@ int RunTimeInterpreter::getEndOfSubExprIdx (std::vector<Token> & exprTknStream, 
 			// Get details on this OPR8R to determine how it affects resolvedRandCnt
 			Operator opr8rDeets;
 			if (OK != execTerms.getExecOpr8rDetails(currTkn._unsigned, opr8rDeets))	{
-				failOnSrcLine = __LINE__;
+				failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 
 			} else  if (opr8rDeets.type_mask & TERNARY_2ND)	{
 				// TERNARY_2ND was *NOT* expected!
-				failOnSrcLine = __LINE__;
+				failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 
 			} else	{
 				opr8rReqStack.push_back(opr8rDeets.numReqExecOperands);
@@ -1671,7 +1697,7 @@ int RunTimeInterpreter::getEndOfSubExprIdx (std::vector<Token> & exprTknStream, 
 				if (operandStack.size() == 1)
 					lastIdxOfSubExpr = idx;
 				else
-				 	failOnSrcLine = __LINE__;
+				 	failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 			} 
 		}
 	}
@@ -1697,7 +1723,8 @@ int RunTimeInterpreter::execOperation (Operator opr8r, int opr8rIdx, std::vector
 	} else if ((opr8r.type_mask & UNARY) && opr8r.numReqExecOperands == 1)	{
 		ret_code = execUnaryOp (flatExprTkns, opr8rIdx); 
 		if (OK != ret_code)
-			userMessages->logMsg (INTERNAL_ERROR, L"Failed executing UNARY OPR8R!", thisSrcFile, __LINE__, 0);
+			userMessages->logMsg (INTERNAL_ERROR, L"Failed executing UNARY OPR8R [" + opr8r.symbol + L"]"
+				, thisSrcFile, __LINE__, 0);
 
 	} else if (opr8r.type_mask & TERNARY_2ND)	{
 		// TODO: Is this an error condition? Or should there be a state machine or something?
@@ -1729,20 +1756,20 @@ int RunTimeInterpreter::execFlatExpr_OLR(std::vector<Token> & flatExprTkns, int 
 	int prevTknCnt = flatExprTkns.size();
 	int currTknCnt;
 	int numSeqRandsFnd = 0;
+	bool isSubExprComplete = false;
 
 	if (startIdx >= prevTknCnt)	{
 		// TODO: Great opportunity to use InfoWarnError!
-		failOnSrcLine = __LINE__;
+		failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 		userMessages->logMsg (INTERNAL_ERROR, L"Parameter startIdx goes beyond Token stream", thisSrcFile, failOnSrcLine, 0);
 
 	} else if (flatExprTkns[startIdx].tkn_type != EXEC_OPR8R_TKN)	{
 		// 1st thing we hit is an Operand, so we're done! 
-		ret_code = OK;
+		isSubExprComplete = true;
 
 	} else 	{
 		int opr8rCnt = 0;
 		bool isOutOfTkns = false;
-		bool isSubExprComplete = false;
 
 		while (!isOutOfTkns && !failOnSrcLine && !isSubExprComplete)	{
 			prevTknCnt = flatExprTkns.size();
@@ -1756,7 +1783,7 @@ int RunTimeInterpreter::execFlatExpr_OLR(std::vector<Token> & flatExprTkns, int 
 				if (!isOutOfTkns && flatExprTkns[currIdx].tkn_type == EXEC_OPR8R_TKN) {
 					Operator opr8r;
 					if (OK != execTerms.getExecOpr8rDetails (flatExprTkns[currIdx]._unsigned, opr8r))	{
-						failOnSrcLine = __LINE__;
+						failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 					
 					} else {
 						// TODO: Add short-circuiting in for [&&] and [||]
@@ -1766,25 +1793,25 @@ int RunTimeInterpreter::execFlatExpr_OLR(std::vector<Token> & flatExprTkns, int 
 							isOneOpr8rDone = true;
 						
 							if (OK != execTernary1stOp(flatExprTkns, currIdx))
-								failOnSrcLine = __LINE__;
+								failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 
 						} else if (opr8r.op_code == LOGICAL_AND_OPR8R_OPCODE)	{
 							// Special case this OPR8R in case there is short circuiting
 							isOneOpr8rDone = true;
 							if (OK != execLogicalAndOp(flatExprTkns, currIdx))
-								failOnSrcLine = __LINE__;
+								failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 
 						} else if (opr8r.op_code == LOGICAL_OR_OPR8R_OPCODE)	{
 							// Special case this OPR8R in case there is short circuiting
 							isOneOpr8rDone = true;
 							if (OK != execLogicalOrOp(flatExprTkns, currIdx))
-								failOnSrcLine = __LINE__;
+								failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 
 						} else {
 							// If next sequential [numReqRands] in stream are Operands, OPR8R can be executed
 							int numRandsReq = opr8r.numReqExecOperands;
 							if (currIdx + numRandsReq >= flatExprTkns.size())
-								failOnSrcLine = __LINE__;
+								failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							
 							int numRandsFnd;
 							for (numRandsFnd = 0; !failOnSrcLine && numRandsFnd < numRandsReq;) {
@@ -1801,17 +1828,16 @@ int RunTimeInterpreter::execFlatExpr_OLR(std::vector<Token> & flatExprTkns, int 
 									// Operation result stored in Token that previously held the OPR8R. We need to delete any associatd operands
 									flatExprTkns.erase(flatExprTkns.begin() + currIdx + 1, flatExprTkns.begin() + currIdx + numRandsReq + 1);
 								else
-									failOnSrcLine = __LINE__;
+									failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							}
 						}
 					}
 				} 
 
-
 				if (!isOneOpr8rDone && !isOutOfTkns && !failOnSrcLine)	{
 					currIdx++;
 					if (currIdx > flatExprTkns.size())
-						failOnSrcLine = __LINE__;
+						failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 				}
 			}
 
@@ -1821,7 +1847,7 @@ int RunTimeInterpreter::execFlatExpr_OLR(std::vector<Token> & flatExprTkns, int 
 			
 			} else if (prevTknCnt <= flatExprTkns.size())	{
 				// Inner while made ZERO forward progress.....time to quit and think about what we havn't done
-				failOnSrcLine = __LINE__;
+				failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 				std::wstring devMsg = L"Inner while did NOT make forward progress; startIdx = ";
 				devMsg.append(std::to_wstring(startIdx));
 				devMsg.append (L"; currIdx = ");
@@ -1831,9 +1857,18 @@ int RunTimeInterpreter::execFlatExpr_OLR(std::vector<Token> & flatExprTkns, int 
 				util.dumpTokenList (flatExprTkns, execTerms, thisSrcFile, __LINE__);
 			}
 		}
-		
-		if (isSubExprComplete && !failOnSrcLine && flatExprTkns[startIdx].tkn_type != EXEC_OPR8R_TKN)
+	}
+
+	if (isSubExprComplete && !failOnSrcLine && flatExprTkns[startIdx].tkn_type == USER_WORD_TKN)	{
+		// SUCCESS IFF we can resolve this variable from our NameSpace to its final value
+		Token resolvedTkn;
+		if (OK == varScopeStack->findExecVar(flatExprTkns[startIdx]._string, 0, resolvedTkn, READ_ONLY, userMessages))	{
+			flatExprTkns[startIdx] = resolvedTkn;
+			flatExprTkns[startIdx].isInitialized = true;
 			ret_code = OK;
+		}
+	} else if (isSubExprComplete && !failOnSrcLine && flatExprTkns[startIdx].tkn_type != EXEC_OPR8R_TKN)	{
+		ret_code = OK;
 	}
 
 	if (ret_code != OK && !failOnSrcLine)	{
@@ -1868,7 +1903,7 @@ int RunTimeInterpreter::resolveTknOrVar (Token & originalTkn, Token & resolvedTk
 
 	if (originalTkn.tkn_type == USER_WORD_TKN)	{
 		varName = originalTkn._string;
-		if (OK != varScopeStack->findVar(varName, 0, resolvedTkn, READ_ONLY, tmpUserMsg))	{
+		if (OK != varScopeStack->findExecVar(varName, 0, resolvedTkn, READ_ONLY, tmpUserMsg))	{
 			// TODO: Log an error message
 		} else	{
 			ret_code = OK;
