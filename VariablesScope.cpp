@@ -9,6 +9,7 @@
 
 #include "VariablesScope.h"
 #include "InfoWarnError.h"
+#include "common.h"
 #include <memory>
 
 VariablesScope::VariablesScope() {
@@ -35,30 +36,14 @@ void VariablesScope::reset()	{
 }
 
 /* ****************************************************************************
- * Look up this variable in our scopeStack|NameSpace at COMPILE time. 
- * Only update the variable if isCommitUpdate = COMMIT_UPDATE (true)
- * ***************************************************************************/
-int VariablesScope::findSourceVar(std::wstring varName, int maxLevels, Token & readOrWriteTkn, bool isWrite, std::shared_ptr<UserMessages> userMessages)	{
-	return findVar (varName, maxLevels, readOrWriteTkn, isWrite, userMessages, COMPILE_TIME);
-}
-
-/* ****************************************************************************
- * Look up this variable in our scopeStack|NameSpace at EXEC|INTERPRETER time. 
- * Only update the variable if isCommitUpdate = COMMIT_UPDATE (true)
- * ***************************************************************************/
-int VariablesScope::findExecVar(std::wstring varName, int maxLevels, Token & readOrWriteTkn, bool isWrite, std::shared_ptr<UserMessages> userMessages)	{
-	return findVar (varName, maxLevels, readOrWriteTkn, isWrite, userMessages, EXEC_TIME);
-}
-
-
-/* ****************************************************************************
  * Look up this variable in our scopeStack|NameSpace. Only update the variable
  * if isCommitUpdate = COMMIT_UPDATE (true)
  * ***************************************************************************/
-int VariablesScope::findVar(std::wstring varName, int maxLevels, Token & updateValTkn, bool isCommitUpdate
-	, std::shared_ptr<UserMessages> userMessages, VarScopeCallerMode mode)	{
+int VariablesScope::findVar(std::wstring varName, int maxLevels, Token & updateValTkn
+	, ReadOrWrite readOrWrite, std::wstring & errorMsg)	{
 	int ret_code = GENERAL_FAILURE;
 	bool isFound = false;
+	errorMsg.clear();
 
 	int scopeTopIdx = scopeStack.size() - 1;
 	int endScopeIdx;
@@ -73,17 +58,10 @@ int VariablesScope::findVar(std::wstring varName, int maxLevels, Token & updateV
 			// TODO: existingTkn is probably going to need to be a POINTER for the update to stick
 			std::shared_ptr<Token> existingTkn = search->second;
 			isFound = true;
-			if (isCommitUpdate)	{
-				if (OK != existingTkn->convertTo(updateValTkn))	{
+			if (COMMIT_WRITE == readOrWrite)	{
+				std::wstring errMsg;
+				if (OK == existingTkn->convertTo(updateValTkn, varName, errorMsg))	{
 					// TODO: What info can I supply to user to resolve src line # etc?
-					if (mode == COMPILE_TIME)
-						userMessages->logMsg(USER_ERROR, L"Data type mismatch on assignment to " + varName + L" with " + updateValTkn.descr_sans_line_num_col()
-							, thisSrcFile, __LINE__, 0);
-					else
-						userMessages->logMsg(INTERNAL_ERROR, L"Data type mismatch on assignment to " + varName + L" with " + updateValTkn.descr_sans_line_num_col()
-							, thisSrcFile, __LINE__, 0);
-
-				} else	{
 					existingTkn->isInitialized = true;
 					ret_code = OK;
 				}
@@ -92,11 +70,6 @@ int VariablesScope::findVar(std::wstring varName, int maxLevels, Token & updateV
 				ret_code = OK;
 			}
 		}
-	}
-
-	if (isCommitUpdate && !isFound && userMessages != NULL)	{
-		userMessages->logMsg (INTERNAL_ERROR, L"Variable " + varName + L" no longer exists at current scope."
-				, thisSrcFile, __LINE__, 0);
 	}
 
 	return (ret_code);
@@ -131,7 +104,7 @@ void VariablesScope::displayVariables()	{
 	int maxNameLen = 0;
 
 	for (int currIdx = scopeTopIdx; currIdx >= 0; currIdx--)	{
-		std::wcout << L"/* ********** <SCOPE LEVEL " << currIdx << L"> ********** " << std::endl;
+		std::wcout << L"// ********** <SCOPE LEVEL " << currIdx << L"> ********** " << std::endl;
 		std::shared_ptr<ScopeFrame> currScope = scopeStack[currIdx];
 		varNames.clear();
 		for (auto mapr8r = currScope->variables.begin(); mapr8r != currScope->variables.end(); mapr8r++)	{
@@ -153,6 +126,6 @@ void VariablesScope::displayVariables()	{
 			std::wcout << alignedName << L" = " << nxtVarTkn->getValueStr() << L";" << std::endl;
 		}
 
-		std::wcout << L"   ********** </SCOPE LEVEL " << currIdx << L"> ********** */" << std::endl;
+		std::wcout << L"// ********** </SCOPE LEVEL " << currIdx << L"> ********** " << std::endl;
 	}
 }

@@ -285,6 +285,7 @@ int InterpretedFileReader::readFixedRange (uint8_t op_code, Token & nxtTkn)	{
 	}
 
 	if (!isFailed)	{
+		nxtTkn.isInitialized = true;
 		ret_code = OK;
 	}
 
@@ -350,6 +351,7 @@ int InterpretedFileReader::readString (uint8_t op_code, Token & nxtTkn)	{
 				if (!isFailed)	{
 					// TODO: Allowing empty strings
 					nxtTkn._string = tknStr;
+					nxtTkn.isInitialized = true;
 					ret_code = OK;
 				}
 			}

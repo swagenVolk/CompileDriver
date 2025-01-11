@@ -16,14 +16,6 @@
 #include "VariablesScope.h"
 #include "UserMessages.h"
 
-enum interpreter_modes_enum {
-	COMPILE_TIME_CHECKING
-	,RUN_TIME_EXECUTION
-
-};
-
-typedef interpreter_modes_enum InterpreterModesType;
-
 class RunTimeInterpreter {
 public:
 	RunTimeInterpreter();
@@ -50,7 +42,7 @@ private:
 	std::shared_ptr<VariablesScope> varScopeStack;
 	std::shared_ptr<UserMessages> userMessages;
 	std::wstring userSrcFileName;
-	int usageMode;
+	InterpreterModesType usageMode;
 	InterpretedFileReader fileReader;
 	int failOnSrcLine;
 
@@ -69,6 +61,7 @@ private:
 	int execShift (std::vector<Token> & exprTknStream, int opr8rIdx);
 	int execBitWiseOp (std::vector<Token> & exprTknStream, int opr8rIdx);
 	int execStandardMath (std::vector<Token> & exprTknStream, int opr8rIdx);
+	int resolveTknOrVar (Token & originalTkn, Token & resolvedTkn, std::wstring & varName, bool isCheckInit);
 	int resolveTknOrVar (Token & originalTkn, Token & resolvedTkn, std::wstring & varName);
 
 };

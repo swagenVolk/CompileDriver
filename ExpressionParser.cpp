@@ -47,6 +47,7 @@
 #include "Operator.h"
 #include "Token.h"
 #include "UserMessages.h"
+#include "VariablesScope.h"
 #include "common.h"
 
 ExpressionParser::ExpressionParser(CompileExecTerms & inUsrSrcTerms, std::shared_ptr<VariablesScope> inVarScopeStack
@@ -515,6 +516,7 @@ int ExpressionParser::moveNeighborsIntoTree (Operator & opr8r, ExprTreeNodePtrVe
 		std::shared_ptr<ExprTreeNode> leftNbr = NULL;
 		std::shared_ptr<ExprTreeNode> rightNbr = NULL;
 		Token tmpTkn;
+		std::wstring lookUpMsg;
 
 		if (isMoveRightNbr)	{
 			if ((currScope.size() - 1) < (opr8rIdx + 1))	{
@@ -528,7 +530,7 @@ int ExpressionParser::moveNeighborsIntoTree (Operator & opr8r, ExprTreeNodePtrVe
 				} else {
 					if ((opr8r.type_mask & PREFIX) && (rightNbr->originalTkn->tkn_type != USER_WORD_TKN 
 							|| !usrSrcTerms.isViableVarName(rightNbr->originalTkn->_string)
-							|| OK != varScopeStack->findSourceVar(rightNbr->originalTkn->_string, 0, tmpTkn, READ_ONLY, userMessages)))	{
+							|| OK != varScopeStack->findVar(rightNbr->originalTkn->_string, 0, tmpTkn, READ_ONLY, lookUpMsg)))	{
 						// Make sure our right neighbor is a variable name before moving
 						isFailed = true;
 					
@@ -561,7 +563,7 @@ int ExpressionParser::moveNeighborsIntoTree (Operator & opr8r, ExprTreeNodePtrVe
 				} else {
 					if ((opr8r.type_mask & POSTFIX) && (leftNbr->originalTkn->tkn_type != USER_WORD_TKN 
 							|| !usrSrcTerms.isViableVarName(leftNbr->originalTkn->_string)
-							|| OK != varScopeStack->findSourceVar(leftNbr->originalTkn->_string, 0, tmpTkn, READ_ONLY, userMessages)))	{
+							|| OK != varScopeStack->findVar(leftNbr->originalTkn->_string, 0, tmpTkn, READ_ONLY, lookUpMsg)))	{
 						// Make sure our left neighbor is a variable name before moving
 						isFailed = true;
 					
@@ -922,8 +924,8 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
  	  	// VAR_NAME
   		// TODO: && found in NameSpace.  If it's not in the NameSpace, we can accumulate this error but still keep
   		// compiling and looking for additional user errors.  Same same for compile time interpretation.
-  		std::shared_ptr<UserMessages> tmpUsrMsg = std::make_shared<UserMessages>();
-  		if (OK != varScopeStack->findSourceVar(curr_tkn->_string, 0, scratchTkn, READ_ONLY, tmpUsrMsg))	{
+			std::wstring lookUpMsg;
+  		if (OK != varScopeStack->findVar(curr_tkn->_string, 0, scratchTkn, READ_ONLY, lookUpMsg))	{
 					userMessages->logMsg (USER_ERROR, L"Variable " + curr_tkn->_string + L" was not declared"
 						, userSrcFileName, curr_tkn->get_line_number(), curr_tkn->get_column_pos());
   		}

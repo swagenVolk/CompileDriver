@@ -7,6 +7,7 @@
 
 #include "GeneralParser.h"
 #include "Token.h"
+#include "VariablesScope.h"
 #include <iostream>
 
 using namespace std;
@@ -123,6 +124,7 @@ int GeneralParser::rootScopeCompile () 	{
 
   } else	{
   	std::pair<TokenTypeEnum, uint8_t> tknTypeEnum_opCode;
+		std::wstring lookUpMsg;
 
 		while (!isStopFail && !isEOF)	{
 
@@ -149,14 +151,14 @@ int GeneralParser::rootScopeCompile () 	{
 						}
 					}
 				} else if (currTkn->tkn_type == USER_WORD_TKN 
-						&& OK != varScopeStack->findSourceVar(currTkn->_string, 0, scratchTkn, READ_ONLY, userMessages))	{
+						&& OK != varScopeStack->findVar(currTkn->_string, 0, scratchTkn, READ_ONLY, lookUpMsg))	{
 			  		userMessages->logMsg (USER_ERROR, L"Unrecognized USER_WORD: " + currTkn->descr_sans_line_num_col()
 							, userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
 
 						if (isProgressBlocked ())
 							isStopFail = true;
 
-				} else if ((currTkn->tkn_type == USER_WORD_TKN && OK == varScopeStack->findSourceVar(currTkn->_string, 0, scratchTkn, READ_ONLY, userMessages))
+				} else if ((currTkn->tkn_type == USER_WORD_TKN && OK == varScopeStack->findVar(currTkn->_string, 0, scratchTkn, READ_ONLY, lookUpMsg))
 					|| currTkn->tkn_type == SRC_OPR8R_TKN && (currTkn->_string == usrSrcTerms.getSrcOpr8rStrFor (PRE_INCR_OPR8R_OPCODE)
 					|| currTkn->_string == usrSrcTerms.getSrcOpr8rStrFor (PRE_DECR_OPR8R_OPCODE)))	{
 					// Put the current Token back; exprParser will need it!
@@ -184,8 +186,7 @@ int GeneralParser::rootScopeCompile () 	{
 
 					} else if (OK != interpretedFileWriter.flattenExprTree(exprTree, flatExprTkns, userSrcFileName))	{
 						// (3 + 4) -> [3][4][+]
-						if (isProgressBlocked ())
-							isStopFail = true;
+						isStopFail = true;
 					
 					} else if (OK != interpretedFileWriter.writeFlatExprToFile(flatExprTkns))	{
 						// Write out to interpreted file BEFORE we destructively resolve the flat stream of Tokens that make up the expression
@@ -221,7 +222,8 @@ int GeneralParser::rootScopeCompile () 	{
 			  	userMessages->logMsg (INTERNAL_ERROR, L"[while] RESERVED_WORD not supported yet!", thisSrcFile, __LINE__, 0);
 					isStopFail = true;
 				} else	{
-			  	userMessages->logMsg (INTERNAL_ERROR, L"Unhandled condition!", thisSrcFile, __LINE__, 0);
+					userMessages->logMsg (USER_ERROR, L"Unrecognized USER_WORD: " + currTkn->descr_sans_line_num_col()
+						, userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
 			  	isStopFail = true;
 				}
 			} else	{
@@ -271,6 +273,7 @@ int GeneralParser::parseVarDeclaration (std::wstring dataTypeStr, std::pair<Toke
 
 			std::shared_ptr <Token> currTkn;
 			Token currVarNameTkn;
+			std::wstring lookUpMsg;
 
 			while (!isStopFail && !isDeclarationEnded)	{
 				if (!tknStream.empty())	{
@@ -299,7 +302,7 @@ int GeneralParser::parseVarDeclaration (std::wstring dataTypeStr, std::pair<Toke
 									, thisSrcFile, __LINE__, 0);
 							isStopFail = true;
 
-						} else if (OK == varScopeStack->findSourceVar(currTkn->_string, 1, scratchTkn, READ_ONLY, userMessages))	{
+						} else if (OK == varScopeStack->findVar(currTkn->_string, 1, scratchTkn, READ_ONLY, lookUpMsg))	{
 								userMessages->logMsg (USER_ERROR, L"Variable " + currTkn->_string + L" already exists at current scope."
 										, thisSrcFile, currTkn->get_line_number(), currTkn->get_column_pos());
 								// TODO: This could be an opportunity to continue compiling
@@ -418,6 +421,7 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
 
 	int makeTreeRetCode = exprParser.makeExprTree (tknStream, exprTree, exprEnder, END_COMMA_IS_EXPECTED, isExprClosed);
 	closerTkn = exprEnder;
+	std::wstring lookUpMsg;
 
 	if (OK != makeTreeRetCode)	{
 		isFailed = true;
@@ -430,8 +434,7 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
 
 	} else if (OK != interpretedFileWriter.flattenExprTree(exprTree, flatExprTkns, userSrcFileName))	{
 		// (3 + 4) -> [3][4][+]
-		if (isProgressBlocked ())
-			isFailed = true;
+		isFailed = true;
 	
 	} else if (OK != interpretedFileWriter.writeFlatExprToFile(flatExprTkns))	{
 		// Write out the expression BEFORE we destructively resolve it
@@ -447,7 +450,7 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
 					, thisSrcFile, __LINE__, 0);
 			isFailed = true;
 
-		} else if (OK != varScopeStack->findSourceVar(varTkn._string, 0, flatExprTkns[0], COMMIT_WRITE, userMessages))	{
+		} else if (OK != varScopeStack->findVar(varTkn._string, 0, flatExprTkns[0], COMMIT_WRITE, lookUpMsg))	{
 			// Don't limit search to current scope
 			userMessages->logMsg (INTERNAL_ERROR
 					, L"Could not find " + varTkn._string + L" after parsing initialization expression in " + userSrcFileName

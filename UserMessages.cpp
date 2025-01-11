@@ -8,6 +8,7 @@
 #include "UserMessages.h"
 #include "FileLineCol.h"
 #include "InfoWarnError.h"
+#include <memory>
 
 UserMessages::UserMessages() {
 	// TODO Auto-generated constructor stub
@@ -46,8 +47,35 @@ void UserMessages::reset()	{
 		itr8r->second.reset();
 		internalErrorMessages.erase(itr8r);
 	}
+}
 
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+void UserMessages::insertNoDupes (std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> & messagesHolder
+	, InfoWarnError & msg, FileLineCol newFileLineCol)	{
 
+	auto search = messagesHolder.find(msg.getUserMsgFld());
+	if (search == messagesHolder.end())	{
+		std::shared_ptr<std::vector<FileLineCol>> emptyMsgList = std::make_shared <std::vector<FileLineCol>> ();
+		emptyMsgList->push_back (newFileLineCol);
+		messagesHolder.insert ( std::pair {msg.getUserMsgFld(), emptyMsgList} );
+
+	} else	{
+		std::shared_ptr<std::vector<FileLineCol>> msgList = search->second;
+		bool isFlcExists = false;
+
+		for (auto itr8r = msgList->begin(); itr8r != msgList->end() && !isFlcExists; itr8r++)	{
+			// Make sure we don't insert duplicates
+			FileLineCol currFlc = *itr8r;
+			if (currFlc.fileName == newFileLineCol.fileName && currFlc.lineNumber == newFileLineCol.lineNumber && currFlc.columnPos == newFileLineCol.columnPos)
+				isFlcExists = true;
+		}
+		if (!isFlcExists)	{
+			newFileLineCol.insertPos = absoluteInsertPos++;
+			msgList->push_back (newFileLineCol);
+		}
+	}
 }
 
 /* ****************************************************************************
@@ -59,69 +87,23 @@ int UserMessages::logMsg (InfoWarnError & msg)	{
 
 	info_warn_error_type msgType	= msg.getTypeOfError();
 	if (INFO == msgType)	{
-		FileLineCol fileLineCol(msg.getUserSrcFileName(), msg.getUserSrcLineNum(), msg.getUserSrcColPos());
-		fileLineCol.insertPos = absoluteInsertPos++;
-
-		auto search = infoMessages.find(msg.getUserMsgFld());
-		if (search == infoMessages.end())	{
-			std::shared_ptr<std::vector<FileLineCol>> flcList = std::make_shared <std::vector<FileLineCol>> ();
-			flcList->push_back (fileLineCol);
-			infoMessages.insert ( std::pair {msg.getUserMsgFld(), flcList} );
-
-		} else	{
-			std::shared_ptr<std::vector<FileLineCol>> infoMsgList = search->second;
-			infoMsgList->push_back (fileLineCol);
-		}
+		FileLineCol newInfoFlc(msg.getUserSrcFileName(), msg.getUserSrcLineNum(), msg.getUserSrcColPos());
+		insertNoDupes(infoMessages, msg, newInfoFlc);
 		ret_code = OK;
 
 	} else if (WARNING == msgType)	{
-		FileLineCol fileLineCol(msg.getUserSrcFileName(), msg.getUserSrcLineNum(), msg.getUserSrcColPos());
-		fileLineCol.insertPos = absoluteInsertPos++;
-
-		auto search = warningMessages.find(msg.getUserMsgFld());
-		if (search == warningMessages.end())	{
-			std::shared_ptr<std::vector<FileLineCol>> flcList = std::make_shared <std::vector<FileLineCol>> ();
-			flcList->push_back (fileLineCol);
-			warningMessages.insert ( std::pair {msg.getUserMsgFld(), flcList} );
-
-		} else	{
-			std::shared_ptr<std::vector<FileLineCol>> warnMsgList = search->second;
-			warnMsgList->push_back (fileLineCol);
-		}
+		FileLineCol newWarnFlc(msg.getUserSrcFileName(), msg.getUserSrcLineNum(), msg.getUserSrcColPos());
+		insertNoDupes(warningMessages, msg, newWarnFlc);
 		ret_code = OK;
-
 
 	} else if (USER_ERROR == msgType)	{
-		FileLineCol fileLineCol(msg.getUserSrcFileName(), msg.getUserSrcLineNum(), msg.getUserSrcColPos());
-		fileLineCol.insertPos = absoluteInsertPos++;
-
-		auto search = userErrorMessages.find(msg.getUserMsgFld());
-		if (search == userErrorMessages.end())	{
-			std::shared_ptr<std::vector<FileLineCol>> flcList = std::make_shared <std::vector<FileLineCol>> ();
-			flcList->push_back (fileLineCol);
-			userErrorMessages.insert ( std::pair {msg.getUserMsgFld(), flcList} );
-
-		} else	{
-			std::shared_ptr<std::vector<FileLineCol>> userErrMsgList = search->second;
-			userErrMsgList->push_back (fileLineCol);
-		}
+		FileLineCol newErrorFlc(msg.getUserSrcFileName(), msg.getUserSrcLineNum(), msg.getUserSrcColPos());
+		insertNoDupes(userErrorMessages, msg, newErrorFlc);
 		ret_code = OK;
 
-
 	} else if (INTERNAL_ERROR == msgType)	{
-		FileLineCol fileLineCol(msg.getOurSrcFileName(), msg.getOurSrcLineNum(), 0);
-		fileLineCol.insertPos = absoluteInsertPos++;
-
-		auto search = internalErrorMessages.find(msg.getUserMsgFld());
-		if (search == internalErrorMessages.end())	{
-			std::shared_ptr<std::vector<FileLineCol>> flcList = std::make_shared <std::vector<FileLineCol>> ();
-			flcList->push_back (fileLineCol);
-			internalErrorMessages.insert ( std::pair {msg.getUserMsgFld(), flcList} );
-
-		} else	{
-			std::shared_ptr<std::vector<FileLineCol>> internalErrList = search->second;
-			internalErrList->push_back (fileLineCol);
-		}
+		FileLineCol newInternalFlc(msg.getOurSrcFileName(), msg.getOurSrcLineNum(), 0);
+		insertNoDupes(internalErrorMessages, msg, newInternalFlc);
 		ret_code = OK;
 
 	}

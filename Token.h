@@ -60,18 +60,7 @@ class Token {
     Token(tkn_type_enum found_type, std::wstring tokenized_str, std::wstring srcFileName, int line_num, int col_pos);
     ~Token();
     Token& operator= (const Token & srcTkn);
-
-
-    TokenTypeEnum tkn_type;
-    std::wstring _string;
-    uint64_t    _unsigned;
-    int64_t     _signed;
-    double       _double;
-    FileLineCol src;
     std::wstring get_type_str();
-    bool is_Rvalue;
-    bool isInitialized;
-
     std::wstring get_tkn_type_by_enum (tkn_type_enum tkn_type);
     std::wstring descr_sans_line_num_col ();
     std::wstring descr_line_num_col ();
@@ -84,14 +73,26 @@ class Token {
     bool isUnsigned ();
     bool isSigned ();
     void resetToken ();
+    void resetTokenExceptSrc ();
     void resetToBool (bool isTrue);
     void resetToUnsigned (uint64_t newValue);
     void resetToSigned (int64_t newValue);
     void resetToDouble (double newValue);
     void resetToString (std::wstring newValue);
-    int convertTo (Token newValTkn);
+    int convertTo (Token newValTkn, std::wstring variableName, std::wstring & errorMsg);
     int get_line_number ();
     int get_column_pos ();
+
+
+    TokenTypeEnum tkn_type;
+    std::wstring _string;
+    uint64_t    _unsigned;
+    int64_t     _signed;
+    double       _double;
+    FileLineCol src;
+    bool is_Rvalue;
+    bool isInitialized;
+
 
   private:
 

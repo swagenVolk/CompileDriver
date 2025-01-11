@@ -37,6 +37,9 @@ private:
 	std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> userErrorMessages;
 	std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> internalErrorMessages;
 
+	void insertNoDupes (std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> & messagesHolder
+	, InfoWarnError & msg, FileLineCol newFileLineCol);
+
 	std::pair <int, int> getUniqueTotalMsgCnt (std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> & messagesHolder);
 	void displayMessagesInHolder (std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> & messagesHolder);
 	void putHolderMsgsInOrder (std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> & messagesHolder

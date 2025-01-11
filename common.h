@@ -11,6 +11,14 @@
 #define GENERAL_FAILURE         1
 #define CATASTROPHIC_FAILURE    2
 
+
+enum read_write_enum {
+	READ_ONLY
+	,COMMIT_WRITE
+};
+
+typedef read_write_enum ReadOrWrite;
+
 #define BIT_63                  0x8000000000000000
 #define BIT_62                  0x4000000000000000
 #define BIT_61                  0x2000000000000000

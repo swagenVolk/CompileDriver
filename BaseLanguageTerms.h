@@ -20,6 +20,14 @@
 #include "Opr8rPrecedenceLvl.h"
 #include "OpCodes.h"
 
+enum interpreter_modes_enum {
+	COMPILE_TIME
+	,INTERPRETER
+
+};
+
+typedef interpreter_modes_enum InterpreterModesType;
+
 class BaseLanguageTerms {
 
 public:

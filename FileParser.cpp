@@ -17,6 +17,7 @@
  *
  * DONE:
  * ***************************************************************************/
+#include "Token.h"
 using namespace std;
 #include "FileParser.h"
 
@@ -444,6 +445,7 @@ void FileParser::resolve_final_tkn_type (std::shared_ptr<Token>  tkn_of_ambiguit
     switch (tkn_of_ambiguity->tkn_type)  {
       case STRING_TKN:
         cnvrt_tkn_if_datetime (tkn_of_ambiguity);
+        tkn_of_ambiguity->isInitialized = true;
         break;
       case UINT8_TKN:
       case UINT16_TKN:
@@ -471,17 +473,21 @@ void FileParser::resolve_final_tkn_type (std::shared_ptr<Token>  tkn_of_ambiguit
             tkn_of_ambiguity->_unsigned = cnvrtd_unsigned;
 
             // Store this unsigned number (literal?) in the smallest possible size
-            if (cnvrtd_unsigned < ceil(exp2(8)))
+            if (cnvrtd_unsigned < ceil(exp2(8)))  {
             	tkn_of_ambiguity->tkn_type = UINT8_TKN;
-            else if (cnvrtd_unsigned < ceil(exp2(16)))
+              tkn_of_ambiguity->isInitialized = true;
+            } else if (cnvrtd_unsigned < ceil(exp2(16)))  {
             	tkn_of_ambiguity->tkn_type = UINT16_TKN;
-            else if (cnvrtd_unsigned < ceil(exp2(32)))
+              tkn_of_ambiguity->isInitialized = true;
+            } else if (cnvrtd_unsigned < ceil(exp2(32)))  {
             	tkn_of_ambiguity->tkn_type = UINT32_TKN;
-            else if (cnvrtd_unsigned < ceil(exp2(64)))
+              tkn_of_ambiguity->isInitialized = true;
+            } else if (cnvrtd_unsigned < ceil(exp2(64)))  {
             	tkn_of_ambiguity->tkn_type = UINT64_TKN;
-            else
+            } else if (cnvrtd_unsigned < ceil(exp2(64)))  {
+            } else  {
               tkn_of_ambiguity->tkn_type = JUNK_TKN;
-
+            }
           }
           catch(std::invalid_argument& e){
             // if no conversion could be performed
@@ -497,6 +503,9 @@ void FileParser::resolve_final_tkn_type (std::shared_ptr<Token>  tkn_of_ambiguit
             // everything else
             tkn_of_ambiguity->tkn_type = JUNK_TKN;
           }
+
+          if (tkn_of_ambiguity->tkn_type != JUNK_TKN)
+            tkn_of_ambiguity->isInitialized = true;
         }
         break;
       case INT8_TKN:
@@ -518,32 +527,34 @@ void FileParser::resolve_final_tkn_type (std::shared_ptr<Token>  tkn_of_ambiguit
 
             // Store this signed number (literal?) in the smallest possible size
             // Use 2's complement to determine range for each signed data type
-            if (cnvrtd_signed >= (0 - ceil(exp2(7))) && cnvrtd_signed < ceil(exp2(7)))
+            if (cnvrtd_signed >= (0 - ceil(exp2(7))) && cnvrtd_signed < ceil(exp2(7)))  
             	tkn_of_ambiguity->tkn_type = INT8_TKN;
-            else if (cnvrtd_signed >= (0 - ceil(exp2(15))) && cnvrtd_signed < ceil(exp2(15)))
+            else if (cnvrtd_signed >= (0 - ceil(exp2(15))) && cnvrtd_signed < ceil(exp2(15))) 
             	tkn_of_ambiguity->tkn_type = INT16_TKN;
-            else if (cnvrtd_signed >= (0 - ceil(exp2(31))) && cnvrtd_signed < ceil(exp2(31)))
+            else if (cnvrtd_signed >= (0 - ceil(exp2(31))) && cnvrtd_signed < ceil(exp2(31))) 
             	tkn_of_ambiguity->tkn_type = INT32_TKN;
-            else if (cnvrtd_signed >= (0 - ceil(exp2(63))) && cnvrtd_signed < ceil(exp2(63)))
+            else if (cnvrtd_signed >= (0 - ceil(exp2(63))) && cnvrtd_signed < ceil(exp2(63))) 
             	tkn_of_ambiguity->tkn_type = INT64_TKN;
-            else
+            else  
               tkn_of_ambiguity->tkn_type = JUNK_TKN;
 
-          }
-          catch(std::invalid_argument& e){
+          } catch(std::invalid_argument& e){
             // if no conversion could be performed
             tkn_of_ambiguity->tkn_type = JUNK_TKN;
-          }
-          catch(std::out_of_range& e){
+          
+          } catch(std::out_of_range& e){
             // if the converted value would fall out of the range of the result type
             // or if the underlying function (std::strtol or std::strtoull) sets errno
             // to ERANGE.
             tkn_of_ambiguity->tkn_type = JUNK_TKN;
-          }
-          catch(...) {
+          
+          } catch(...) {
             // everything else
             tkn_of_ambiguity->tkn_type = JUNK_TKN;
           }
+          
+          if (tkn_of_ambiguity->tkn_type != JUNK_TKN)
+            tkn_of_ambiguity->isInitialized = true;
         }
         break;
       case SRC_OPR8R_TKN:
@@ -565,10 +576,12 @@ void FileParser::resolve_final_tkn_type (std::shared_ptr<Token>  tkn_of_ambiguit
           if (tkn_of_ambiguity->_string == FALSE_RESERVED_WORD) {
             tkn_of_ambiguity->tkn_type = BOOL_TKN;
             tkn_of_ambiguity->_unsigned = 0;
+            tkn_of_ambiguity->isInitialized = true;
 
           } else if (tkn_of_ambiguity->_string == TRUE_RESERVED_WORD) {
             tkn_of_ambiguity->tkn_type = BOOL_TKN;
             tkn_of_ambiguity->_unsigned = 1;
+            tkn_of_ambiguity->isInitialized = true;
 
           } else  {
             tkn_of_ambiguity->tkn_type = RESERVED_WORD_TKN;

@@ -10,6 +10,7 @@
 #include "Token.h"
 #include "TokenCompareResult.h"
 #include "locale_strings.h"
+#include <cstdint>
 #include <iostream>
 
 using namespace std;
@@ -26,6 +27,20 @@ void Token::resetToken ()	{
   src.fileName.clear();
   src.lineNumber = 0;
   src.columnPos = 0;
+  _unsigned = 0;
+  _signed = 0;
+  _double = 0.0;
+  is_Rvalue = false;
+  isInitialized = false;
+
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+void Token::resetTokenExceptSrc ()	{
+  tkn_type = START_UNDEF_TKN;
+  _string.clear();
   _unsigned = 0;
   _signed = 0;
   _double = 0.0;
@@ -92,8 +107,14 @@ Token& Token::operator= (const Token & srcTkn)
 	_signed = srcTkn._signed;
 	_double = srcTkn._double;
 	is_Rvalue = srcTkn.is_Rvalue;
+	isInitialized = srcTkn.isInitialized;
 
-	src = srcTkn.src;
+	if (srcTkn.src.lineNumber > 0)	{
+		// Only overwrite existing src info if new info is good
+		src = srcTkn.src;
+	}
+
+	src.insertPos = srcTkn.src.insertPos;
 
 	// TODO: I don't understand the comment below
 	// return the existing object so we can chain this operator
@@ -256,9 +277,9 @@ std::wstring Token::descr_sans_line_num_col ()	{
 
 	desc.append(L"(");
 	desc.append (isInitialized ? L"I)" : L"U)");
-	desc.append (L" ");
+	desc.append (L"->[");
 	desc.append(getValueStr());
-	desc.append (L";");
+	desc.append (L"]");
 
 	return (desc);
 }
@@ -519,7 +540,7 @@ bool Token::isSigned ()	{
  *
  * ***************************************************************************/
 void Token::resetToBool (bool isTrue)	{
-	resetToken();
+	resetTokenExceptSrc();
 	tkn_type = BOOL_TKN;
 
 	if (isTrue)
@@ -533,7 +554,7 @@ void Token::resetToBool (bool isTrue)	{
  *
  * ***************************************************************************/
 void Token::resetToUnsigned (uint64_t newValue)	{
-	resetToken();
+	resetTokenExceptSrc();
 	_unsigned = newValue;
 
 	if (newValue < (0x1 << NUM_BITS_IN_BYTE))
@@ -552,7 +573,7 @@ void Token::resetToUnsigned (uint64_t newValue)	{
  *
  * ***************************************************************************/
 void Token::resetToSigned (int64_t newValue)	{
-	resetToken();
+	resetTokenExceptSrc();
 	_signed = newValue;
 
 	int64_t absolute = abs(newValue);
@@ -571,7 +592,7 @@ void Token::resetToSigned (int64_t newValue)	{
  *
  * ***************************************************************************/
 void Token::resetToDouble (double newValue)	{
-	resetToken();
+	resetTokenExceptSrc();
 	_double = newValue;
 	tkn_type = DOUBLE_TKN;
 
@@ -582,7 +603,7 @@ void Token::resetToDouble (double newValue)	{
  *
  * ***************************************************************************/
 void Token::resetToString (std::wstring newValue)	{
-	resetToken();
+	resetTokenExceptSrc();
 
 	_string.append (newValue);
 	tkn_type = STRING_TKN;
@@ -591,39 +612,23 @@ void Token::resetToString (std::wstring newValue)	{
 /* ****************************************************************************
  *
  * ***************************************************************************/
-int Token::convertTo (Token newValTkn)	{
+int Token::convertTo (Token newValTkn, std::wstring variableName, std::wstring & errorMsg)	{
 	int ret_code = GENERAL_FAILURE;
 
 	if (tkn_type == newValTkn.tkn_type)	{
 		*this = newValTkn;
 		ret_code = OK;
 
-	} else if (isUnsigned() && newValTkn.tkn_type == BOOL_TKN)	{
-		if (_unsigned > 0)
-			resetToBool(true);
-		else
-		 	resetToBool(false);
-
-		ret_code = OK;
-
-	} else if (isSigned() && newValTkn.tkn_type == BOOL_TKN)	{
-		if (_signed > 0)
-			resetToBool(true);
-		else
-		 	resetToBool(false);
-
-		ret_code = OK;
-
 	} else if (isUnsigned() && newValTkn.isUnsigned())	{
-		// Both are UNSIGNED, but of diffeent sizes
-		if (tkn_type >= newValTkn.tkn_type)
-			// Keep the user declared larger data_type size
-			_unsigned = newValTkn._unsigned;
-		else
-			resetToUnsigned (newValTkn._unsigned);
-		ret_code = OK;
+			// Both are UNSIGNED, but of different sizes
+			if (tkn_type >= newValTkn.tkn_type)
+				// Keep the user declared larger data_type size
+				_unsigned = newValTkn._unsigned;
+			else
+				resetToUnsigned (newValTkn._unsigned);
+			ret_code = OK;
 
-	}	else if (isSigned() && newValTkn.isSigned())	{
+	} else if (isSigned() && newValTkn.isSigned())	{
 		// Both are SIGNED, but of diffeent sizes
 		if (tkn_type >= newValTkn.tkn_type)
 			// Keep the user declared larger data_type size
@@ -632,56 +637,71 @@ int Token::convertTo (Token newValTkn)	{
 			resetToSigned (newValTkn._signed);
 		ret_code = OK;
 
-	} else if (tkn_type == DOUBLE_TKN && newValTkn.isSigned())	{
-		// DOUBLE SIGNED
-		_double = newValTkn._signed;
-		ret_code = OK;
+	} else if (tkn_type == BOOL_TKN)	{
+		// PREV: [BOOL_TKN] 
+		// OKGO: [isUnsigned] [isSigned] [DOUBLE_TKN]
+		// NOGO: [STRING_TKN] [DATETIME_TKN] 
+		if (newValTkn.isUnsigned())	{
+			newValTkn._unsigned > 0 ? resetToBool(true) : resetToBool(false);
+			ret_code = OK;
 
-	} else if (tkn_type == DOUBLE_TKN && newValTkn.isUnsigned())	{
-		// DOUBLE UNSIGNED
-		_double = newValTkn._unsigned;
-		ret_code = OK;
+		} else if (isSigned())	{
+			newValTkn._signed > 0 ? resetToBool(true) : resetToBool(false);
+			ret_code = OK;
 
-	} else if (isSigned() && newValTkn.tkn_type == DOUBLE_TKN)	{
-		// SIGNED DOUBLE
-    double beforeDecPt;
-    double afterDecPt = std::modf(newValTkn._double, &beforeDecPt);
-    if (afterDecPt == 0.0 && beforeDecPt <= INT64_MAX)	{
-			_signed = floor(beforeDecPt);
-    	ret_code = OK;
-    }
+		} else if (tkn_type == DOUBLE_TKN)	{
+			newValTkn._double > 0.0 ? resetToBool(true) : resetToBool(false);
+			ret_code = OK;
+		}
+		
+	} else if (isUnsigned())	{
+		// PREV: [isUnsigned] 
+		// OKGO: [BOOL_TKN] [isSigned]
+		// NOGO: [DOUBLE_TKN] [STRING_TKN] [DATETIME_TKN] 
+		if (newValTkn.tkn_type == BOOL_TKN)	{
+			resetToUnsigned (newValTkn._unsigned);
+			ret_code = OK;
 
-	} else if (isSigned() && newValTkn.isUnsigned())	{
-		// SIGNED UNSIGNED
-		if (newValTkn.tkn_type <= UINT32_TKN)	{
-			_signed = (int64_t)newValTkn._unsigned;
+		} else if (newValTkn.isSigned())	{
+			// TODO: What about negative signed #s?
+			_unsigned = (uint64_t)newValTkn._signed;
 			ret_code = OK;
 		}
 
-	} else if (isUnsigned() && newValTkn.tkn_type == DOUBLE_TKN)	{
-		// UNSIGNED DOUBLE
-		if (newValTkn._double >= 0)	{
-			double beforeDecPt;
-			double afterDecPt = std::modf(newValTkn._double, &beforeDecPt);
-			if (afterDecPt == 0.0 && beforeDecPt <= UINT64_MAX)	{
-				_unsigned = floor(beforeDecPt);
+	} else if (isSigned())	{
+		// PREV: [isSigned]
+		// OKGO: [BOOL_TKN] [isUnsigned]  
+		// NOGO: [DOUBLE_TKN] [STRING_TKN] [DATETIME_TKN] 
+		if (newValTkn.tkn_type == BOOL_TKN)	{
+			resetToSigned (newValTkn._unsigned);
+			ret_code = OK;
+
+		} else if (newValTkn.isUnsigned())	{
+			if (newValTkn.tkn_type <= UINT32_TKN)	{
+				_signed = abs((int64_t)newValTkn._unsigned);
 				ret_code = OK;
 			}
 		}
 
-	} else if (isUnsigned() && newValTkn.isSigned())	{
-		// UNSIGNED SIGNED
-		if (newValTkn._signed >= 0)	{
-			_unsigned = newValTkn._signed;
+
+	} else if (tkn_type == DOUBLE_TKN)	{
+		// PREV: [DOUBLE_TKN]
+		// OKGO: [BOOL_TKN] [isUnsigned] [isSigned]  
+		// NOGO: [STRING_TKN] [DATETIME_TKN] 
+		if (newValTkn.tkn_type == BOOL_TKN || newValTkn.isUnsigned())	{
+			_double = (double)newValTkn._unsigned;
+			ret_code = OK;
+		
+		} else if (newValTkn.isUnsigned())	{
+			_double = (double)newValTkn._signed;
 			ret_code = OK;
 		}
-	}
+	} 
 
 	if (OK != ret_code)	{
 		// TODO:
-		std::wcout << L"STOP" << std::endl;
+		errorMsg = L"Failed to convert variable [" + variableName + L"] of type " + get_type_str() + L" to " + newValTkn.descr_sans_line_num_col();
 	}
-
 
 	return (ret_code);
 

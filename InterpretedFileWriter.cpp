@@ -442,7 +442,7 @@ int InterpretedFileWriter::addTokenToFlatList (std::shared_ptr<Token> token, std
 				// since the caller is expected to use the RunTimeInterpreter to resolve
 				// the expression
 				uint8_t op_code = execTerms->getOpCodeFor (token->_string);
-				token->resetToken();
+				token->resetTokenExceptSrc();
 				token->tkn_type = EXEC_OPR8R_TKN;
 				token->_unsigned = op_code;
 				Operator opr8r;
@@ -457,7 +457,6 @@ int InterpretedFileWriter::addTokenToFlatList (std::shared_ptr<Token> token, std
 			if (!(token->tkn_type == EXEC_OPR8R_TKN && token->_unsigned == TERNARY_2ND_OPR8R_OPCODE))
 				// No need to put the [:] OPR8R in the stream
 				flatExprTknList.push_back (*token);
-			token.reset();
 			if (!isFailed)
 				ret_code = OK;
 		}

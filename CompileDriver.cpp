@@ -1,11 +1,13 @@
 /* ****************************************************************************
  * NEEDS TESTING:
- * isRvalue - might already have this covered for [PRE|POST]FIX OPR8Rs....what else is there?
- * Left, center and right justified parentheses in expressions
- *
- * TODO:
  * USER_ERROR should never cause an INTERNAL_ERROR. Maybe try using an unknown data type to re-create the issue.
  * Check that all operations are acting on initialized operands.
+ * Left, center and right justified parentheses in expressions
+ * Clarity of error messages
+ *
+ * TODO:
+ * When reading in expression list from Interpreted file, could add file location to Tokens (maybe)
+ *
  * Be clear & consistent about where type checking happens!
  * Maintain data type until assignment, then do data type conversion if necessary
  * Method to regression test lots of expressions and compare results against regular compiler
@@ -22,6 +24,7 @@
  * file for the location. It can do a quick(er) lookup
  *
  * RECENTLY DONE:
+ * User warning on encapsulated [=] since it has lowest priority
  * isFailed -> failedOnSrcLine at RunTimeInterpreter class level - Display via destructor if set
  * Test short circuit for [||],[&&] and [?] OPR8Rs
  * Short circuiting - Changed 12O -> O12
@@ -106,18 +109,21 @@ int main(int argc, const char * argv[])
 			std::shared_ptr<UserMessages> userMessages = std::make_shared <UserMessages> ();
 			GeneralParser generalParser (tokenStream, userSrcFileName, srcExecTerms, userMessages, output_file_name, varScope);
 
-			std::wcout << L"/* *************** <COMPILATION STAGE> *************** */" << std::endl;
+			std::wcout << L"/* *************** <COMPILATION STAGE> ***************   " << std::endl;
 			int compileRetCode = generalParser.rootScopeCompile();
-			std::wcout << L"// compileRetCode = " << compileRetCode << std::endl;
-			userMessages->showMessagesByInsertOrder(true);
+			std::wcout << L"compileRetCode = " << compileRetCode << std::endl;
+			// userMessages->showMessagesByInsertOrder(true);
+			userMessages->showMessagesByGroup();
 		  varScope->displayVariables();
-			std::wcout << L"/* *************** </COMPILATION STAGE> *************** */" << std::endl;
+			std::wcout << L" *************** </COMPILATION STAGE> *************** */" << std::endl;
 
+			int numUnqUserErrors, numTotalUserErrors;
+			userMessages->getUserErrorCnt(numUnqUserErrors, numTotalUserErrors);
 			// TODO: I expected to be able to re-use userMessages, but having problems
 			userMessages.reset();
 			varScope.reset();
 
-			if (compileRetCode == OK)	{
+			if (compileRetCode == OK && numUnqUserErrors == 0)	{
 				// TODO: Open input file here; I don't know how to make an fstream member variable (might not be possible)
 				std::string interpretedFileName = output_file_name;
 				std::shared_ptr<UserMessages> execMessages = std::make_shared <UserMessages> ();
@@ -126,13 +132,13 @@ int main(int argc, const char * argv[])
 				RunTimeInterpreter interpreter (interpretedFileName, userSrcFileName, execVarScope, execMessages);
 
 				// TODO: An option to dump the NameSpace?
-				std::wcout << L"/* *************** <EXECUTION STAGE> *************** */" << std::endl;
+				std::wcout << L"/* *************** <EXECUTION STAGE> ***************   " << std::endl;
 				ret_code = interpreter.rootScopeExec();
-				std::wcout << L"// ret_code = " << ret_code << std::endl;
+				std::wcout << L"ret_code = " << ret_code << std::endl;
 				// execMessages->showMessagesByGroup();
 				execMessages->showMessagesByInsertOrder(true);
 			  execVarScope->displayVariables();
-				std::wcout << L"/* *************** </EXECUTION STAGE> *************** */" << std::endl;
+				std::wcout << L" *************** </EXECUTION STAGE> *************** */" << std::endl;
 				execMessages.reset();
 				execVarScope.reset();
 			}
