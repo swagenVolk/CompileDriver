@@ -247,9 +247,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
  * After the closed scope gets collapsed into a tree and linked to its
  * parent scope, we need to see if the parent scope can be collapsed also &
  * recursively.  It's turtles all the way down!
- * TODO: Might not need any of these parameters. 
 * ***************************************************************************/
- //int ExpressionParser::closeNestedScopes(Token currTkn, Token expectedEndTkn, bool & isExprClosed, Token & enderTkn)	{
  int ExpressionParser::closeNestedScopes()	{
 	int ret_code = GENERAL_FAILURE;
 
@@ -326,8 +324,6 @@ int ExpressionParser::makeTreeAndLinkParent (bool & isParentFndYet)  {
 
 		if (scopener->originalTkn->tkn_type == SPR8R_TKN && 0 == scopener->originalTkn->_string.compare(L"("))	{
 			isParentFndYet = true;
-			// TODO: Might be hurting myself here.....
-			// exprScopeStack[exprScopeStack.size() - 1]->myParentScopener = NULL;
 
 		} else if (scopener->originalTkn->tkn_type == SRC_OPR8R_TKN && scopener->originalTkn->_string == usrSrcTerms.get_ternary_1st())	{
 			isOpenedByTernary = true;
@@ -385,33 +381,13 @@ int ExpressionParser::makeTreeAndLinkParent (bool & isParentFndYet)  {
 								isExprAttached = true;
 
 							} else if (isOpenedByTernary && subExpr->originalTkn->_string == usrSrcTerms.get_ternary_2nd() && scopener->_2ndChild == NULL)	{
-								// The subexpression could be the direct [:] child, but we also need to allow for nested ternarys
+								// The subexpression root is the [:] OPR8R
 								scopener->_2ndChild = subExpr;
 								subExpr->myParentScope = scopener;
 								isExprAttached = true;
 								ret_code = OK;
 
-							} else if (isOpenedByTernary && scopener->_2ndChild == NULL)	{
-								// Scope was opened by TERNARY_1ST, and root of subExpr is NOT direct TERNARY_2ND
-								// The TERNARY_2ND *may* be buried deeper in the tree; probably below an assignment OPR8R
-								// that has lower priority. Tree precedence is inverted; deeper|lower in tree means higher precedence
-								// ********** EXPRESSION TREE **********
-								// ROOT[=]
-								// [desc, :]
-								//       (2nd)[Third, ?]
-								//                (2nd)[==, :]
-								//        (1st)[count, 4](2nd)[four, MANY]
-
-								std::shared_ptr<ExprTreeNode> child1 = subExpr->_1stChild;
-								std::shared_ptr<ExprTreeNode> child2 = subExpr->_2ndChild;
-								if (child2 != NULL && child2->originalTkn != NULL && child2->originalTkn->_string == usrSrcTerms.get_ternary_2nd())	{
-									// TODO: Is there any reason to check child1?
-									scopener->_2ndChild = subExpr;
-									subExpr->myParentScope = scopener;
-									isExprAttached = true;
-									ret_code = OK;
-
-								} else	{
+							} else	{
 									subExpr->showTree(thisSrcFile, __LINE__);
 									std::wstring userMsg = L"Current scope opened by [";
 									userMsg.append(usrSrcTerms.get_ternary_1st());
@@ -420,9 +396,6 @@ int ExpressionParser::makeTreeAndLinkParent (bool & isParentFndYet)  {
 									userMsg.append (L"]");
 									userMessages->logMsg (USER_ERROR, userMsg,  userSrcFileName, scopener->originalTkn->get_line_number(), scopener->originalTkn->get_column_pos());
 									isStopFail = true;
-								}
-							} else {
-							
 							}
 						}
 					}
@@ -631,9 +604,9 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
   std::wstring unary1stOpr8r = usrSrcTerms.get_ternary_1st();
   std::wstring unary2ndOpr8r = usrSrcTerms.get_ternary_2nd();
 
-	// TODO: _1stChild of [?] should be the resolved expression directly to the left
-	// TODO: Resolved [:] will need to be removed from the current level and linked to the scopener of the next level down in the scopeStack
-
+	// [?]._1stChild is the conditional and should be the resolved expression directly to the left
+	// [?]_2ndChild is the [:] OPR8R; [:]._1stChild is the TRUE path; [:]_2ndChild is the FALSE path
+	
   // TODO: Code inspect, comment, simplify if you can
 	for (outr8r = usrSrcTerms.grouped_opr8rs.begin(); outr8r != usrSrcTerms.grouped_opr8rs.end() && !isStopFail && !isNowTree; outr8r++){
 		// Move through each precedence level of OPR8Rs. Note that some precedence levels will have multiple OPR8Rs and they must be
@@ -649,6 +622,8 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 
 				if (isOpenedByTernary && currOpr8r.op_code == TERNARY_2ND_OPR8R_OPCODE)	{
 					// We need to special case the [:] OPR8R and make its precedence LOWER than anything else in the current scope
+					// to ensure any *contained* assignment OPR8Rs get treated as higher priority and are pushed deeper into the tree,
+					// even though the C OPR8R precedence declares [:] precedence > precedence of [=] [+=] [-=] [*=] [/=] [%=] [<<=] [>>=] [&==] [|==] [^==]
 					isOpr8rExhausted = true;
 					tern2ndOpr8r = currOpr8r;
 				}

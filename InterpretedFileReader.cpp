@@ -5,6 +5,7 @@
  *      Author: Mike Volk
  *
  * Utility class used by Interpreter to grab objects from the compiled object file. 
+ * TODO: Does it make sense to include the file position for each Token to help with error reporting?
  */
 
 #include "InterpretedFileReader.h"

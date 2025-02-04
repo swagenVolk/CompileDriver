@@ -7,8 +7,6 @@
  * Utility class used by the Compiler to write objects out to the Interpreted file.
  *	TODO:
  *	Make sure error messages are captured
- *	Make recursive fxn that only builds a Token list that will be written out separately
- *	so that PREFIX ops can happen BEFORE expression and POSTFIX ops can happen AFTER
  *
  */
 
@@ -613,10 +611,38 @@ int InterpretedFileWriter::makeFlatExpr_OLR (std::shared_ptr<ExprTreeNode> currB
 
 /* ****************************************************************************
  * Tree that represents an expression will be written out recursively into a
- * flat list for storing in a file stream. Note that if applicable, list(s) of
- * PREFIX OPR8Rs with their respective variable names will be added BEFORE the
- * main expression.  If there is 1 or 2 list(s) of POSTFIX OPR8Rs, these will
- * be written out AFTER the main expression.
+ * flat list for storing in a file stream.  Expression is written out in 
+ * [OPR8R][LEFT][RIGHT] order.  The OPR8R goes 1st to enable short-circuiting of
+ * [&&], [||] and [?] OPR8Rs.
+ * Some example source expressions and their corresponding Token lists that get
+ * written out to the interpreted file are shown below.
+ * 
+ * seven = three + four;
+ * [=][seven][B+][three][four]
+ *
+ * one = 1;
+ * [=][one][1]
+ *
+ * seven * seven + init1++; 
+ * [B+][*][seven][seven][1+][init1]
+ * 
+ * seven * seven + ++init2;
+ * [B+][*][seven][seven][+1][init2]
+ * 
+ * one >= two ? 1 : three <= two ? 2 : three == four ? 3 : six > seven ? 4 : six > (two << two) ? 5 : 12345;
+ * [?][>=][one][two][1][?][<=][three][two][2][?][==][three][four][3][?][>][six][seven][4][?][>][six][<<][two][two][5][12345]
+ * 
+ * count == 1 ? "one" : count == 2 ? "two" : "MANY";
+ * [?][==][count][1]["one"][?][==][count][2]["two"]["MANY"]
+ * 
+ * 3 * 4 / 3 + 4 << 4;
+ * [<<][B+][/][*][3][4][3][4][4]
+ * 
+ * 3 * 4 / 3 + 4 << 4 + 1;
+ * [<<][B+][/][*][3][4][3][4][B+][4][1]
+ * 
+ * (one * two >= three || two * three > six || three * four < seven || four / two < one) && (three % two > 1 || (shortCircuitAnd987 = 654));
+ * [&&][||][||][||][>=][*][one][two][three][>][*][two][three][six][<][*][three][four][seven][<][/][four][two][one][||][>][%][three][two][1][=][shortCircuitAnd987][654]
  * ***************************************************************************/
 int InterpretedFileWriter::flattenExprTree (std::shared_ptr<ExprTreeNode> rootOfExpr, std::vector<Token> & flatExprTknList, std::wstring userSrcFileName)	{
 	int ret_code = GENERAL_FAILURE;
@@ -628,6 +654,9 @@ int InterpretedFileWriter::flattenExprTree (std::shared_ptr<ExprTreeNode> rootOf
   	userMessages->logMsg (INTERNAL_ERROR, L"rootOfExpr is NULL!", thisSrcFile, __LINE__, 0);
 	else	
 		ret_code = makeFlatExpr_OLR (rootOfExpr, flatExprTknList);
+
+	// TODO: Uncomment for a printed list of the flattened expression
+	// util.dumpTokenList(flatExprTknList, *execTerms, thisSrcFile, __LINE__);
 
 	return (ret_code);
 }

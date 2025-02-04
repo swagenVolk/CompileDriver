@@ -79,7 +79,6 @@ private:
   bool isTernaryOpen ();
   int get2ndTernaryCnt ();
   std::wstring getMyParentSymbol ();
-  //int closeNestedScopes(Token currTkn, Token expectedEndTkn, bool & isExprClosed, Token & enderTkn);
   int closeNestedScopes();
   int moveNeighborsIntoTree (Operator & opr8r, ExprTreeNodePtrVector & currScope
 	, int opr8rIdx, opr8rReadyState opr8rState, bool isMoveLeftNbr, bool isMoveRightNbr);

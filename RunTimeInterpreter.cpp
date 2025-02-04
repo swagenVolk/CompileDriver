@@ -4,6 +4,56 @@
  *  Created on: Jan 4, 2024
  *      Author: Mike Volk
  *
+ * Expression has been written out in [OPR8R][LEFT][RIGHT] order.  The OPR8R goes 1st 
+ * to enable short-circuiting of [&&], [||] and [?] OPR8Rs.
+ * Some example source expressions and their corresponding Token lists that get
+ * written out to the interpreted file are shown below. 
+ *
+ * seven = three + four;
+ * [=][seven][B+][three][four]
+ * ^ Exec [=] OPR8R when we've got the required 2 operands. Can't do that right away because of the 
+ * [B+] (binary +) OPR8R after the [seven] operand, but the [B+] OPR8R can be executed right away 
+ * because its requirement for 2 operands is met immediately.
+ *
+ * one = 1;
+ * [=][one][1]
+ *
+ * seven * seven + init1++; 
+ * init1 == 1 at time of this expression
+ * [B+][*][seven][seven][1+][init1]
+ * [B+][49]             [1]
+ * [50]
+ * 
+ * seven * seven + ++init2;
+ * init2 == 2 at time of this expression
+ * [B+][*][seven][seven][+1][init2]
+ * [B+][49]             [3]
+ * [52]
+ * 
+ * one >= two ? 1 : three <= two ? 2 : three == four ? 3 : six > seven ? 4 : six > (two << two) ? 5 : 12345;
+ * [?][>=][one][two][1][?][<=][three][two][2][?][==][three][four][3][?][>][six][seven][4][?][>][six][<<][two][two][5][12345]
+ * 
+ * count == 1 ? "one" : count == 2 ? "two" : "MANY";
+ * [?][==][count][1]["one"][?][==][count][2]["two"]["MANY"]
+ * 
+ * 3 * 4 / 3 + 4 << 4;
+ * [<<][B+][/][*][3][4][3][4][4]
+ * [<<][B+][/][12]     [3][4][4]
+ * [<<][B+][4]            [4][4]
+ * [<<][8]                   [4]
+ * [128]
+ * 
+ * 3 * 4 / 3 + 4 << 4 + 1;
+ * [<<][B+][/][*][3][4][3][4][B+][4][1]
+ *            ^              ^ These 2 OPR8Rs have their operand requirements met
+ * [<<][B+][/][12]     [3][4][5]
+ * [<<][B+][4]            [4][5]
+ * [<<][8]                   [5]
+ * [256]
+ * 
+ * (one * two >= three || two * three > six || three * four < seven || four / two < one) && (three % two > 1 || (shortCircuitAnd987 = 654));
+ * [&&][||][||][||][>=][*][one][two][three][>][*][two][three][six][<][*][three][four][seven][<][/][four][two][one][||][>][%][three][two][1][=][shortCircuitAnd987][654]
+ *
  * TODO:
  * Error handling on mismatched data types
  * 
