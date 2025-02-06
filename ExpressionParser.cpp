@@ -3,7 +3,70 @@
  *
  *  Created on: Jun 11, 2024
  *      Author: Mike Volk
- *  Class to parse and check a user source level expression.
+ *  Class to parse and check a user source level expression. The FileParser has turned the user's source file into a stream of Tokens.
+ *  When an expression has been encountered in the Token stream, this class will handle compilation of that expression; it will check
+ *  for correctness and build a parse tree that includes the precedence of operations, which is dictated by the user's placement of
+ *  parentheses and defined precedence for operators contained within a specific expression scope level (contained in the same set of
+ *  parentheses).
+ *
+ *	Example source level expression:
+ *	one + two * (three + (four * five))
+ *              ^        ^ Open parentheses -> new scope level
+ *
+ *  Winds up looking like this:
+ *	Scope level 2:	[four][*][five]
+ *	Scope level 1:	[three][+][(]
+ *	Scope level 0:	[one][+][two][*][(]
+ *
+ *	When a [(] is encountered, open new scope level and work on that level. Leave [(] Token in list of previous scope
+ *  as a marker to link the newly opened scope back to when it gets resolved into a single Token tree, with an OPR8R 
+ *  at the root.
+ *
+ *  Scope level 2 is resolved to a tree, shown below:
+ *				[*]
+ *	[four]	[five]
+ *	Scope level 2's list consists of only [*].  Operands [four] and [five] have been moved & "hidden" inside the [*] object,
+ *  which will replace the [(] object in Scope level 1 that was responsible for opening Scope level 2.
+ *	Scope level 2 is removed, and now we've got this:
+ *
+ *	Scope level 1:	[three][+][*]
+ *	Scope level 0:	[one][+][two][*][(]
+ *
+ *	Now we go back to working on Scope level 1, and this gets turned into a tree also, shown below:
+ *					[+]
+ *	[three]			[*]
+ *
+ *	So now we're going to close Scope level 1 and replace the [(] in Scope level 0 that opened up level 1:
+ *	Scope level 0:	[one][+][two][*][+]
+ *
+ *  According to OPR8R precedence, [*] is highest, so we remove the neighbors [two] and [+] from the list
+ *	and attach them under [*], like so:
+ *				[*]
+ *	[two]			[+]
+ *
+ *	and now we've got:
+ *	Scope level 0:	[one][+][*]
+ *  
+ *	OPR8R [*] was worked on, so that leaves [+] next, and that gets turned into a tree:
+ *				[+]
+ *	[one]			[*]
+ *
+ *  The expression 
+ *	one + two * (three + (four * five))
+ *	gets turned into a parse tree looks like this:
+ *				[+]
+ *	[one]				[*]
+ *					[two]					[+]
+ *								[three]				 [*]
+ *													[four]	[five]
+ *
+ *	Deepest levels resolved first.  Assume variable names contain corresponding numeric value.
+ *  [four][*][five] 	-> 20
+ *	[three][+][20] 		-> 23
+ *  [two][*][23]			-> 46
+ *	[one][+][46]			-> 47
+ *	[47] is our final result.
+ *  
  *  TODO:
  *  Internal vs. user error messaging
  *  Check for proper handling of memory - no danglers
@@ -107,7 +170,6 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 
 					if (is1stTkn)	{
 						// Token that starts expression will determine how we end the expression
-						// TODO: Are there valid expressions that have a ";" in the middle AND at the end?
 						if (OK != getExpectedEndToken(currTkn, curr_legal_tkn_types, expectedEndTkn, isEndedByComma))	{
 							isStopFail = true;
 							break;
@@ -244,8 +306,34 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 }
 
 /* ****************************************************************************
- * After the closed scope gets collapsed into a tree and linked to its
- * parent scope, we need to see if the parent scope can be collapsed also &
+ * Next Token is a opening parenthesis or an opening ternary (?)
+ * Increase the current scope level of the expression
+ * Deeper|greater scope corresponds to higher precedence, or deeper levels of
+ * parentheses.
+ * ***************************************************************************/
+int ExpressionParser::openSubExprScope (TokenPtrVector & tknStream)  {
+  int ret_code = GENERAL_FAILURE;
+
+	std::shared_ptr <Token>currTkn = tknStream.front();
+	// Remove the Token from the stream without destroying it
+	tknStream.erase(tknStream.begin());
+	std::shared_ptr<ExprTreeNode> branchNode = std::make_shared<ExprTreeNode> (currTkn);
+	exprScopeStack[exprScopeStack.size() - 1]->scopedKids.push_back (branchNode);
+
+	// Create enclosed scope with pointer back to originating ExprTreeNode/Token (probably an open paren)
+	// Attach this shared_ptr to an already existing shared_ptr of type NestedScopeExpr
+	std::shared_ptr<NestedScopeExpr> nextScope (std::make_shared<NestedScopeExpr> (branchNode));
+	// We need to point back to the node that opened this new scope
+	exprScopeStack.push_back (nextScope);
+	ret_code = OK;
+
+	return (ret_code);
+}
+
+/* ****************************************************************************
+ * Current expression scope (nested parentheses level) is closed and needs to
+ * get converted from a stream of Tokens to a parse tree, and also linked to its
+ * parent scope.  Check if the parent scope can be collapsed also &
  * recursively.  It's turtles all the way down!
 * ***************************************************************************/
  int ExpressionParser::closeNestedScopes()	{
@@ -476,7 +564,15 @@ int ExpressionParser::makeTreeAndLinkParent (bool & isParentFndYet)  {
 }
 
 /* ****************************************************************************
+ * Proc to hide details of taking neighbors of an OPR8R contained inside a flat list
+ * e.g. 3 + 4
+ * and removing them from the list to become children of the OPR8R, more like a tree
+ * 								[+]
+ * _1stChild->[3]			_2ndChild->[4]
  *
+ * The caller has the context to know how many operands this OPR8R requires and
+ * whether the left neighbor, right neighbor or both need to be removed from the
+ * list and attached to the OPR8R.
  * ***************************************************************************/
 int ExpressionParser::moveNeighborsIntoTree (Operator & opr8r, ExprTreeNodePtrVector & currScope
 	, int opr8rIdx, opr8rReadyState opr8rState, bool isMoveLeftNbr, bool isMoveRightNbr)	{
@@ -575,9 +671,8 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 
 /* ****************************************************************************
  * For this sub-expression contained in 1 scope level (ie inside 1 set of parentheses)
- * work through the precedence ordered list of OPR8Rs make a shrubbery
+ * work through the precedence ordered list of OPR8Rs and make a shrubbery! (tree)
  * Should wind up as a single OPR8R at the top of a shrub/tree
- * TODO: This might be where L2R and R2L associativity comes in
  *
  * eg 1 + 3 * 2
  * * has precedence, so it's handled 1st
@@ -884,6 +979,9 @@ int ExpressionParser::get2ndTernaryCnt ()  {
 /* ****************************************************************************
  * Centralized logic determines if the current Token is legal given the allowed
  * Token types. If legal, sets the type(s) the legal types for the next Token.
+ * Think of this fxn as the guts of a state machine that determines if the next
+ * state can be reached by the current state.  If not, the expression is not
+ * well formed.
  * ***************************************************************************/
 bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t & next_legal_tkn_types, std::shared_ptr<Token> curr_tkn)  {
   bool isTknTypeOK = false;
@@ -1009,29 +1107,6 @@ void ExpressionParser::cleanScopeStack()	{
 		exprScopeStack.pop_back();
 		currScope.reset();
 	}
-}
-
-/* ****************************************************************************
- * Next Token is a opening parenthesis or an opening ternary (?)
- * Increase the current scope level of the expression
- * ***************************************************************************/
-int ExpressionParser::openSubExprScope (TokenPtrVector & tknStream)  {
-  int ret_code = GENERAL_FAILURE;
-
-	std::shared_ptr <Token>currTkn = tknStream.front();
-	// Remove the Token from the stream without destroying it
-	tknStream.erase(tknStream.begin());
-	std::shared_ptr<ExprTreeNode> branchNode = std::make_shared<ExprTreeNode> (currTkn);
-	exprScopeStack[exprScopeStack.size() - 1]->scopedKids.push_back (branchNode);
-
-	// Create enclosed scope with pointer back to originating ExprTreeNode/Token (probably an open paren)
-	// Attach this shared_ptr to an already existing shared_ptr of type NestedScopeExpr
-	std::shared_ptr<NestedScopeExpr> nextScope (std::make_shared<NestedScopeExpr> (branchNode));
-	// We need to point back to the node that opened this new scope
-	exprScopeStack.push_back (nextScope);
-	ret_code = OK;
-
-	return (ret_code);
 }
 
 /* ****************************************************************************
