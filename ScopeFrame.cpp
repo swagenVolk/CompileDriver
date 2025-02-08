@@ -2,7 +2,7 @@
  * ScopeFrame.cpp
  *
  *  Created on: Nov 11, 2024
- *      Author: mike
+ *      Author: Mike Volk
  */
 
 #include "ScopeFrame.h"
