@@ -1,15 +1,15 @@
 /*
- * ScopeLevel.cpp
+ * ScopeWindow.cpp
  *
  *  Created on: Nov 11, 2024
  *      Author: Mike Volk
  */
 
-#include "ScopeLevel.h"
+#include "ScopeWindow.h"
 #include "common.h"
 #include <cstdint>
 
-ScopeLevel::ScopeLevel(uint8_t inOpCode, Token inOpeningTkn, uint32_t inStartFilePos, uint32_t inScopeLen) {
+ScopeWindow::ScopeWindow(uint8_t inOpCode, Token inOpeningTkn, uint32_t inStartFilePos, uint32_t inScopeLen) {
 	// TODO Auto-generated constructor stub
 	opener_opcode = inOpCode;
 	openerTkn = inOpeningTkn;
@@ -19,7 +19,7 @@ ScopeLevel::ScopeLevel(uint8_t inOpCode, Token inOpeningTkn, uint32_t inStartFil
 	inScopeLen > 0 ? boundary_end_pos = inStartFilePos + inScopeLen : boundary_end_pos = 0;
 }
 
-int ScopeLevel::setBoundaryEndPos (uint32_t end_pos)	{
+int ScopeWindow::setBoundaryEndPos (uint32_t end_pos)	{
 	int ret_code = GENERAL_FAILURE;
 
 	if (end_pos > boundary_begin_pos)	{
@@ -30,7 +30,7 @@ int ScopeLevel::setBoundaryEndPos (uint32_t end_pos)	{
 	return (ret_code);
 }
 
-ScopeLevel::~ScopeLevel() {
+ScopeWindow::~ScopeWindow() {
 	// TODO Auto-generated destructor stub
 }
 

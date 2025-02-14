@@ -38,7 +38,7 @@ GeneralParser::GeneralParser(TokenPtrVector & inTknStream, std::wstring userSrcF
 }
 
 GeneralParser::~GeneralParser() {
-	// TODO: Anything to add here?ScopeLevel
+	// TODO: Anything to add here?ScopeWindow
 	scopedNameSpace.reset();
 	ender_comma_list.clear();
 	ender_list.clear();

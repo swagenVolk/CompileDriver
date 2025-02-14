@@ -15,7 +15,7 @@
 #include "common.h"
 #include "CompileExecTerms.h"
 #include "InfoWarnError.h"
-#include "ScopeLevel.h"
+#include "ScopeWindow.h"
 #include "Token.h"
 #include "Utilities.h"
 #include "UserMessages.h"
@@ -46,7 +46,7 @@ public:
 
 
 private:
-  std::vector<std::shared_ptr<ScopeLevel>> scopeStack;
+  std::vector<std::shared_ptr<ScopeWindow>> scopeStack;
   Utilities util;
   std::wstring thisSrcFile;
 

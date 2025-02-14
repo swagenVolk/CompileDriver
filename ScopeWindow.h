@@ -1,12 +1,12 @@
 /*
- * ScopeLevel.h
+ * ScopeWindow.h
  *
  *  Created on: Nov 11, 2024
  *      Author: Mike Volk
  */
 
-#ifndef SCOPELEVEL_H_
-#define SCOPELEVEL_H_
+#ifndef SCOPEWINDOW_H_
+#define SCOPEWINDOW_H_
 
 #include <cstdint>
 #include <map>
@@ -14,10 +14,10 @@
 #include "common.h"
 #include "Token.h"
 
-class ScopeLevel {
+class ScopeWindow {
 public:
-	ScopeLevel (uint8_t inOpCode, Token inOpeningTkn, uint32_t inStartFilePos, uint32_t inScopeLen);
-	virtual ~ScopeLevel();
+	ScopeWindow (uint8_t inOpCode, Token inOpeningTkn, uint32_t inStartFilePos, uint32_t inScopeLen);
+	virtual ~ScopeWindow();
 
 	int setBoundaryEndPos (uint32_t end_pos);
 
@@ -29,4 +29,4 @@ public:
 
 };
 
-#endif /* SCOPELEVEL_H_ */
+#endif /* SCOPEWINDOW_H_ */

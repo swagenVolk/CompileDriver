@@ -22,7 +22,7 @@
 #include "Operator.h"
 #include "Utilities.h"
 #include "InterpretedFileWriter.h"
-#include "ScopeLevel.h"
+#include "ScopeWindow.h"
 #include "ExpressionParser.h"
 #include "InfoWarnError.h"
 #include "RunTimeInterpreter.h"

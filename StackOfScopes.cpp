@@ -21,7 +21,7 @@
 StackOfScopes::StackOfScopes() {
 	// TODO Auto-generated constructor stub
 	Token rootScopeTkn (INTERNAL_USE_TKN, L"__ROOT_SCOPE");
-	std::shared_ptr<ScopeLevel> rootScope = std::make_shared<ScopeLevel> (INVALID_OPCODE, rootScopeTkn, 0, 0);
+	std::shared_ptr<ScopeWindow> rootScope = std::make_shared<ScopeWindow> (INVALID_OPCODE, rootScopeTkn, 0, 0);
 	scopeStack.push_back(rootScope);
 	thisSrcFile = util.getLastSegment(util.stringToWstring(__FILE__), L"/");
 
@@ -35,7 +35,7 @@ StackOfScopes::~StackOfScopes() {
 
 void StackOfScopes::reset()	{
 	while (scopeStack.size() > 0)	{
-		std::shared_ptr<ScopeLevel> top = scopeStack[scopeStack.size() - 1];
+		std::shared_ptr<ScopeWindow> top = scopeStack[scopeStack.size() - 1];
 		scopeStack.erase(scopeStack.end());
 		top.reset();
 	}
@@ -60,7 +60,7 @@ int StackOfScopes::findVar(std::wstring varName, int maxLevels, Token & updateVa
 		endScopeIdx = scopeTopIdx - maxLevels + 1;
 
 	for (int currIdx = scopeTopIdx; currIdx >= endScopeIdx && !isFound; currIdx--)	{
-		std::shared_ptr<ScopeLevel> currScope = scopeStack[currIdx];
+		std::shared_ptr<ScopeWindow> currScope = scopeStack[currIdx];
 		if (auto search = currScope->variables.find(varName); search != currScope->variables.end())	{
 			// TODO: existingTkn is probably going to need to be a POINTER for the update to stick
 			std::shared_ptr<Token> existingTkn = search->second;
@@ -107,7 +107,7 @@ int StackOfScopes::insertNewVarAtCurrScope (std::wstring varName, Token varValue
 int StackOfScopes::openNewScope (uint8_t openedByOpCode, Token scopenerTkn, uint32_t startScopeFilePos, uint32_t scopeLen)	{
 	int ret_code = GENERAL_FAILURE;
 
-	std::shared_ptr<ScopeLevel> openedScope = std::make_shared<ScopeLevel> (openedByOpCode, scopenerTkn, startScopeFilePos, scopeLen);
+	std::shared_ptr<ScopeWindow> openedScope = std::make_shared<ScopeWindow> (openedByOpCode, scopenerTkn, startScopeFilePos, scopeLen);
 	openedScope->openerTkn = scopenerTkn;
 	scopeStack.push_back(openedScope);
 	
@@ -149,7 +149,7 @@ int  StackOfScopes::closeTopScope (InterpretedFileWriter & interpretedFileWriter
 		isDeleteReady = true;
 
 	if (isDeleteReady)	{
-		std::shared_ptr<ScopeLevel> top = scopeStack[scopeStack.size() - 1];
+		std::shared_ptr<ScopeWindow> top = scopeStack[scopeStack.size() - 1];
 
 		uint32_t scopeObjFilePos = top->boundary_begin_pos;
 		closedScopeOpCode = top->opener_opcode;
@@ -179,7 +179,7 @@ void StackOfScopes::displayVariables()	{
 
 	for (int currIdx = scopeTopIdx; currIdx >= 0; currIdx--)	{
 		std::wcout << L"// ********** <SCOPE LEVEL " << currIdx << L"> ********** " << std::endl;
-		std::shared_ptr<ScopeLevel> currScope = scopeStack[currIdx];
+		std::shared_ptr<ScopeWindow> currScope = scopeStack[currIdx];
 		if (currScope->openerTkn.tkn_type != START_UNDEF_TKN)
 			std::wcout << L"// Scope opened by: " << currScope->openerTkn.descr_line_num_col() << std::endl;
 
