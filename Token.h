@@ -49,6 +49,7 @@ enum tkn_type_enum {
   ,END_OF_STREAM_TKN        // Expect file_parser producer and compiler consumer threads
                             // Will need a token to indicate EOS since the compiler
                             // could empty the list while the file_parser is still producing
+  ,INTERNAL_USE_TKN                            
 };
 
 typedef tkn_type_enum TokenTypeEnum;

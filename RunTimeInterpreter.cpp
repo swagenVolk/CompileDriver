@@ -114,11 +114,12 @@
 #include <cstdint>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 #include "InfoWarnError.h"
 #include "UserMessages.h"
-#include "VariablesScope.h"
+#include "StackOfScopes.h"
 #include "common.h"
 
 /* ****************************************************************************
@@ -142,7 +143,7 @@ RunTimeInterpreter::RunTimeInterpreter() {
 /* ****************************************************************************
  *
  * ***************************************************************************/
-RunTimeInterpreter::RunTimeInterpreter(CompileExecTerms & execTerms, std::shared_ptr<VariablesScope> inVarScopeStack
+RunTimeInterpreter::RunTimeInterpreter(CompileExecTerms & execTerms, std::shared_ptr<StackOfScopes> inVarScopeStack
 		, std::wstring userSrcFileName, std::shared_ptr<UserMessages> userMessages) {
 	// TODO Auto-generated constructor stub
   oneTkn = std::make_shared<Token> (UINT64_TKN, L"1");
@@ -155,7 +156,7 @@ RunTimeInterpreter::RunTimeInterpreter(CompileExecTerms & execTerms, std::shared
 
   this->execTerms = execTerms;
 	thisSrcFile = util.getLastSegment(util.stringToWstring(__FILE__), L"/");
-	varScopeStack = inVarScopeStack;
+	scopedNameSpace = inVarScopeStack;
 	this->userMessages = userMessages;
 	this->userSrcFileName = userSrcFileName;
 	failOnSrcLine = 0;
@@ -166,7 +167,7 @@ RunTimeInterpreter::RunTimeInterpreter(CompileExecTerms & execTerms, std::shared
  *
  * ***************************************************************************/
 RunTimeInterpreter::RunTimeInterpreter(std::string interpretedFileName, std::wstring userSrcFileName
-	, std::shared_ptr<VariablesScope> inVarScope,  std::shared_ptr<UserMessages> userMessages)
+	, std::shared_ptr<StackOfScopes> inVarScope,  std::shared_ptr<UserMessages> userMessages)
 		: execTerms ()
 		, fileReader (interpretedFileName, execTerms)	{
 	// TODO Auto-generated constructor stub
@@ -179,7 +180,7 @@ RunTimeInterpreter::RunTimeInterpreter(std::string interpretedFileName, std::wst
 	zeroTkn->isInitialized = true;
 
 	thisSrcFile = util.getLastSegment(util.stringToWstring(__FILE__), L"/");
-	varScopeStack = inVarScope;
+	scopedNameSpace = inVarScope;
 	this->userMessages = userMessages;
 	this->userSrcFileName = userSrcFileName;
 	failOnSrcLine = 0;
@@ -203,6 +204,32 @@ RunTimeInterpreter::~RunTimeInterpreter() {
 
 /* ****************************************************************************
  * Analogous to GeneralParser::rootScopeCompile.  
+ * This proc gives us an opportunity to implementation specific objects that
+ * only appear at the global scope.  Otherwise, call execCurrScope.
+ * ***************************************************************************/
+int RunTimeInterpreter::execRootScope()	{
+	int ret_code = GENERAL_FAILURE;
+	uint8_t	root_scope_op_code;
+	uint32_t root_scope_len;
+
+	if (usageMode == INTERPRETER)	{
+		fileReader.setFilePos(0);
+		if (OK != fileReader.readNextByte(root_scope_op_code) || root_scope_op_code != ANON_SCOPE_OPCODE)
+			userMessages->logMsg(INTERNAL_ERROR, L"Failure reading ROOT scope op_code", thisSrcFile, failOnSrcLine, 0);
+		
+		else if (OK != fileReader.readNextDword(root_scope_len))
+			userMessages->logMsg(INTERNAL_ERROR, L"Failure reading ROOT scope length", thisSrcFile, failOnSrcLine, 0);
+
+		else {
+			ret_code = execCurrScope (0, root_scope_len);
+		}
+	}
+
+	return (ret_code);
+}
+
+/* ****************************************************************************
+ * Analogous to GeneralParser::compileCurrScope.  
  * Parse through the user's interpreted file, looking for objects such as:
  * Variable declarations
  * Expressions
@@ -214,27 +241,39 @@ RunTimeInterpreter::~RunTimeInterpreter() {
  * [fxn declaration]
  * [fxn call]
  * ***************************************************************************/
-int RunTimeInterpreter::rootScopeExec()	{
+int RunTimeInterpreter::execCurrScope (uint32_t execStartPos, uint32_t afterScopeBndry)	{
 	int ret_code = GENERAL_FAILURE;
 	uint8_t	op_code;
 	uint32_t objStartPos;
 	uint32_t objectLen;
 	bool isDone = false;
 	std::wstringstream hexStream;
+	std::wstringstream objStartPosStr;
 
 	if (usageMode == INTERPRETER)	{
-
 		while (!isDone && !failOnSrcLine)	{
 			objStartPos = fileReader.getReadFilePos();
+
+			objStartPosStr.str(L"");
+			objStartPosStr << L"0x" << std::hex << objStartPos;
 
 			if (fileReader.isEOF())
 				isDone = true;
 
-			else if (OK != fileReader.peekNextByte(op_code))
-				// TODO: isEOF doesn't seem to work. What's the issue?
+			else if (/* execStartPos > 0 && */objStartPos == afterScopeBndry)
+				// scopeEndPos > 0 means non-global scope and whole scope processed
 				isDone = true;
 
-			else if (OK != fileReader.readNextByte (op_code))	{
+			else if (OK != fileReader.peekNextByte(op_code))	{
+				// TODO: isEOF doesn't seem to work. What's the issue?
+				isDone = true;
+				if (execStartPos > 0)	{
+					failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+					userMessages->logMsg(INTERNAL_ERROR, L"Failed while peeking next op_code in non-global scope"
+						, thisSrcFile, failOnSrcLine, 0);
+				}
+
+			} else if (OK != fileReader.readNextByte (op_code))	{
 				failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 			
 			} else if (op_code >= FIRST_VALID_FLEX_LEN_OPCODE && op_code <= LAST_VALID_FLEX_LEN_OPCODE)		{
@@ -245,9 +284,7 @@ int RunTimeInterpreter::rootScopeExec()	{
 					std::wstring msg = L"Failed to get length of object (opcode = ";
 					msg.append(hexStream.str());
 					msg.append(L") starting at ");
-					hexStream.str(L"");
-					hexStream << L"0x" << std::hex << objStartPos;
-					msg.append(hexStream.str());
+					msg.append(objStartPosStr.str());
 					userMessages->logMsg(INTERNAL_ERROR, msg, thisSrcFile, failOnSrcLine, 0);
 
 				} else {
@@ -256,56 +293,34 @@ int RunTimeInterpreter::rootScopeExec()	{
 							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 						}
 
-					} else if (op_code == EXPRESSION_OPCODE)	{			
-						if (OK != fileReader.setFilePos(objStartPos))	{
-							// Follow on fxn expects to start at beginning of expression
-							// TODO: Standardize on this?
+					} else if (op_code == EXPRESSION_OPCODE)	{		
+						Token resultTkn;	
+						if (OK != execExpression (objStartPos, resultTkn))	{
 							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
-							hexStream.str(L"");
-							hexStream << L"0x" << std::hex << objStartPos;
-							userMessages->logMsg(INTERNAL_ERROR
-								, L"Failed to reset interpreter file position to " + hexStream.str(), thisSrcFile, failOnSrcLine, 0);
-
-						} else {
-							std::vector<Token> exprTkns;
-							if (OK != fileReader.readExprIntoList(exprTkns))	{
-								failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
-								hexStream.str(L"");
-								hexStream << L"0x" << std::hex << objStartPos;
-								userMessages->logMsg(INTERNAL_ERROR
-									, L"Failed to retrieve expression starting at " + hexStream.str(), thisSrcFile, failOnSrcLine, 0);
-							
-							}	else 	{
-								if (OK != resolveFlatExpr(exprTkns)) {
-									failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
-									hexStream.str(L"");
-									hexStream << L"0x" << std::hex << objStartPos;
-									userMessages->logMsg(INTERNAL_ERROR
-										, L"Failed to resolve flat expression starting at " + hexStream.str(), thisSrcFile, failOnSrcLine, 0);
-								}
-							}
 						}
-					} else if (op_code == IF_BLOCK_OPCODE)	{									
+					
+					} else if (op_code == IF_SCOPE_OPCODE)	{	
+						if (OK != execIfBlock (objStartPos, objectLen, afterScopeBndry))	{
+							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+						}
+
+					} else if (op_code == ELSE_IF_SCOPE_OPCODE)	{						
+							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+							userMessages->logMsg(INTERNAL_ERROR, L"Floating [else if] block encountered at " + objStartPosStr.str(), thisSrcFile, failOnSrcLine, 0);
+
+					} else if (op_code == ELSE_SCOPE_OPCODE)	{								
+							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+							userMessages->logMsg(INTERNAL_ERROR, L"Floating [else] block encountered at " + objStartPosStr.str(), thisSrcFile, failOnSrcLine, 0);
+
+					} else if (op_code == WHILE_SCOPE_OPCODE)	{								
 							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
 
-					} else if (op_code == ELSE_IF_BLOCK_OPCODE)	{						
+					} else if (op_code == FOR_SCOPE_OPCODE)	{									
 							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
 
-					} else if (op_code == ELSE_BLOCK_OPCODE)	{								
-							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
-							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
-
-					} else if (op_code == WHILE_LOOP_OPCODE)	{								
-							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
-							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
-
-					} else if (op_code == FOR_LOOP_OPCODE)	{									
-							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
-							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
-
-					} else if (op_code == SCOPE_OPEN_OPCODE)	{								
+					} else if (op_code == ANON_SCOPE_OPCODE)	{								
 							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
 
@@ -328,9 +343,7 @@ int RunTimeInterpreter::rootScopeExec()	{
 						std::wstring msg = L"Unknown opcode [";
 						msg.append(hexStream.str());
 						msg.append(L"] found at ");
-						hexStream.str(L"");
-						hexStream << L"0x" << std::hex << objStartPos;
-						msg.append(hexStream.str());
+						msg.append(objStartPosStr.str());
 						userMessages->logMsg(INTERNAL_ERROR, msg, thisSrcFile, failOnSrcLine, 0);
 					}
 				}
@@ -340,6 +353,50 @@ int RunTimeInterpreter::rootScopeExec()	{
 
 	if (isDone && !failOnSrcLine)
 		ret_code = OK;
+
+	return (ret_code);
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+int RunTimeInterpreter::execExpression (uint32_t objStartPos, Token & resultTkn)	{
+	int ret_code = GENERAL_FAILURE;
+	std::wstringstream objStartPosStr;
+	objStartPosStr.str(L"");
+	objStartPosStr << L"0x" << std::hex << objStartPos;
+
+	if (OK != fileReader.setFilePos(objStartPos))	{
+		// Follow on fxn expects to start at beginning of expression
+		// TODO: Standardize on this?
+		failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+		userMessages->logMsg(INTERNAL_ERROR
+			, L"Failed to reset interpreter file position to " + objStartPosStr.str(), thisSrcFile, failOnSrcLine, 0);
+
+	} else {
+		std::vector<Token> exprTkns;
+		if (OK != fileReader.readExprIntoList(exprTkns))	{
+			failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+			userMessages->logMsg(INTERNAL_ERROR
+				, L"Failed to retrieve expression starting at " + objStartPosStr.str(), thisSrcFile, failOnSrcLine, 0);
+		
+		}	else if (OK != resolveFlatExpr(exprTkns)) {
+				failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+				userMessages->logMsg(INTERNAL_ERROR
+					, L"Failed to resolve flat expression starting at " + objStartPosStr.str(), thisSrcFile, failOnSrcLine, 0);
+
+		} else if (exprTkns.size() != 1)	{
+			// TODO: Should not have returned OK!
+			// flattenedExpr should have 1 Token left - the result of the expression
+			failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+			std::wstring devMsg = L"Failed to resolve at file position " + objStartPosStr.str();
+			userMessages->logMsg (INTERNAL_ERROR, devMsg, thisSrcFile, failOnSrcLine, 0);
+
+		} else {
+			resultTkn = exprTkns[0];
+			ret_code = OK;
+		}
+	}
 
 	return (ret_code);
 }
@@ -422,7 +479,7 @@ int RunTimeInterpreter::execVarDeclaration (uint32_t objStartPos, uint32_t objec
 						devMsg = L"Variable name in declaration is invalid [" + varNameTkn._string + L"] after file position " + hexStrFilePos.str();
 						userMessages->logMsg(INTERNAL_ERROR, devMsg, thisSrcFile, failOnSrcLine, 0);
 					
-					} else if (OK != varScopeStack->insertNewVarAtCurrScope(varNameTkn._string, varTkn))	{
+					} else if (OK != scopedNameSpace->insertNewVarAtCurrScope(varNameTkn._string, varTkn))	{
 							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							devMsg = L"Failed to insert variable into NameSpace [" + varNameTkn._string + L"] after file position " + hexStrFilePos.str();
 							userMessages->logMsg(INTERNAL_ERROR, devMsg, thisSrcFile, failOnSrcLine, 0);
@@ -444,27 +501,15 @@ int RunTimeInterpreter::execVarDeclaration (uint32_t objStartPos, uint32_t objec
 						// e.g. uint32 numFruits = 3 + 4, numVeggies = (3 * (1 + 2)), numPizzas = (4 + (2 * 3));
 						//                         ^                    ^                         ^
 						// Otherwise, go back to top of loop and look for the next variable name
+						uint32_t exprStartPos = fileReader.getReadFilePos();
 						hexStrFilePos.str(L"");
-						hexStrFilePos << L"0x" << std::hex << fileReader.getReadFilePos();
+						hexStrFilePos << L"0x" << std::hex << exprStartPos;
+						Token resolvedTkn;
 
-						std::vector<Token> exprTkns;
-						if (OK != fileReader.readExprIntoList(exprTkns))	{
-							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
-							userMessages->logMsg(INTERNAL_ERROR, L"Failed to retrieve expression starting at " + hexStrFilePos.str(), thisSrcFile, failOnSrcLine, 0);
-						
-						}	else if (OK != resolveFlatExpr(exprTkns)) {
-							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
-							devMsg = L"Failed to resolve variable initialization expression for [" + varNameTkn._string + L"] after file position " + hexStrFilePos.str();
-							userMessages->logMsg (INTERNAL_ERROR, devMsg, thisSrcFile, failOnSrcLine, 0);
-						
-						} else if (exprTkns.size() != 1)	{
-							// TODO: Should not have returned OK!
-							// flattenedExpr should have 1 Token left - the result of the expression
-							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
-							devMsg = L"Failed to resolve variable initialization expression for [" + varNameTkn._string + L"] after file position " + hexStrFilePos.str();
-							userMessages->logMsg (INTERNAL_ERROR, devMsg, thisSrcFile, failOnSrcLine, 0);
+						if (OK != execExpression(exprStartPos, resolvedTkn))	{
+								failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 
-						} else if (OK != varScopeStack->findVar(varNameTkn._string, 0, exprTkns[0], COMMIT_WRITE, lookUpMsg))	{
+						} else if (OK != scopedNameSpace->findVar(varNameTkn._string, 0, resolvedTkn, COMMIT_WRITE, lookUpMsg))	{
 							// Don't limit search to current scope
 							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							userMessages->logMsg (INTERNAL_ERROR
@@ -541,7 +586,7 @@ int RunTimeInterpreter::execPrePostFixOp (std::vector<Token> & exprTknStream, in
 		if (isSuccess)	{
 			exprTknStream[opr8rIdx].isInitialized = true;
 			operand1.isInitialized = true;
-			ret_code = varScopeStack->findVar(varName1, 0, operand1, COMMIT_WRITE, lookUpMsg);
+			ret_code = scopedNameSpace->findVar(varName1, 0, operand1, COMMIT_WRITE, lookUpMsg);
 			if (OK!= ret_code)
 				userMessages->logMsg(INTERNAL_ERROR, lookUpMsg, thisSrcFile, __LINE__, 0);
 		}
@@ -1401,7 +1446,7 @@ int RunTimeInterpreter::execAssignmentOp(std::vector<Token> & exprTknStream, int
 		} else	{
 			switch (original_op_code)	{
 				case ASSIGNMENT_OPR8R_OPCODE :
-					if (OK == varScopeStack->findVar(varName1, 0, operand2, COMMIT_WRITE, lookUpMsg))	{
+					if (OK == scopedNameSpace->findVar(varName1, 0, operand2, COMMIT_WRITE, lookUpMsg))	{
 						// We've updated the NS Variable Token; now overwrite the OPR8R with the result also
 						exprTknStream[opr8rIdx] = operand2;
 						isOpSuccess = true;
@@ -1469,7 +1514,7 @@ int RunTimeInterpreter::execAssignmentOp(std::vector<Token> & exprTknStream, int
 		if (isOpSuccess)	{
 			exprTknStream[opr8rIdx].isInitialized = true;
 			if (original_op_code != ASSIGNMENT_OPR8R_OPCODE
-					&& OK == varScopeStack->findVar(varName1, 0, exprTknStream[opr8rIdx], COMMIT_WRITE, lookUpMsg))	{
+					&& OK == scopedNameSpace->findVar(varName1, 0, exprTknStream[opr8rIdx], COMMIT_WRITE, lookUpMsg))	{
 				// Commit the result to the stored NS variable. OPR8R Token (previously @ opr8rIdx) has already been overwritten with result 
 				ret_code = OK;
 			} else if (!lookUpMsg.empty())	{
@@ -1993,7 +2038,7 @@ int RunTimeInterpreter::execFlatExpr_OLR(std::vector<Token> & flatExprTkns, int 
 		// SUCCESS IFF we can resolve this variable from our NameSpace to its final value
 		Token resolvedTkn;
 		std::wstring lookUpMsg;
-		if (OK == varScopeStack->findVar(flatExprTkns[startIdx]._string, 0, resolvedTkn, READ_ONLY, lookUpMsg))	{
+		if (OK == scopedNameSpace->findVar(flatExprTkns[startIdx]._string, 0, resolvedTkn, READ_ONLY, lookUpMsg))	{
 			flatExprTkns[startIdx] = resolvedTkn;
 			flatExprTkns[startIdx].isInitialized = true;
 			ret_code = OK;
@@ -2042,7 +2087,7 @@ int RunTimeInterpreter::resolveTknOrVar (Token & originalTkn, Token & resolvedTk
 	if (originalTkn.tkn_type == USER_WORD_TKN)	{
 		varName = originalTkn._string;
 		std::wstring lookUpMsg;
-		if (OK != varScopeStack->findVar(varName, 0, resolvedTkn, READ_ONLY, lookUpMsg))	{
+		if (OK != scopedNameSpace->findVar(varName, 0, resolvedTkn, READ_ONLY, lookUpMsg))	{
 			userMessages->logMsg(INTERNAL_ERROR, lookUpMsg, thisSrcFile, __LINE__, 0);
 
 		} else	{
@@ -2070,4 +2115,119 @@ int RunTimeInterpreter::resolveTknOrVar (Token & originalTkn, Token & resolvedTk
  * ***************************************************************************/
 int RunTimeInterpreter::resolveTknOrVar (Token & originalTkn, Token & resolvedTkn, std::wstring & varName)	{
 	return resolveTknOrVar(originalTkn, resolvedTkn, varName, true);
+}
+
+/* ****************************************************************************
+ * Encountered the IF_SCOPE_OPCODE. Evaluate the conditional to determine if 
+ * the enclosed block will be executed.  Check for follow on [else if] and|or
+ * [else] blocks at the same scope. We'll need to know where the scope that
+ * encloses this [if] block ends.
+ * [op_code][total_length][conditional EXPRESSION][code block]
+ * TODO: Probably need to get the enclosing scope's end pos
+ * ***************************************************************************/
+int RunTimeInterpreter::execIfBlock (uint32_t scopeStartPos, uint32_t if_scope_len
+	, uint32_t afterParentScopePos)	{
+	
+	int ret_code = GENERAL_FAILURE;
+
+	bool chainedElseBlocksDone = false;
+	bool isCondPrevTrue = false;
+	uint32_t posAfterElseScope = 0;
+	uint8_t curr_obj_op_code = INVALID_OPCODE;
+	uint32_t currObjStartPos = 0;
+	uint32_t currObjLen = 0;
+	uint32_t nxtObjStartPos = 0;
+	Token ifConditional;
+
+	if (OK != execExpression(scopeStartPos + OPCODE_NUM_BYTES + NUM_BYTES_IN_DWORD, ifConditional))	{
+		failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+	
+	} else if (ifConditional.evalResolvedTokenAsIf())	{
+		// [if] condition is TRUE, so execute the code block
+		isCondPrevTrue = true;
+		if (OK != execCurrScope(fileReader.getReadFilePos(), scopeStartPos + if_scope_len))
+			failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+
+	} else {
+		// TODO: check enclosing scope's end
+		// [if] condition is FALSE, so jump around the [if] block
+		fileReader.setFilePos(scopeStartPos + if_scope_len);
+	}
+
+	if (!failOnSrcLine)	{
+		bool isSkipBlock;
+
+		while (!chainedElseBlocksDone && !failOnSrcLine)	{
+			// Consume any [else if][else] blocks after our initial [if] block
+			currObjStartPos = fileReader.getReadFilePos();
+			isSkipBlock = false;
+
+			if (currObjStartPos == afterParentScopePos)	{
+				// We've just gone past the parent scope that contains the [if] block
+				// and any chained [else if]+, [else] blocks
+				chainedElseBlocksDone = true;
+
+			} else if (OK != fileReader.peekNextByte(curr_obj_op_code))	{
+				failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+			} else if (curr_obj_op_code != ELSE_IF_SCOPE_OPCODE && curr_obj_op_code != ELSE_SCOPE_OPCODE)	{
+				chainedElseBlocksDone = true;
+
+			} else 	{
+				if (OK != fileReader.readNextByte(curr_obj_op_code))	
+					failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+				else if (OK != fileReader.readNextDword(currObjLen))
+					failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+				if (!failOnSrcLine && curr_obj_op_code == ELSE_IF_SCOPE_OPCODE)	{
+					isSkipBlock = isCondPrevTrue;
+
+					if (!isSkipBlock)	{
+						// Test the conditional
+						Token elseIfConditional;
+						if (OK != execExpression(currObjStartPos + OPCODE_NUM_BYTES + NUM_BYTES_IN_DWORD, elseIfConditional))	{
+							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+						
+						} else if (elseIfConditional.evalResolvedTokenAsIf())	{
+							// [else if] condition is TRUE, so execute the code block
+							isCondPrevTrue = true;
+							if (OK != execCurrScope(fileReader.getReadFilePos(), currObjStartPos + currObjLen))
+								failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+						
+						} else	{
+							isSkipBlock = true;
+						}
+					}
+				
+				} else if (!failOnSrcLine && curr_obj_op_code == ELSE_SCOPE_OPCODE)	{
+					chainedElseBlocksDone = true;
+					if (isCondPrevTrue)	{
+						isSkipBlock = true;
+					
+					} else {
+						if (OK != execCurrScope(fileReader.getReadFilePos(), currObjStartPos + currObjLen))
+							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+					}
+				}
+			}
+
+			if (!failOnSrcLine && isSkipBlock)	{
+				nxtObjStartPos = currObjStartPos + currObjLen;
+				if (nxtObjStartPos >= afterParentScopePos)	
+					chainedElseBlocksDone = true;
+				if (OK != fileReader.setFilePos(nxtObjStartPos))
+					// TODO: What about EOF? Or past scope?
+					failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+			}
+		}
+	}
+
+	if (!failOnSrcLine && chainedElseBlocksDone)
+		ret_code = OK;
+
+	uint32_t finalFilePos = fileReader.getReadFilePos();
+
+	return (ret_code);
 }

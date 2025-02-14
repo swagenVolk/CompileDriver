@@ -119,12 +119,12 @@
 // TODO: Should scope openers and closers also contain the line # and column of the Token that opened or closed them?
 
 #define EXPRESSION_OPCODE								0x68	// [op_code][total_length][expression stream]
-#define IF_BLOCK_OPCODE									0x69	// [op_code][total_length][conditional -> [op_code][total_length][expression stream]][code_block]
-#define ELSE_IF_BLOCK_OPCODE						0x6A	// [op_code][total_length][conditional -> [op_code][total_length][expression stream]][code_block]
-#define ELSE_BLOCK_OPCODE								0x6B	// [op_code][total_length][code_block]
-#define WHILE_LOOP_OPCODE								0x6C	// [op_code][total_length][conditional -> [op_code][total_length][expression stream]][code_block]
-#define FOR_LOOP_OPCODE									0x6D	// [op_code][total_length][init_expression][conditional_expression][last_expression][code_block]
-#define SCOPE_OPEN_OPCODE								0x6E	// [op_code][total_length][]
+#define IF_SCOPE_OPCODE									0x69	// [op_code][total_length][conditional EXPRESSION][code block]
+#define ELSE_IF_SCOPE_OPCODE						0x6A	// [op_code][total_length][conditional EXPRESSION][code block]
+#define ELSE_SCOPE_OPCODE								0x6B	// [op_code][total_length][code block]
+#define WHILE_SCOPE_OPCODE							0x6C	// [op_code][total_length][conditional EXPRESSION][code block]
+#define FOR_SCOPE_OPCODE								0x6D	// [op_code][total_length][init_expression][conditional_expression][last_expression][code_block]
+#define ANON_SCOPE_OPCODE								0x6E	// [op_code][total_length][code block]
 #define VARIABLES_DECLARATION_OPCODE		0x6F	// [op_code][total_length][datatype op_code][[string var_name][init_expression]]+
 #define FXN_DECLARATION_OPCODE					0x70	// [op_code][total_length][string fxn_name][parameter type list][parameter name list]
 #define FXN_CALL_OPCODE									0x71	// [op_code][total_length][string fxn_name][expression list]

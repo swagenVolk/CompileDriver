@@ -136,10 +136,30 @@ bool isShortCircuitAndFalse1 = (one * two >= three || two * three > six || three
 
 // [?] short circuit
 
-else
-{
-	bool insideElse;
+int8 whichIfBlock = 0;
+
+if (shortCircuitAnd987 == 987)	{
+  whichIfBlock = 1;
+	
+} else if (shortCircuitAnd987 == 654)	{
+	whichIfBlock = 2;
+	
+} else {
+	whichIfBlock = 3;
 }
+
+int8 witchBlock = 0;
+
+if (shortCircuitAnd987 == 987)	{
+  witchBlock = 1;
+	
+} else if (shortCircuitAnd987 == 654)	{
+	witchBlock = 2;
+	
+} else {
+	witchBlock = 3;
+}
+
 
 
 /* *************** <COMPILATION STAGE> ***************   

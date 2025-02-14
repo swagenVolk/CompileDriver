@@ -81,7 +81,7 @@ int InterpretedFileWriter::writeFlatExprToFile (std::vector<Token> & flatExprTkn
 			}
 
 			if (!isFailed)
-				ret_code = writeObjectLen (startFilePos, length_pos);
+				ret_code = writeObjectLen (startFilePos);
 
 		}
 	}
@@ -92,7 +92,7 @@ int InterpretedFileWriter::writeFlatExprToFile (std::vector<Token> & flatExprTkn
 /* ****************************************************************************
  *
  * ***************************************************************************/
-int InterpretedFileWriter::writeObjectLen (uint32_t objStartPos, uint32_t objLengthPos)	{
+int InterpretedFileWriter::writeObjectLen (uint32_t objStartPos)	{
 	int ret_code = GENERAL_FAILURE;
 	bool isFailed = false;
 
@@ -104,7 +104,7 @@ int InterpretedFileWriter::writeObjectLen (uint32_t objStartPos, uint32_t objLen
 	assert (exprLen > 0);
 
 	// Write the current object's length
-	outputStream.seekp(objLengthPos, std::fstream::beg);
+	outputStream.seekp(objStartPos + OPCODE_NUM_BYTES, std::fstream::beg);
 	if (OK != writeRawUnsigned(exprLen, NUM_BITS_IN_DWORD))
 		isFailed = true;
 
@@ -269,7 +269,7 @@ int InterpretedFileWriter::writeString (uint8_t op_code, std::wstring tokenStr)	
 		// been completed.
 
 		if (OK == writeRawString (tokenStr))	{
-			ret_code = writeObjectLen (startFilePos, length_pos);
+			ret_code = writeObjectLen (startFilePos);
 		}
 	}
 

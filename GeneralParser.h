@@ -22,11 +22,11 @@
 #include "Operator.h"
 #include "Utilities.h"
 #include "InterpretedFileWriter.h"
-#include "ScopeFrame.h"
+#include "ScopeLevel.h"
 #include "ExpressionParser.h"
 #include "InfoWarnError.h"
 #include "RunTimeInterpreter.h"
-#include "VariablesScope.h"
+#include "StackOfScopes.h"
 #include "UserMessages.h"
 
 #define RESUME_COMPILATION	L"Continuing compilation after "
@@ -43,9 +43,10 @@ typedef var_declaration_states_enum varDeclarationState;
 class GeneralParser {
 public:
 	GeneralParser(TokenPtrVector & inTknStream, std::wstring userSrcFileName, CompileExecTerms & inUsrSrcTerms
-			, std::shared_ptr<UserMessages> userMessages, std::string object_file_name, std::shared_ptr<VariablesScope> inVarScopeStack);
+			, std::shared_ptr<UserMessages> userMessages, std::string object_file_name, std::shared_ptr<StackOfScopes> inVarNameSpace);
 	virtual ~GeneralParser();
-	int rootScopeCompile();
+	int compileRootScope();
+  int compileCurrScope ();
 
 protected:
 
@@ -59,7 +60,7 @@ private:
   InterpretedFileWriter interpretedFileWriter;
   RunTimeInterpreter interpreter;
   ExpressionParser exprParser;
-  std::shared_ptr<VariablesScope> varScopeStack;
+  std::shared_ptr<StackOfScopes> scopedNameSpace;
   Token scratchTkn;
   std::shared_ptr<UserMessages> userMessages;
   int userErrorLimit;
@@ -70,6 +71,9 @@ private:
   int resolveVarInitExpr (Token & varTkn, Token currTkn, Token & exprCloser, bool & isDeclarationEnded);
   bool isProgressBlocked ();
   int chompUntil_infoMsgAfter (std::vector<std::wstring> searchStrings, Token & closerTkn);
+  int compile_if_type_block (uint8_t op_code, Token & openingTkn, bool & isClosedByCurly);
+  int handleExpression (bool & isStopFail);
+  int openFloatyScope(Token openScopeTkn);
 
 };
 

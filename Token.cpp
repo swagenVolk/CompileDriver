@@ -234,7 +234,7 @@ std::wstring Token::getValueStr ()	{
 		value.append (_string);
 		value.append (L"'");
 	
-	} else if (tkn_type == USER_WORD_TKN || tkn_type == DATA_TYPE_TKN || tkn_type == SRC_OPR8R_TKN)	{
+	} else if (tkn_type == USER_WORD_TKN || tkn_type == DATA_TYPE_TKN || tkn_type == SRC_OPR8R_TKN || tkn_type == RESERVED_WORD_TKN)	{
 		value.append (_string);
 
 	} else if (tkn_type == BOOL_TKN)	{

@@ -2,7 +2,7 @@
  * Utilities.h
  *
  *  Created on: Oct 1, 2024
- *      Author: mike
+ *      Author: Mike Volk
  */
 
 #ifndef UTILITIES_H_
@@ -23,6 +23,9 @@ public:
 	void splitString (std::wstring inStr, std::wstring spr8r, std::vector<std::wstring> & strVector);
 	void dumpTokenList (std::vector<Token> & tokenStream, CompileExecTerms execTerms, std::wstring callersSrcFile, int lineNum);
 	void dumpTokenList (std::vector<Token> & tokenStream, int startIdx, CompileExecTerms execTerms, std::wstring callersSrcFile, int lineNum);
+	void dumpTokenList (TokenPtrVector & tknPtrVector, CompileExecTerms execTerms, std::wstring callersSrcFile, int lineNum, bool isShowDetail);
+	void dumpTokenList (TokenPtrVector & tknPtrVector, int startIdx, CompileExecTerms execTerms, std::wstring callersSrcFile, int lineNum, bool isShowDetail);
+	void displayToken (Token & token);
 
 };
 

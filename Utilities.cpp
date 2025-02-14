@@ -3,7 +3,7 @@
  *
  * Junk drawer catch-all class for useful utilities.
  *  Created on: Oct 1, 2024
- *      Author: mike
+ *      Author: Mike Volk
  */
 
 #include "Utilities.h"
@@ -157,8 +157,7 @@ void Utilities::dumpTokenList (std::vector<Token> & tokenStream, int startIdx, C
 	std::wcout << L"********** dumpTokenList called from " << callersSrcFile << L":" << lineNum << L" **********" << std::endl;
 	if (startIdx >= 0 && startIdx < tokenStream.size())	{
 		for (int idx = startIdx; idx < tokenStream.size(); idx++)	{
-			Token listTkn = tokenStream[idx];
-			std::wcout << L"[" << listTkn.getValueStr() << L"]";
+			displayToken (tokenStream[idx]);
 		}
 	
 	} else {
@@ -166,5 +165,48 @@ void Utilities::dumpTokenList (std::vector<Token> & tokenStream, int startIdx, C
 	}
 
 	std::wcout << std::endl;
+
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+void Utilities::dumpTokenList (TokenPtrVector & tknPtrVector, CompileExecTerms execTerms
+	, std::wstring callersSrcFile, int lineNum, bool isShowDetail)	{
+	std::wstring tknStrmStr = L"";
+
+	dumpTokenList (tknPtrVector, 0, execTerms, callersSrcFile, lineNum, isShowDetail);
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+void Utilities::dumpTokenList (TokenPtrVector & tknPtrVector, int startIdx, CompileExecTerms execTerms
+	, std::wstring callersSrcFile, int lineNum, bool isShowDetail)	{
+	std::wstring tknStrmStr = L"";
+
+
+	std::wcout << L"********** dumpTokenList called from " << callersSrcFile << L":" << lineNum << L" **********" << std::endl;
+	if (startIdx >= 0 && startIdx < tknPtrVector.size())	{
+		for (int idx = startIdx; idx < tknPtrVector.size(); idx++)	{
+			Token currTkn = *tknPtrVector[idx];
+			if (!isShowDetail)
+				displayToken (currTkn);
+			else
+			 	std::wcout << currTkn.descr_line_num_col() << std::endl;
+		}
+	
+	} else {
+		std::wcout << L"tokenStream size = " << tknPtrVector.size() << L" but passed in startIdx = " << startIdx;
+	}
+
+	std::wcout << std::endl;
+
+}
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+void Utilities::displayToken (Token & token)	{
+	std::wcout << L"[" << token.getValueStr() << L"]";
 
 }

@@ -10,25 +10,26 @@
 
 #include "InterpretedFileReader.h"
 #include "Token.h"
+#include <cstdint>
 #include <memory>
 #include "CompileExecTerms.h"
 #include "Utilities.h"
-#include "VariablesScope.h"
+#include "StackOfScopes.h"
 #include "UserMessages.h"
 
 class RunTimeInterpreter {
 public:
 	RunTimeInterpreter();
-	RunTimeInterpreter(CompileExecTerms & execTerms, std::shared_ptr<VariablesScope> inVarScope
+	RunTimeInterpreter(CompileExecTerms & execTerms, std::shared_ptr<StackOfScopes> inVarNameSpace
 		, std::wstring userSrcFileName, std::shared_ptr<UserMessages> userMessages);
 	RunTimeInterpreter(std::string interpretedFileName, std::wstring userSrcFileName
-		, std::shared_ptr<VariablesScope> inVarScope,  std::shared_ptr<UserMessages> userMessages);
+		, std::shared_ptr<StackOfScopes> inVarNameSpace,  std::shared_ptr<UserMessages> userMessages);
 
 	virtual ~RunTimeInterpreter();
   void dumpTokenPtrStream (TokenPtrVector tokenStream, std::wstring callersSrcFile, int lineNum);
 	// TODO: Should I make this static?
 	int resolveFlatExpr(std::vector<Token> & flatExprTkns);
-	int rootScopeExec();
+	int execRootScope();
 
 protected:
 
@@ -39,15 +40,17 @@ private:
 	std::wstring thisSrcFile;
 	Utilities util;
 	Token scratchTkn;
-	std::shared_ptr<VariablesScope> varScopeStack;
+	std::shared_ptr<StackOfScopes> scopedNameSpace;
 	std::shared_ptr<UserMessages> userMessages;
 	std::wstring userSrcFileName;
 	InterpreterModesType usageMode;
 	InterpretedFileReader fileReader;
 	int failOnSrcLine;
 
-  int execFlatExpr_OLR(std::vector<Token> & exprTknStream, int startIdx);
+	int execCurrScope (uint32_t execStartPos, uint32_t afterBoundaryPos);
+  int execFlatExpr_OLR (std::vector<Token> & exprTknStream, int startIdx);
 	int execOperation (Operator opr8r, int opr8rIdx, std::vector<Token> & flatExprTkns);
+	int execExpression (uint32_t objStartPos, Token & resultTkn);
 	int execVarDeclaration (uint32_t objStartPos, uint32_t objectLen);
 	int execPrePostFixOp (std::vector<Token> & exprTknStream, int opr8rIdx);
 	int execUnaryOp (std::vector<Token> & exprTknStream, int opr8rIdx);
@@ -63,7 +66,8 @@ private:
 	int execStandardMath (std::vector<Token> & exprTknStream, int opr8rIdx);
 	int resolveTknOrVar (Token & originalTkn, Token & resolvedTkn, std::wstring & varName, bool isCheckInit);
 	int resolveTknOrVar (Token & originalTkn, Token & resolvedTkn, std::wstring & varName);
-
+	int execIfBlock (uint32_t scopeStartPos, uint32_t if_scope_len, uint32_t afterIfParentScopePos);
+	
 };
 
 #endif /* RUNTIMEINTERPRETER_H_ */

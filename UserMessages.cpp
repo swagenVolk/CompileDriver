@@ -58,6 +58,7 @@ void UserMessages::insertNoDupes (std::map<std::wstring, std::shared_ptr<std::ve
 	auto search = messagesHolder.find(msg.getUserMsgFld());
 	if (search == messagesHolder.end())	{
 		std::shared_ptr<std::vector<FileLineCol>> emptyMsgList = std::make_shared <std::vector<FileLineCol>> ();
+		newFileLineCol.insertPos = absoluteInsertPos++;
 		emptyMsgList->push_back (newFileLineCol);
 		messagesHolder.insert ( std::pair {msg.getUserMsgFld(), emptyMsgList} );
 
@@ -237,7 +238,7 @@ void UserMessages::putHolderMsgsInOrder (std::map<std::wstring, std::shared_ptr<
 }
 
 /* ****************************************************************************
- *
+ * TODO: This proc needs to be debugged.
  * ***************************************************************************/
 void UserMessages::showMessagesByInsertOrder (bool isOrderAscending)	{
 

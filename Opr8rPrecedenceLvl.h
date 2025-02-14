@@ -2,7 +2,7 @@
  * Opr8rPrecedenceLvl.h
  *
  *  Created on: Oct 4, 2024
- *      Author: mike
+ *      Author: Mike Volk
  */
 
 #ifndef OPR8RPRECEDENCELVL_H_

@@ -21,7 +21,7 @@
 #include "Operator.h"
 #include "Utilities.h"
 #include "InterpretedFileWriter.h"
-#include "VariablesScope.h"
+#include "StackOfScopes.h"
 #include "UserMessages.h"
 
 // Values below used in a bit mask variable that indicates
@@ -54,7 +54,7 @@ typedef opr8r_ready_state_enum opr8rReadyState;
 
 class ExpressionParser {
 public:
-	ExpressionParser(CompileExecTerms & inUsrSrcTerms, std::shared_ptr<VariablesScope> inVarScopeStack, std::wstring userSrcFileName
+	ExpressionParser(CompileExecTerms & inUsrSrcTerms, std::shared_ptr<StackOfScopes> inVarScopeStack, std::wstring userSrcFileName
     , std::shared_ptr<UserMessages> userMessages);
 	virtual ~ExpressionParser();
 	int makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree, Token & enderTkn
@@ -67,7 +67,7 @@ private:
   std::wstring thisSrcFile;
   CompileExecTerms usrSrcTerms;
   Utilities util;
-  std::shared_ptr<VariablesScope> varScopeStack;
+  std::shared_ptr<StackOfScopes> scopedNameSpace;
   Token scratchTkn;
 	std::shared_ptr<UserMessages> userMessages;
 

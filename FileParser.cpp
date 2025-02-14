@@ -632,14 +632,14 @@ tkn_type_enum FileParser::start_new_tkn_get_type (std::fstream & input_stream, T
     if (compilerTerms.is_sngl_char_spr8r(curr_char))  {
       // Consume this Token right away by adding it to the Token stream
       curr_file_pos = input_stream.tellg();
-      std::shared_ptr<Token> tkn = std::make_shared<Token> (SPR8R_TKN, sngl_char_symbol, fileName, curr_tkn_starts_on_line_num, num_chars_chomped_this_line);
+      std::shared_ptr<Token> tkn = std::make_shared<Token> (SPR8R_TKN, sngl_char_symbol, fileName, line_num, num_chars_chomped_this_line);
       token_stream.push_back(tkn);
       tkn_type = START_UNDEF_TKN;
 
     } else if (compilerTerms.is_atomic_opr8r(curr_char)) {
       // Consume this Token right away by adding it to the Token stream
       curr_file_pos = input_stream.tellg();
-      std::shared_ptr<Token> tkn = std::make_shared<Token> (SRC_OPR8R_TKN, sngl_char_symbol, fileName, curr_tkn_starts_on_line_num, num_chars_chomped_this_line);
+      std::shared_ptr<Token> tkn = std::make_shared<Token> (SRC_OPR8R_TKN, sngl_char_symbol, fileName, line_num, num_chars_chomped_this_line);
       token_stream.push_back(tkn);
       tkn_type = START_UNDEF_TKN;
 
@@ -797,161 +797,138 @@ int FileParser::gnr8_token_stream(std::string file_name, TokenPtrVector & token_
     while (failed_on_src_line_num == 0 && !is_EOF) {
       num_chars_read++;
 
-      switch (curr_tkn_type)  {
-        case START_UNDEF_TKN:
-          if (CATASTROPHIC_FAILURE == is_end_of_line(input_stream, curr_char, is_EOL)) {
-            ret_code = CATASTROPHIC_FAILURE;
-            failed_on_src_line_num = __LINE__;
+      // TODO: Do I check for EOL here? And if it is EOL, commit in-flight Token
+      if (CATASTROPHIC_FAILURE == is_end_of_line(input_stream, curr_char, is_EOL)) {
+        ret_code = CATASTROPHIC_FAILURE;
+        failed_on_src_line_num = __LINE__;
 
-          } else if (!is_EOL)  {
+      } else if (is_EOL && curr_tkn_type != OLD_SCHOOL_CMMNT_TKN)  {
+        std::shared_ptr<Token> tkn = std::make_shared <Token> (curr_tkn_type, curr_str, fileName, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
+        resolve_final_tkn_type (tkn);
+        if (tkn->tkn_type != BRKN_TKN)
+          token_stream.push_back(tkn);
+        curr_str.clear();
+        curr_tkn_type = START_UNDEF_TKN;
+
+      } else  {
+        switch (curr_tkn_type)  {
+          case START_UNDEF_TKN:
             curr_tkn_type = start_new_tkn_get_type (input_stream, token_stream, curr_char, curr_str);
-          }
-          break;
+            break;
 
-        case WHITE_SPACE_TKN         :
-          if (!iswspace(curr_char))  {
-            // No longer chomping on white space, so we're starting a new Token
-            curr_tkn_type = start_new_tkn_get_type (input_stream, token_stream, curr_char, curr_str);
-          } else if (CATASTROPHIC_FAILURE == is_end_of_line(input_stream, curr_char, is_EOL))  {
-            ret_code = CATASTROPHIC_FAILURE;
-            failed_on_src_line_num = __LINE__;
-          }
-          break;
-        case USER_WORD_TKN             :
-          if (iswspace(curr_char) || compilerTerms.is_sngl_char_spr8r(curr_char) || (iswpunct(curr_char) && curr_char != '_') )  {
-            // Space, spr8r or punctuation (except _) ends a USER_WORD
-            std::shared_ptr<Token> tkn = std::make_shared<Token>(curr_tkn_type, curr_str, fileName, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
-            resolve_final_tkn_type (tkn);
-            token_stream.push_back(tkn);
-            curr_str.clear();
-
-            if (iswspace(curr_char)) {
-              if (CATASTROPHIC_FAILURE == is_end_of_line(input_stream, curr_char, is_EOL)) {
-                ret_code = CATASTROPHIC_FAILURE;
-                failed_on_src_line_num = __LINE__;
-              } else  {
-                curr_tkn_type = START_UNDEF_TKN;
-              }
-            }
-            else  {
+          case WHITE_SPACE_TKN         :
+            if (!iswspace(curr_char)) 
+              // No longer chomping on white space, so we're starting a new Token
               curr_tkn_type = start_new_tkn_get_type (input_stream, token_stream, curr_char, curr_str);
-            }
-          } else  {
-            curr_str += curr_char;
-          }
+            break;
+          case USER_WORD_TKN             :
+            if (iswspace(curr_char) || compilerTerms.is_sngl_char_spr8r(curr_char) || (iswpunct(curr_char) && curr_char != '_') )  {
+              // Space, spr8r or punctuation (except _) ends a USER_WORD
+              std::shared_ptr<Token> tkn = std::make_shared<Token>(curr_tkn_type, curr_str, fileName, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
+              resolve_final_tkn_type (tkn);
+              token_stream.push_back(tkn);
+              curr_str.clear();
 
-          break;
-        case STRING_TKN              :
-          // TODO: Is it reasonable to expect date times to be contained within quotes?
-          /*
-           *  2022-10-14 11:19:56.987
-           *  2022-10-14 11:19:56.98
-           *  2022-10-14 11:19:56.9
-           *  2022-10-14 11:19:56
-           *  2022-10-14 11:19
-           *  2022-10-14
-          */
-        case DATETIME_TKN            :
-          // TODO: Can strings cross multiple lines? ???
-          if (curr_char == '"' && prev_char != '\\') {
-            // We got our closing quote and it was *NOT* escaped
-            std::shared_ptr<Token> tkn = std::make_shared <Token> (curr_tkn_type, curr_str, fileName, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
-            resolve_final_tkn_type (tkn);
-            token_stream.push_back(tkn);
-            curr_str.clear();
-            curr_tkn_type = START_UNDEF_TKN;
-          } else  {
-            curr_str += curr_char;
-            if (CATASTROPHIC_FAILURE == is_end_of_line(input_stream, curr_char, is_EOL)) {
+              if (iswspace(curr_char))
+                  curr_tkn_type = START_UNDEF_TKN;
+              else 
+                curr_tkn_type = start_new_tkn_get_type (input_stream, token_stream, curr_char, curr_str);
+
+            } else  {
+              curr_str += curr_char;
+            }
+
+            break;
+          case STRING_TKN              :
+            // TODO: Is it reasonable to expect date times to be contained within quotes?
+            /*
+            *  2022-10-14 11:19:56.987
+            *  2022-10-14 11:19:56.98
+            *  2022-10-14 11:19:56.9
+            *  2022-10-14 11:19:56
+            *  2022-10-14 11:19
+            *  2022-10-14
+            */
+          case DATETIME_TKN            :
+            // TODO: Can strings cross multiple lines? ???
+            if (curr_char == '"' && prev_char != '\\') {
+              // We got our closing quote and it was *NOT* escaped
+              std::shared_ptr<Token> tkn = std::make_shared <Token> (curr_tkn_type, curr_str, fileName, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
+              resolve_final_tkn_type (tkn);
+              if (tkn->tkn_type != BRKN_TKN)
+                token_stream.push_back(tkn);
+              curr_str.clear();
+              curr_tkn_type = START_UNDEF_TKN;
+            } else  {
+              curr_str += curr_char;
+            }
+            break;
+          case OLD_SCHOOL_CMMNT_TKN     :
+            if (CATASTROPHIC_FAILURE == is_end_olde_skul_cmmnt (input_stream, curr_char, curr_str, is_end))  {
               ret_code = CATASTROPHIC_FAILURE;
               failed_on_src_line_num = __LINE__;
+
+            } else if (is_end)  {
+              // std::wcout << "OLD SCHOOL COMMENT: " << curr_str << "| on line # " << curr_tkn_starts_on_line_num << "; col = " << curr_tkn_starts_on_col_pos << ";" << std::endl;
+              // Comments are syntactic sugar that just melt away and do *NOT* get added to the Token stream
+              curr_str.clear();
+              curr_tkn_type = START_UNDEF_TKN;
+
+            } else  {
+              curr_str += curr_char;
             }
-          }
-          break;
-        case OLD_SCHOOL_CMMNT_TKN     :
-          if (CATASTROPHIC_FAILURE == is_end_olde_skul_cmmnt (input_stream, curr_char, curr_str, is_end))  {
-            ret_code = CATASTROPHIC_FAILURE;
-            failed_on_src_line_num = __LINE__;
-
-          } else if (is_end)  {
-            // std::wcout << "OLD SCHOOL COMMENT: " << curr_str << "| on line # " << curr_tkn_starts_on_line_num << "; col = " << curr_tkn_starts_on_col_pos << ";" << std::endl;
-            // Comments are syntactic sugar that just melt away and do *NOT* get added to the Token stream
-            curr_str.clear();
-            curr_tkn_type = START_UNDEF_TKN;
-
-          } else  {
+            break;
+          case TIL_EOL_CMMNT_TKN   :
             curr_str += curr_char;
-            if (CATASTROPHIC_FAILURE == is_end_of_line(input_stream, curr_char, is_EOL)) {
-              ret_code = CATASTROPHIC_FAILURE;
-              failed_on_src_line_num = __LINE__;
-            }
-          }
-          break;
-        case TIL_EOL_CMMNT_TKN       :
-          if (CATASTROPHIC_FAILURE == is_end_of_line(input_stream, curr_char, is_EOL)) {
-            ret_code = CATASTROPHIC_FAILURE;
-            failed_on_src_line_num = __LINE__;
+            break;
+          case UINT8_TKN					 :
+          case UINT16_TKN          :
+          case UINT32_TKN          :
+          case UINT64_TKN          :
+          case INT8_TKN            :
+          case INT16_TKN		       :
+          case INT32_TKN		       :
+          case INT64_TKN		       :
+            if (iswpunct(curr_char) || iswspace (curr_char) || compilerTerms.is_sngl_char_spr8r(curr_char))  {
+              std::shared_ptr<Token> tkn = std::make_shared <Token> (curr_tkn_type, curr_str, fileName, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
+              resolve_final_tkn_type (tkn);
+              if (tkn->tkn_type != BRKN_TKN)
+                token_stream.push_back(tkn);
+              curr_str.clear();
 
-          } else if (is_EOL)  {
-            // std::wcout << "TIL EOL COMMENT: " << curr_str << "| on line # " << curr_tkn_starts_on_line_num << "; col = " << curr_tkn_starts_on_col_pos << ";" << std::endl;
-            // Comments are syntactic sugar that just melt away and do *NOT* get added to the Token stream
-            curr_str.clear();
-            curr_tkn_type = START_UNDEF_TKN;
-          } else  {
-            curr_str += curr_char;
-          }
-          break;
-        case UINT8_TKN					 :
-        case UINT16_TKN          :
-        case UINT32_TKN          :
-        case UINT64_TKN          :
-        case INT8_TKN            :
-        case INT16_TKN		       :
-        case INT32_TKN		       :
-        case INT64_TKN		       :
-          if (iswpunct(curr_char) || iswspace (curr_char) || compilerTerms.is_sngl_char_spr8r(curr_char))  {
-            std::shared_ptr<Token> tkn = std::make_shared <Token> (curr_tkn_type, curr_str, fileName, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
-            resolve_final_tkn_type (tkn);
-            token_stream.push_back(tkn);
-            curr_str.clear();
-
-            if (iswspace(curr_char)) {
-              if (CATASTROPHIC_FAILURE == is_end_of_line(input_stream, curr_char, is_EOL)) {
-                ret_code = CATASTROPHIC_FAILURE;
-                failed_on_src_line_num = __LINE__;
-
-              } else  {
+              if (iswspace(curr_char)) {
                 curr_tkn_type = START_UNDEF_TKN;
-              }
-            } else
-            curr_tkn_type = start_new_tkn_get_type (input_stream, token_stream, curr_char, curr_str);
-          } else  {
-            curr_str += curr_char;
-          }
-          break;
-        case SRC_OPR8R_TKN               :
-          // OPR8Rs are made up of punctuation characters, *except* for the 1-char separators
-          // A single character OPR8R (e.g. ;) will end the currently accumulating OPR8R, and
-          // both will be added to the Token stream in order
-          if (!iswpunct(curr_char) || compilerTerms.is_sngl_char_spr8r(curr_char) || compilerTerms.is_atomic_opr8r(curr_char) || curr_char == '"')  {
-            std::shared_ptr<Token> opr8r = std::make_shared <Token> (curr_tkn_type, curr_str, fileName, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
-            resolve_final_tkn_type (opr8r);
-            token_stream.push_back (opr8r);
-            curr_str.clear();
-            curr_tkn_type = start_new_tkn_get_type (input_stream, token_stream, curr_char, curr_str);
-          } else  {
-            curr_str += curr_char;
-          }
-          break;
+              } else
+              curr_tkn_type = start_new_tkn_get_type (input_stream, token_stream, curr_char, curr_str);
+            } else  {
+              curr_str += curr_char;
+            }
+            break;
+          case SRC_OPR8R_TKN               :
+            // OPR8Rs are made up of punctuation characters, *except* for the 1-char separators
+            // A single character OPR8R (e.g. ;) will end the currently accumulating OPR8R, and
+            // both will be added to the Token stream in order
+            if (!iswpunct(curr_char) || compilerTerms.is_sngl_char_spr8r(curr_char) || compilerTerms.is_atomic_opr8r(curr_char) || curr_char == '"')  {
+              std::shared_ptr<Token> opr8r = std::make_shared <Token> (curr_tkn_type, curr_str, fileName, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
+              resolve_final_tkn_type (opr8r);
+              if (opr8r->tkn_type != BRKN_TKN)
+                token_stream.push_back(opr8r);
+              curr_str.clear();
+              curr_tkn_type = start_new_tkn_get_type (input_stream, token_stream, curr_char, curr_str);
+            } else  {
+              curr_str += curr_char;
+            }
+            break;
 
-        case SPR8R_TKN               :
-          // SPR8R's are only 1 charactor long, and should have already been taken care of
-          failed_on_src_line_num = __LINE__;
-          break;
-        default:
-          failed_on_src_line_num = __LINE__;
-          std::wcout << "failed_on_src_line_num = " << failed_on_src_line_num << "; prev_char = " << std::hex << prev_char << "; curr_char = " << curr_char << ";" << std::endl << std::dec;
-          break;
+          case SPR8R_TKN               :
+            // SPR8R's are only 1 charactor long, and should have already been taken care of
+            failed_on_src_line_num = __LINE__;
+            break;
+          default:
+            failed_on_src_line_num = __LINE__;
+            std::wcout << "failed_on_src_line_num = " << failed_on_src_line_num << "; prev_char = " << std::hex << prev_char << "; curr_char = " << curr_char << ";" << std::endl << std::dec;
+            break;
+        }
       }
 
       prev_char = curr_char;
@@ -967,7 +944,8 @@ int FileParser::gnr8_token_stream(std::string file_name, TokenPtrVector & token_
     if (!curr_str.empty() && failed_on_src_line_num == 0) {
       std::shared_ptr<Token> tkn = std::make_shared <Token> (curr_tkn_type, curr_str, fileName, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
       resolve_final_tkn_type (tkn);
-      token_stream.push_back(tkn);
+      if (tkn->tkn_type != BRKN_TKN)
+        token_stream.push_back(tkn);
       curr_str.clear();
     }
 

@@ -6,14 +6,18 @@
  */
 
 #include "GeneralParser.h"
+#include "InfoWarnError.h"
+#include "OpCodes.h"
 #include "Token.h"
-#include "VariablesScope.h"
+#include "StackOfScopes.h"
+#include "common.h"
+#include <cstdint>
 #include <iostream>
 
 using namespace std;
 
 GeneralParser::GeneralParser(TokenPtrVector & inTknStream, std::wstring userSrcFileName, CompileExecTerms & inUsrSrcTerms
-		, std::shared_ptr<UserMessages> userMessages, std::string object_file_name, std::shared_ptr<VariablesScope> inVarScopeStack)
+		, std::shared_ptr<UserMessages> userMessages, std::string object_file_name, std::shared_ptr<StackOfScopes> inVarScopeStack)
 	: interpretedFileWriter (object_file_name, inUsrSrcTerms, userMessages)
 	, interpreter (inUsrSrcTerms, inVarScopeStack, userSrcFileName, userMessages)
 	, exprParser (inUsrSrcTerms, inVarScopeStack, userSrcFileName, userMessages)
@@ -23,7 +27,7 @@ GeneralParser::GeneralParser(TokenPtrVector & inTknStream, std::wstring userSrcF
 	this->userSrcFileName = userSrcFileName;
 	usrSrcTerms = inUsrSrcTerms;
 	this->userMessages = userMessages;
-	varScopeStack = inVarScopeStack;
+	scopedNameSpace = inVarScopeStack;
 	thisSrcFile = util.getLastSegment(util.stringToWstring(__FILE__), L"/");
 	userErrorLimit = 30;
 
@@ -34,8 +38,8 @@ GeneralParser::GeneralParser(TokenPtrVector & inTknStream, std::wstring userSrcF
 }
 
 GeneralParser::~GeneralParser() {
-	// TODO: Anything to add here?ScopeFrame
-	varScopeStack.reset();
+	// TODO: Anything to add here?ScopeLevel
+	scopedNameSpace.reset();
 	ender_comma_list.clear();
 	ender_list.clear();
 
@@ -109,14 +113,47 @@ int GeneralParser::chompUntil_infoMsgAfter (std::vector<std::wstring> searchStri
  * the current expression and if it's well formed, commit it to
  * the interpreted stream. If it's not well formed, generate a clear error
  * message to the user.
+ * TODO:
+ * Good place to check for scope objects that are only legal at the global scope,
+ * if|when I get to that point of customization.
  * ***************************************************************************/
-int GeneralParser::rootScopeCompile () 	{
+int GeneralParser::compileRootScope () 	{
+	int ret_code = GENERAL_FAILURE;
+
+  if (tknStream.empty())	{
+  	userMessages->logMsg (INTERNAL_ERROR, L"Token stream is unexpectedly empty!", thisSrcFile, __LINE__, 0);
+
+  } else	{
+		uint32_t length_pos = interpretedFileWriter.writeFlexLenOpCode (ANON_SCOPE_OPCODE);
+		// TODO: Do I want to add a checksum for ANON_SCOPEs? Would only be calculated for ROOT
+		// TODO: Remove ROOT scope creation from StackOfScopes?
+		if (OK == compileCurrScope())	{
+			if (OK != interpretedFileWriter.writeObjectLen (0))
+  			userMessages->logMsg (INTERNAL_ERROR, L"Could not back fill ROOT scope length!", thisSrcFile, __LINE__, 0);
+			else
+				ret_code = OK;
+		}
+  }
+
+	return (ret_code);
+}
+
+/* ****************************************************************************
+ * Parse through the user's source file, looking for USER_WORDs such as:
+ * data type USER_WORDs that either indicate a variable or a fxn declaration
+ * [if] [else if] [else] [while] [for] [?fxn]
+ * the current expression and if it's well formed, commit it to
+ * the interpreted stream. If it's not well formed, generate a clear error
+ * message to the user.
+ * ***************************************************************************/
+int GeneralParser::compileCurrScope () 	{
 	int ret_code = GENERAL_FAILURE;
 	bool isStopFail = false;
 	bool isEOF = false;
 	bool isExprClosed = false;
 	bool isVarDecClosed = false;
 	Token tmpTkn;
+	uint8_t prevScopeObject = INVALID_OPCODE;
 
   if (tknStream.empty())	{
   	userMessages->logMsg (INTERNAL_ERROR, L"Token stream is unexpectedly empty!", thisSrcFile, __LINE__, 0);
@@ -125,6 +162,7 @@ int GeneralParser::rootScopeCompile () 	{
   } else	{
   	std::pair<TokenTypeEnum, uint8_t> tknTypeEnum_opCode;
 		std::wstring lookUpMsg;
+		bool isNewScopened;
 
 		while (!isStopFail && !isEOF)	{
 
@@ -138,6 +176,26 @@ int GeneralParser::rootScopeCompile () 	{
 				if (currTkn->tkn_type == END_OF_STREAM_TKN)	{
 					isEOF = true;
 
+				} else if (currTkn->tkn_type == SPR8R_TKN && currTkn->_string == L"}")	{
+					// Indicates we should close the current scope
+					closeScopeErr closeErr;
+
+ 					if (OK != scopedNameSpace->closeTopScope(interpretedFileWriter, prevScopeObject, closeErr))	{
+						isStopFail = true;
+
+						if (closeErr == ONLY_ROOT_SCOPE_OPEN)
+							userMessages->logMsg(USER_ERROR, L"Failure closing scope; possibly unmatched " + currTkn->descr_sans_line_num_col(), userSrcFileName
+							, currTkn->get_line_number(), currTkn->get_column_pos());
+
+						else if (closeErr == SCOPE_CLOSE_UKNOWN_ERROR || NO_SCOPES_OPEN)
+							userMessages->logMsg (INTERNAL_ERROR, L"Failure closing scope with: " + currTkn->descr_line_num_col(), thisSrcFile, __LINE__, 0);
+					}
+
+				} else if (currTkn->tkn_type == SPR8R_TKN && currTkn->_string == L"{")	{
+					// Indicates we should OPEN a new but untethered scope.  Kind of unusual, but legal
+					if (OK != openFloatyScope(*currTkn))
+						isStopFail = true;
+
 				} else if (enum_opCode.second != INVALID_OPCODE)	{
 					// This Token is a known data type; handle variable or fxn declaration
 					if (OK != parseVarDeclaration (currTkn->_string, enum_opCode, isVarDecClosed))	{
@@ -149,68 +207,67 @@ int GeneralParser::rootScopeCompile () 	{
 							if (OK != chompUntil_infoMsgAfter (ender_list, tmpTkn))
 								isStopFail = true;
 						}
+					} else {
+						prevScopeObject = VARIABLES_DECLARATION_OPCODE;
 					}
 				} else if (currTkn->tkn_type == USER_WORD_TKN 
-						&& OK != varScopeStack->findVar(currTkn->_string, 0, scratchTkn, READ_ONLY, lookUpMsg))	{
+						&& OK != scopedNameSpace->findVar(currTkn->_string, 0, scratchTkn, READ_ONLY, lookUpMsg))	{
 			  		userMessages->logMsg (USER_ERROR, L"Unrecognized USER_WORD: " + currTkn->descr_sans_line_num_col()
 							, userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
 
 						if (isProgressBlocked ())
 							isStopFail = true;
+						else
+						 	prevScopeObject = VAR_NAME_OPCODE;
 
-				} else if ((currTkn->tkn_type == USER_WORD_TKN && OK == varScopeStack->findVar(currTkn->_string, 0, scratchTkn, READ_ONLY, lookUpMsg))
+				} else if ((currTkn->tkn_type == USER_WORD_TKN && OK == scopedNameSpace->findVar(currTkn->_string, 0, scratchTkn, READ_ONLY, lookUpMsg))
 					|| currTkn->tkn_type == SRC_OPR8R_TKN && (currTkn->_string == usrSrcTerms.getSrcOpr8rStrFor (PRE_INCR_OPR8R_OPCODE)
 					|| currTkn->_string == usrSrcTerms.getSrcOpr8rStrFor (PRE_DECR_OPR8R_OPCODE)))	{
 					// Put the current Token back; exprParser will need it!
 					tknStream.insert(tknStream.begin(), currTkn);
+					handleExpression(isStopFail);
+					prevScopeObject = EXPRESSION_OPCODE;
 
-					std::shared_ptr<Token> emptyTkn = std::make_shared<Token>();
-					std::shared_ptr<ExprTreeNode> exprTree = std::make_shared<ExprTreeNode> (emptyTkn);
-					// TODO: indicate what closed the current expression
-					Token exprEnder;
-					std::vector<Token> flatExprTkns;
-					int makeTreeRetCode = exprParser.makeExprTree (tknStream, exprTree, exprEnder, END_COMMA_NOT_EXPECTED, isExprClosed);
-
-					if (OK != makeTreeRetCode && isProgressBlocked())	{
-						isStopFail = true;
-
-					} else if (OK != makeTreeRetCode && isExprClosed)	{
-						// Error encountered, but expression was closed|completed.  Keep compiling to get more feedback for user
-
-					} else if (OK != makeTreeRetCode && !isExprClosed)	{
-						// [;] should close out the expression.  Provide INFO msg to user, try to find the next [;] and proceed from there
-						// TODO: Check for some upper limit of user errors to see if we should bail.
-						// Search for a [;] and try compiling again from that point on
-						if (OK != chompUntil_infoMsgAfter (ender_list, tmpTkn))
-							isStopFail = true;
-
-					} else if (OK != interpretedFileWriter.flattenExprTree(exprTree, flatExprTkns, userSrcFileName))	{
-						// (3 + 4) -> [3][4][+]
-						isStopFail = true;
-					
-					} else if (OK != interpretedFileWriter.writeFlatExprToFile(flatExprTkns))	{
-						// Write out to interpreted file BEFORE we destructively resolve the flat stream of Tokens that make up the expression
-						isStopFail = true;
-
-					} else if (OK != interpreter.resolveFlatExpr(flatExprTkns))	{
-						isStopFail = true;
-
-					} else	{
-						// flattenedExpr should have 1 Token left - the result of the expression
-						if (flatExprTkns.size() != 1)	{
-							userMessages->logMsg(INTERNAL_ERROR, L"Failed to resolve expression starting with " + currTkn->descr_sans_line_num_col()
-									, thisSrcFile, __LINE__, 0);
-							isStopFail = true;
-						}
-					}
 				} else if (currTkn->tkn_type == RESERVED_WORD_TKN && currTkn->_string == L"if")	{
-			  	userMessages->logMsg (INTERNAL_ERROR, L"[if] RESERVED_WORD not supported yet!", thisSrcFile, __LINE__, 0);
-			  	isStopFail = true;
+					// Handle [if] block
+					if (OK != compile_if_type_block(IF_SCOPE_OPCODE, *currTkn, isNewScopened))
+			  		isStopFail = true;
+					else
+						prevScopeObject = IF_SCOPE_OPCODE;
 
 				} else if (currTkn->tkn_type == RESERVED_WORD_TKN && currTkn->_string == L"else")	{
-					// TODO:
-			  	userMessages->logMsg (INTERNAL_ERROR, L"[else] RESERVED_WORD not supported yet!", thisSrcFile, __LINE__, 0);
-					isStopFail = true;
+					// Handle [else if]|[else] block
+					if (!tknStream.empty())	{
+						std::shared_ptr <Token> checkForIf = tknStream.front();
+
+						if (checkForIf->tkn_type == RESERVED_WORD_TKN && checkForIf->_string == L"if")	{
+							tknStream.erase(tknStream.begin());
+							if (prevScopeObject != IF_SCOPE_OPCODE && prevScopeObject != ELSE_IF_SCOPE_OPCODE)	{
+								userMessages->logMsg (USER_ERROR, L"Expected [if] or [else if] block before " + currTkn->descr_sans_line_num_col()
+									, userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
+								isStopFail = true;
+							
+							} else if (OK != compile_if_type_block(ELSE_IF_SCOPE_OPCODE, *checkForIf, isNewScopened))	{
+								isStopFail = true;
+							
+							} else	{
+								prevScopeObject = ELSE_IF_SCOPE_OPCODE;
+							}
+						
+						} else {
+							if (prevScopeObject != IF_SCOPE_OPCODE && prevScopeObject != ELSE_IF_SCOPE_OPCODE)	{
+								userMessages->logMsg (USER_ERROR, L"Expected [if] or [else if] block before " + currTkn->descr_sans_line_num_col()
+									, userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
+								isStopFail = true;
+							} else if (OK != compile_if_type_block(ELSE_SCOPE_OPCODE, *currTkn, isNewScopened ))	{
+								isStopFail = true;
+							
+							} else	{
+								// Invalidate whether new scope opened or else block contains a single statement
+								prevScopeObject = INVALID_OPCODE;
+							}
+						}
+					}
 
 				} else if (currTkn->tkn_type == RESERVED_WORD_TKN && currTkn->_string == L"for")	{
 					// TODO:
@@ -240,6 +297,96 @@ int GeneralParser::rootScopeCompile () 	{
 }
 
 /* ****************************************************************************
+ * Encountered a floating [{] that opens up a scope.  Weird, but legal!
+ * Use INVALID_OPCODE to indicate what opened the scope up.  
+ * Will use INVALID_OPCODE also to open up ROOT scope, but we should be able to
+ * differentiate with that object starting at file position 0.
+ * ***************************************************************************/
+int GeneralParser::openFloatyScope(Token openScopeTkn)	{
+	int ret_code = GENERAL_FAILURE;
+
+	uint32_t startFilePos = interpretedFileWriter.getWriteFilePos();
+	uint32_t length_pos = interpretedFileWriter.writeFlexLenOpCode (ANON_SCOPE_OPCODE);
+
+	if (OK != interpretedFileWriter.writeRawUnsigned(INVALID_OPCODE, NUM_BITS_IN_BYTE))	{
+		userMessages->logMsg (INTERNAL_ERROR, L"Failure writing scope type", thisSrcFile, __LINE__, 0);
+
+	} else if (OK != scopedNameSpace->openNewScope(INVALID_OPCODE, openScopeTkn, startFilePos, 0))	{
+		userMessages->logMsg (INTERNAL_ERROR, L"Failure opening scope with: " + openScopeTkn.descr_line_num_col(), thisSrcFile, __LINE__, 0);
+
+	} else {
+		ret_code = OK;
+	}
+
+	return (ret_code);
+
+}
+
+/* ****************************************************************************
+ * [if][else if][else] KEYWORD has been encountered at the current scope and consumed.
+ * For [if] and [else if] blocks, a conditional expression enclosed in parentheses is 
+ * expected after this. If an opening [{] is encountered, then a new scope is opened 
+ * by the compiler and 0 or more expressions, variable declarations, etc. will follow.  
+ * Otherwise, only 1 expression is expected and the scope for this block is immediately 
+ * closed by this proc in the eyes of both the compiler and the interpreter.
+ * [op_code][total_length][conditional EXPRESSION][code block]
+ * ***************************************************************************/
+int GeneralParser::compile_if_type_block (uint8_t op_code, Token & openingTkn, bool & isClosedByCurly)	{
+	int ret_code = GENERAL_FAILURE;
+	bool isFailed = false;
+	uint32_t startFilePos;
+	uint32_t length_pos;
+
+	std::shared_ptr <Token> currTkn = tknStream.front();
+
+	isClosedByCurly = false;
+
+	if ((op_code == IF_SCOPE_OPCODE || op_code == ELSE_IF_SCOPE_OPCODE) && currTkn->tkn_type != SPR8R_TKN && currTkn->_string != L"(")	{
+		isFailed = true;
+		userMessages->logMsg (USER_ERROR, L"Expected \"(\" after [if] or [else if] but instead got " + currTkn->descr_sans_line_num_col()
+			, userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
+
+	} else {
+		// Write out the if block structure to interpreted file
+
+		startFilePos = interpretedFileWriter.getWriteFilePos();
+		length_pos = interpretedFileWriter.writeFlexLenOpCode (op_code);
+
+		if (0 == length_pos)
+			isFailed = true;
+	}
+
+	if (!isFailed && (op_code == IF_SCOPE_OPCODE || op_code == ELSE_IF_SCOPE_OPCODE))	{
+		// Resolve the conditional expression and write it out
+		bool isStopFail;
+		if (OK != handleExpression(isStopFail))
+			// TODO: How to determine if we should go on if return from handleExpression != OK?
+			isFailed = true;
+	}
+
+	if (!isFailed && !tknStream.empty())	{
+		// If next Token isn't a scope opening [{], then we need to handle a single statement ONLY.
+		std::shared_ptr <Token> checkCurlyTkn = tknStream.front();
+
+		if (checkCurlyTkn->tkn_type == SPR8R_TKN && checkCurlyTkn->_string == L"{")	{
+			tknStream.erase(tknStream.begin());
+			isClosedByCurly = true;
+			ret_code = scopedNameSpace->openNewScope(op_code, openingTkn, startFilePos, 0);
+
+		} else {
+			// No opening [{]. Handle single expression
+ 			// TODO: Can a single expression start with an [(]? If it can, must the expression end with a [;]?
+			bool isStopFail;
+			if (OK == handleExpression(isStopFail))	{
+				ret_code = interpretedFileWriter.writeObjectLen (startFilePos);
+			}
+		}
+	}
+
+	return (ret_code);
+}
+
+/* ****************************************************************************
  * Found a data type USER_WORD that indicates the beginning of a possibly plural
  * variable declaration.
  * ***************************************************************************/
@@ -249,8 +396,9 @@ int GeneralParser::parseVarDeclaration (std::wstring dataTypeStr, std::pair<Toke
 	isDeclarationEnded = false;
 	Token exprCloserTkn;
 
-	uint32_t startFilePos = interpretedFileWriter.getWriteFilePos();
 	std::wstring assignOpr8r = usrSrcTerms.getSrcOpr8rStrFor(ASSIGNMENT_OPR8R_OPCODE);
+
+	uint32_t startFilePos = interpretedFileWriter.getWriteFilePos();
 	uint32_t length_pos = interpretedFileWriter.writeFlexLenOpCode (VARIABLES_DECLARATION_OPCODE);
 
 	if (0 != length_pos)	{
@@ -302,7 +450,7 @@ int GeneralParser::parseVarDeclaration (std::wstring dataTypeStr, std::pair<Toke
 									, thisSrcFile, __LINE__, 0);
 							isStopFail = true;
 
-						} else if (OK == varScopeStack->findVar(currTkn->_string, 1, scratchTkn, READ_ONLY, lookUpMsg))	{
+						} else if (OK == scopedNameSpace->findVar(currTkn->_string, 1, scratchTkn, READ_ONLY, lookUpMsg))	{
 								userMessages->logMsg (USER_ERROR, L"Variable " + currTkn->_string + L" already exists at current scope."
 										, thisSrcFile, currTkn->get_line_number(), currTkn->get_column_pos());
 								// TODO: This could be an opportunity to continue compiling
@@ -317,7 +465,7 @@ int GeneralParser::parseVarDeclaration (std::wstring dataTypeStr, std::pair<Toke
 						} else	{
 							// Put an uninitialized variable name & Token in the NameSpace
 							Token starterTkn (tknType_opCode.first, L"");
-							if (OK != varScopeStack->insertNewVarAtCurrScope(currTkn->_string, starterTkn))	{
+							if (OK != scopedNameSpace->insertNewVarAtCurrScope(currTkn->_string, starterTkn))	{
 								userMessages->logMsg (INTERNAL_ERROR, L"Failed to insert " + currTkn->_string + L" into NameSpace AFTER existence check!"
 										, thisSrcFile, __LINE__, 0);
 
@@ -394,12 +542,76 @@ int GeneralParser::parseVarDeclaration (std::wstring dataTypeStr, std::pair<Toke
 		}
 
 		if (!isStopFail)
-			ret_code = interpretedFileWriter.writeObjectLen (startFilePos, length_pos);
+			ret_code = interpretedFileWriter.writeObjectLen (startFilePos);
 	}
 
 
 	return (ret_code);
 
+}
+
+/* ****************************************************************************
+ * All the logic to parse & compile an expression and write it out to the
+ * interpreted file is in this proc.
+ * TODO: Figure out if I can use this proc for variable declarations also.
+ * ***************************************************************************/
+int GeneralParser::handleExpression (bool & isStopFail)	{
+	int ret_code = GENERAL_FAILURE;
+
+	if (tknStream.empty())	{
+		userMessages->logMsg (INTERNAL_ERROR, L"Token stream unexpectedly empty!", thisSrcFile, __LINE__, 0);
+		isStopFail = true;
+
+	} else {
+		std::shared_ptr <Token> currTkn = tknStream.front();
+
+		std::shared_ptr<Token> emptyTkn = std::make_shared<Token>();
+		std::shared_ptr<ExprTreeNode> exprTree = std::make_shared<ExprTreeNode> (emptyTkn);
+		// TODO: indicate what closed the current expression
+		Token exprEnder;
+		Token tmpTkn;
+		std::vector<Token> flatExprTkns;
+		bool isExprClosed;
+		int makeTreeRetCode = exprParser.makeExprTree (tknStream, exprTree, exprEnder, END_COMMA_NOT_EXPECTED, isExprClosed);
+
+		if (OK != makeTreeRetCode && isProgressBlocked())	{
+			isStopFail = true;
+
+		} else if (OK != makeTreeRetCode && isExprClosed)	{
+			// Error encountered, but expression was closed|completed.  Keep compiling to get more feedback for user
+
+		} else if (OK != makeTreeRetCode && !isExprClosed)	{
+			// [;] should close out the expression.  Provide INFO msg to user, try to find the next [;] and proceed from there
+			// TODO: Check for some upper limit of user errors to see if we should bail.
+			// Search for a [;] and try compiling again from that point on
+			if (OK != chompUntil_infoMsgAfter (ender_list, tmpTkn))
+				isStopFail = true;
+
+		} else if (OK != interpretedFileWriter.flattenExprTree(exprTree, flatExprTkns, userSrcFileName))	{
+			// (3 + 4) -> [3][4][+]
+			isStopFail = true;
+		
+		} else if (OK != interpretedFileWriter.writeFlatExprToFile(flatExprTkns))	{
+			// Write out to interpreted file BEFORE we destructively resolve the flat stream of Tokens that make up the expression
+			isStopFail = true;
+
+		} else if (OK != interpreter.resolveFlatExpr(flatExprTkns))	{
+			isStopFail = true;
+
+		} else	{
+			// flattenedExpr should have 1 Token left - the result of the expression
+			if (flatExprTkns.size() != 1)	{
+				userMessages->logMsg(INTERNAL_ERROR, L"Failed to resolve expression starting with " + currTkn->descr_sans_line_num_col()
+						, thisSrcFile, __LINE__, 0);
+				isStopFail = true;
+			
+			} else {
+				ret_code = OK;
+			}
+		}
+	}
+
+	return (ret_code);
 }
 
 /* ****************************************************************************
@@ -450,7 +662,7 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
 					, thisSrcFile, __LINE__, 0);
 			isFailed = true;
 
-		} else if (OK != varScopeStack->findVar(varTkn._string, 0, flatExprTkns[0], COMMIT_WRITE, lookUpMsg))	{
+		} else if (OK != scopedNameSpace->findVar(varTkn._string, 0, flatExprTkns[0], COMMIT_WRITE, lookUpMsg))	{
 			// Don't limit search to current scope
 			userMessages->logMsg (INTERNAL_ERROR
 					, L"Could not find " + varTkn._string + L" after parsing initialization expression in " + userSrcFileName

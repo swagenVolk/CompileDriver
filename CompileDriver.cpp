@@ -6,8 +6,16 @@
  * Clarity of error messages
  *
  * TODO:
- * When reading in expression list from Interpreted file, could add file location to Tokens (maybe)
- *
+ * Pedantic mode - verbose output for instructional purposes
+ *	Print out top scope of expression after (or end of) moveNeighborsIntoTree.  
+ *	Could indicate tree w/ additional chars e.g. [{*}] [/*\] [_*_] [`*`] or /*\
+ * 	When reading in expression list from Interpreted file, could add file location to Tokens (maybe)
+ *  Tie together expression start on both stages with interpreted file location
+ *	Dump out compilation token list at selected stages. Include indication of shrubification
+ *	During interpretation, dump out token list on each operation
+ * Generic ("Unique") scope objects?
+ * Should ROOT scope include a checksum? If so, should others have the field also, but gets ignored?
+ * Differentiate between expressions and statements?  ie include support for [,] OPR8R beyond var declaration?
  * Be clear & consistent about where type checking happens!
  * Maintain data type until assignment, then do data type conversion if necessary
  * Method to regression test lots of expressions and compare results against regular compiler
@@ -24,6 +32,7 @@
  * file for the location. It can do a quick(er) lookup
  *
  * RECENTLY DONE:
+ * Have a defined ROOT scope in the interpreted file
  * User warning on encapsulated [=] since it has lowest priority
  * isFailed -> failedOnSrcLine at RunTimeInterpreter class level - Display via destructor if set
  * Test short circuit for [||],[&&] and [?] OPR8Rs
@@ -101,42 +110,44 @@ int main(int argc, const char * argv[])
     FileParser fileParser (srcExecTerms, userSrcFileName);
     if (OK == fileParser.gnr8_token_stream(input_file, tokenStream))	{
 
+			// TODO: For early debug
+			// util.dumpTokenList(tokenStream, 0, srcExecTerms, L"main", __LINE__, true);
     	std::string output_file_name = "interpreted_file.o";
 			std::wstring wide_output_file_name = util.stringToWstring(output_file_name);
 
-			std::shared_ptr<VariablesScope> varScope = std::make_shared <VariablesScope> ();
+			std::shared_ptr<StackOfScopes> rootScope = std::make_shared <StackOfScopes> ();
 			// TODO: Previously passing &, but it appeared to be behaving like a copy: UserMessages userMessages;
 			std::shared_ptr<UserMessages> userMessages = std::make_shared <UserMessages> ();
-			GeneralParser generalParser (tokenStream, userSrcFileName, srcExecTerms, userMessages, output_file_name, varScope);
+			GeneralParser generalParser (tokenStream, userSrcFileName, srcExecTerms, userMessages, output_file_name, rootScope);
 
 			std::wcout << L"/* *************** <COMPILATION STAGE> ***************   " << std::endl;
-			int compileRetCode = generalParser.rootScopeCompile();
+			int compileRetCode = generalParser.compileRootScope();
 			std::wcout << L"compileRetCode = " << compileRetCode << std::endl;
-			// userMessages->showMessagesByInsertOrder(true);
-			userMessages->showMessagesByGroup();
-		  varScope->displayVariables();
+			userMessages->showMessagesByInsertOrder(true);
+			// userMessages->showMessagesByGroup();
+		  rootScope->displayVariables();
 			std::wcout << L" *************** </COMPILATION STAGE> *************** */" << std::endl;
 
 			int numUnqUserErrors, numTotalUserErrors;
 			userMessages->getUserErrorCnt(numUnqUserErrors, numTotalUserErrors);
 			// TODO: I expected to be able to re-use userMessages, but having problems
 			userMessages.reset();
-			varScope.reset();
+			rootScope.reset();
 
 			if (compileRetCode == OK && numUnqUserErrors == 0)	{
 				// TODO: Open input file here; I don't know how to make an fstream member variable (might not be possible)
 				std::string interpretedFileName = output_file_name;
 				std::shared_ptr<UserMessages> execMessages = std::make_shared <UserMessages> ();
-				std::shared_ptr<VariablesScope> execVarScope = std::make_shared <VariablesScope> ();
+				std::shared_ptr<StackOfScopes> execVarScope = std::make_shared <StackOfScopes> ();
 	
 				RunTimeInterpreter interpreter (interpretedFileName, userSrcFileName, execVarScope, execMessages);
 
 				// TODO: An option to dump the NameSpace?
 				std::wcout << L"/* *************** <EXECUTION STAGE> ***************   " << std::endl;
-				ret_code = interpreter.rootScopeExec();
+				ret_code = interpreter.execRootScope();
 				std::wcout << L"ret_code = " << ret_code << std::endl;
-				// execMessages->showMessagesByGroup();
-				execMessages->showMessagesByInsertOrder(true);
+				// execMessages->showMessagesByInsertOrder(true);
+				execMessages->showMessagesByGroup();
 			  execVarScope->displayVariables();
 				std::wcout << L" *************** </EXECUTION STAGE> *************** */" << std::endl;
 				execMessages.reset();

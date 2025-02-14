@@ -24,7 +24,7 @@ public:
 
 	// TODO: Is making these "public" legit?
 	int writeFlexLenOpCode (uint8_t op_code);
-	int writeObjectLen (uint32_t objStartPos, uint32_t objLengthPos);
+	int writeObjectLen (uint32_t objStartPos);
 	int writeRawUnsigned (uint64_t  payload, int payloadBitSize);
 	int writeString (uint8_t op_code, std::wstring tokenStr);
 	uint32_t getWriteFilePos ();

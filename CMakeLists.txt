@@ -14,9 +14,9 @@ add_executable(
 	ExprTreeNode.h ExprTreeNode.cpp
 	FileParser.h FileParser.cpp
 	NestedScopeExpr.h NestedScopeExpr.cpp
-	ScopeFrame.h ScopeFrame.cpp
+	ScopeLevel.h ScopeLevel.cpp
 	InterpretedFileWriter.h InterpretedFileWriter.cpp InterpretedFileReader.h InterpretedFileReader.cpp
-	VariablesScope.h VariablesScope.cpp
+	StackOfScopes.h StackOfScopes.cpp
 	ExpressionParser.h ExpressionParser.cpp 
 	GeneralParser.h GeneralParser.cpp
 	CompileDriver.cpp
