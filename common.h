@@ -93,6 +93,17 @@ typedef read_write_enum ReadOrWrite;
 #define NUM_BITS_IN_DWORD				32
 #define NUM_BITS_IN_QWORD				64
 
+enum log_level_enum {
+	SILENT
+	,PEDANTIC
+	,VERBOSE
+	,EFFUSIVE
+	,DEBUG
+};
+
+typedef log_level_enum logLvlEnum;
+
+
 #endif
 
 

@@ -43,7 +43,8 @@ typedef var_declaration_states_enum varDeclarationState;
 class GeneralParser {
 public:
 	GeneralParser(TokenPtrVector & inTknStream, std::wstring userSrcFileName, CompileExecTerms & inUsrSrcTerms
-			, std::shared_ptr<UserMessages> userMessages, std::string object_file_name, std::shared_ptr<StackOfScopes> inVarNameSpace);
+			, std::shared_ptr<UserMessages> userMessages, std::string object_file_name, std::shared_ptr<StackOfScopes> inVarNameSpace
+      , logLvlEnum logLvl);
 	virtual ~GeneralParser();
 	int compileRootScope();
   int compileCurrScope ();
@@ -66,6 +67,7 @@ private:
   int userErrorLimit;
   std::vector<std::wstring> ender_list;
   std::vector<std::wstring> ender_comma_list;
+  logLvlEnum logLevel;
 
   int parseVarDeclaration (std::wstring dataTypeStr, std::pair<TokenTypeEnum, uint8_t> tknType_opCode, bool & isDeclarationEnded);
   int resolveVarInitExpr (Token & varTkn, Token currTkn, Token & exprCloser, bool & isDeclarationEnded);

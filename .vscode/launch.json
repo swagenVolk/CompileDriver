@@ -10,7 +10,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "/home/mike/eclipse-workspace/CompileDriver/build/CompileDriver",
-            "args": ["./testCSrcFiles/if_blocks_test.c"],
+            "args": ["./testCSrcFiles/simpleLiteralsExpr.c"],
             "stopAtEntry": true,
             "cwd": "/home/mike/eclipse-workspace/CompileDriver",
             "environment": [],

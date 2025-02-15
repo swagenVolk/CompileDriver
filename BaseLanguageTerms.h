@@ -56,6 +56,7 @@ public:
   std::wstring getDataTypeForOpCode (uint8_t op_code);
   TokenTypeEnum getTokenTypeForOpCode (uint8_t op_code);
   std::pair<TokenTypeEnum, uint8_t> getDataType_tknEnum_opCode (std::wstring keyword);
+  std::wstring getOpr8rsInPrecedenceList();
 
 protected:
   void validityCheck();

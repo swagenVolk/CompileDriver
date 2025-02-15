@@ -13,14 +13,16 @@
 Operator::Operator()	{
 	symbol = L"";
 	type_mask = 0;
-	valid_for_mask = 0;
+	valid_usage = 0;
 	numReqSrcOperands = 0;
 	numReqExecOperands = 0;
 	op_code = INVALID_OPCODE;
+	description = L"";
 
 }
 
-Operator::Operator(std::wstring in_symbol, uint8_t in_type_mask, uint8_t in_valid_for_mask, int in_num_src_operands, int in_num_exec_operands, uint8_t in_op_code) {
+Operator::Operator(std::wstring in_symbol, uint8_t in_type_mask, uint8_t inValidUsage, int in_num_src_operands, int in_num_exec_operands
+	, uint8_t in_op_code, std::wstring inDescr) {
 	// TODO Auto-generated constructor stub
 	symbol = in_symbol;
 
@@ -47,10 +49,11 @@ Operator::Operator(std::wstring in_symbol, uint8_t in_type_mask, uint8_t in_vali
 		assert (0 == (in_type_mask & ~STATEMENT_ENDER));
 
 	type_mask = in_type_mask;
-	valid_for_mask = in_valid_for_mask;
+	valid_usage = inValidUsage;
 	numReqSrcOperands = in_num_src_operands;
 	numReqExecOperands = in_num_exec_operands;
 	op_code = in_op_code;
+	description = inDescr;
 
 }
 
@@ -68,10 +71,12 @@ Operator& Operator::operator= (const Operator& src_opr8r)
 	symbol.clear();
 	symbol = src_opr8r.symbol;
 	type_mask = src_opr8r.type_mask;
-	valid_for_mask = src_opr8r.valid_for_mask;
+	valid_usage = src_opr8r.valid_usage;
 	numReqSrcOperands = src_opr8r.numReqSrcOperands;
 	numReqExecOperands = src_opr8r.numReqExecOperands;
 	op_code = src_opr8r.op_code;
+	description.clear();
+	description = src_opr8r.description;
 
 	// TODO: I don't understand the comment below
 	// return the existing object so we can chain this operator

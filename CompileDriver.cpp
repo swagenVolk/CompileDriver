@@ -6,6 +6,8 @@
  * Clarity of error messages
  *
  * TODO:
+ * Pedantic OPR8R precedence example?
+ * Pedantic - display a tree; make the formatting look nice
  * Pedantic mode - verbose output for instructional purposes
  *	Print out top scope of expression after (or end of) moveNeighborsIntoTree.  
  *	Could indicate tree w/ additional chars e.g. [{*}] [/*\] [_*_] [`*`] or /*\
@@ -32,6 +34,7 @@
  * file for the location. It can do a quick(er) lookup
  *
  * RECENTLY DONE:
+ * Pedantic - description of what each OPR8R does?  Allude to info early; show when OPR8R's neighbors get moved.  Add to Operator class
  * Have a defined ROOT scope in the interpreted file
  * User warning on encapsulated [=] since it has lowest priority
  * isFailed -> failedOnSrcLine at RunTimeInterpreter class level - Display via destructor if set
@@ -115,10 +118,13 @@ int main(int argc, const char * argv[])
     	std::string output_file_name = "interpreted_file.o";
 			std::wstring wide_output_file_name = util.stringToWstring(output_file_name);
 
+			// TODO: Make input parameter
+			logLvlEnum logLevel = PEDANTIC;
+
 			std::shared_ptr<StackOfScopes> rootScope = std::make_shared <StackOfScopes> ();
 			// TODO: Previously passing &, but it appeared to be behaving like a copy: UserMessages userMessages;
 			std::shared_ptr<UserMessages> userMessages = std::make_shared <UserMessages> ();
-			GeneralParser generalParser (tokenStream, userSrcFileName, srcExecTerms, userMessages, output_file_name, rootScope);
+			GeneralParser generalParser (tokenStream, userSrcFileName, srcExecTerms, userMessages, output_file_name, rootScope, logLevel);
 
 			std::wcout << L"/* *************** <COMPILATION STAGE> ***************   " << std::endl;
 			int compileRetCode = generalParser.compileRootScope();
@@ -140,7 +146,7 @@ int main(int argc, const char * argv[])
 				std::shared_ptr<UserMessages> execMessages = std::make_shared <UserMessages> ();
 				std::shared_ptr<StackOfScopes> execVarScope = std::make_shared <StackOfScopes> ();
 	
-				RunTimeInterpreter interpreter (interpretedFileName, userSrcFileName, execVarScope, execMessages);
+				RunTimeInterpreter interpreter (interpretedFileName, userSrcFileName, execVarScope, execMessages, logLevel);
 
 				// TODO: An option to dump the NameSpace?
 				std::wcout << L"/* *************** <EXECUTION STAGE> ***************   " << std::endl;
@@ -158,15 +164,5 @@ int main(int argc, const char * argv[])
 		}
 	}
 
-  // int count = 1;
-  // std::wcout << L"Final answer for count = " << count << L": " << (1 + 2 * (3 + 4 * (5 + 6 * 7 * (count == 1 ? 10 : count == 2 ? 11 : count == 3 ? 12 : count == 4 ? 13 : 33)))) << std::endl;
-
-  // count = 2;
-  // std::wcout << L"Final answer for count = " << count << L": " << (1 + 2 * (3 + 4 * (5 + 6 * 7 * (count == 1 ? 10 : count == 2 ? 11 : count == 3 ? 12 : count == 4 ? 13 : 33)))) << std::endl;
-
-  // count = 5;
-  // std::wcout << L"Final answer for count = " << count << L": " << (1 + 2 * (3 + 4 * (5 + 6 * 7 * (count == 1 ? 10 : count == 2 ? 11 : count == 3 ? 12 : count == 4 ? 13 : 33)))) << std::endl;
-
-  // std::wcout << std::endl << "********** END OF MAIN: ret_code = " << ret_code << L"; **********" << std::endl;
-  return (ret_code);
+	return (ret_code);
 }

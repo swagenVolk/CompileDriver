@@ -17,10 +17,11 @@
 using namespace std;
 
 GeneralParser::GeneralParser(TokenPtrVector & inTknStream, std::wstring userSrcFileName, CompileExecTerms & inUsrSrcTerms
-		, std::shared_ptr<UserMessages> userMessages, std::string object_file_name, std::shared_ptr<StackOfScopes> inVarScopeStack)
+		, std::shared_ptr<UserMessages> userMessages, std::string object_file_name, std::shared_ptr<StackOfScopes> inVarScopeStack
+		, logLvlEnum logLvl)
 	: interpretedFileWriter (object_file_name, inUsrSrcTerms, userMessages)
-	, interpreter (inUsrSrcTerms, inVarScopeStack, userSrcFileName, userMessages)
-	, exprParser (inUsrSrcTerms, inVarScopeStack, userSrcFileName, userMessages)
+	, interpreter (inUsrSrcTerms, inVarScopeStack, userSrcFileName, userMessages, logLvl)
+	, exprParser (inUsrSrcTerms, inVarScopeStack, userSrcFileName, userMessages, logLvl)
 
 {
 	tknStream = inTknStream;
@@ -30,6 +31,7 @@ GeneralParser::GeneralParser(TokenPtrVector & inTknStream, std::wstring userSrcF
 	scopedNameSpace = inVarScopeStack;
 	thisSrcFile = util.getLastSegment(util.stringToWstring(__FILE__), L"/");
 	userErrorLimit = 30;
+	logLevel = logLvl;
 
 	ender_comma_list.push_back (usrSrcTerms.get_statement_ender());
 	ender_comma_list.push_back (L",");
@@ -124,6 +126,11 @@ int GeneralParser::compileRootScope () 	{
   	userMessages->logMsg (INTERNAL_ERROR, L"Token stream is unexpectedly empty!", thisSrcFile, __LINE__, 0);
 
   } else	{
+
+		if (logLevel >= PEDANTIC)	{
+			std::wcout << usrSrcTerms.getOpr8rsInPrecedenceList() << std::endl;
+		}
+
 		uint32_t length_pos = interpretedFileWriter.writeFlexLenOpCode (ANON_SCOPE_OPCODE);
 		// TODO: Do I want to add a checksum for ANON_SCOPEs? Would only be calculated for ROOT
 		// TODO: Remove ROOT scope creation from StackOfScopes?
@@ -572,7 +579,7 @@ int GeneralParser::handleExpression (bool & isStopFail)	{
 		Token tmpTkn;
 		std::vector<Token> flatExprTkns;
 		bool isExprClosed;
-		int makeTreeRetCode = exprParser.makeExprTree (tknStream, exprTree, exprEnder, END_COMMA_NOT_EXPECTED, isExprClosed);
+		int makeTreeRetCode = exprParser.makeExprTree (tknStream, exprTree, exprEnder, END_COMMA_NOT_EXPECTED, isExprClosed, false);
 
 		if (OK != makeTreeRetCode && isProgressBlocked())	{
 			isStopFail = true;
@@ -631,7 +638,7 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
 	std::vector<Token> flatExprTkns;
 	closerTkn.resetToken();
 
-	int makeTreeRetCode = exprParser.makeExprTree (tknStream, exprTree, exprEnder, END_COMMA_IS_EXPECTED, isExprClosed);
+	int makeTreeRetCode = exprParser.makeExprTree (tknStream, exprTree, exprEnder, END_COMMA_IS_EXPECTED, isExprClosed, true);
 	closerTkn = exprEnder;
 	std::wstring lookUpMsg;
 

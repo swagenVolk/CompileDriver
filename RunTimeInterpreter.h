@@ -21,9 +21,10 @@ class RunTimeInterpreter {
 public:
 	RunTimeInterpreter();
 	RunTimeInterpreter(CompileExecTerms & execTerms, std::shared_ptr<StackOfScopes> inVarNameSpace
-		, std::wstring userSrcFileName, std::shared_ptr<UserMessages> userMessages);
+		, std::wstring userSrcFileName, std::shared_ptr<UserMessages> userMessages, logLvlEnum logLvl);
 	RunTimeInterpreter(std::string interpretedFileName, std::wstring userSrcFileName
-		, std::shared_ptr<StackOfScopes> inVarNameSpace,  std::shared_ptr<UserMessages> userMessages);
+		, std::shared_ptr<StackOfScopes> inVarNameSpace,  std::shared_ptr<UserMessages> userMessages
+		, logLvlEnum logLvl);
 
 	virtual ~RunTimeInterpreter();
   void dumpTokenPtrStream (TokenPtrVector tokenStream, std::wstring callersSrcFile, int lineNum);
@@ -46,6 +47,7 @@ private:
 	InterpreterModesType usageMode;
 	InterpretedFileReader fileReader;
 	int failOnSrcLine;
+	logLvlEnum logLevel;
 
 	int execCurrScope (uint32_t execStartPos, uint32_t afterBoundaryPos);
   int execFlatExpr_OLR (std::vector<Token> & exprTknStream, int startIdx);

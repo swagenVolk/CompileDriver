@@ -141,6 +141,9 @@ std::wstring Token::get_type_str()  {
     case WHITE_SPACE_TKN         :
       ret_string = L"WHITE_SPACE_TKN";
       break;
+		case INTERNAL_USE_TKN:
+			ret_string = L"INTERNAL_USE_TKN";
+			break;
   	case RESERVED_WORD_TKN				:
 			ret_string = L"RESERVED_WORD_TKN";
 			break;
@@ -234,7 +237,8 @@ std::wstring Token::getValueStr ()	{
 		value.append (_string);
 		value.append (L"'");
 	
-	} else if (tkn_type == USER_WORD_TKN || tkn_type == DATA_TYPE_TKN || tkn_type == SRC_OPR8R_TKN || tkn_type == RESERVED_WORD_TKN)	{
+	} else if (tkn_type == USER_WORD_TKN || tkn_type == DATA_TYPE_TKN || tkn_type == SRC_OPR8R_TKN || tkn_type == RESERVED_WORD_TKN
+		|| tkn_type == INTERNAL_USE_TKN)	{
 		value.append (_string);
 
 	} else if (tkn_type == BOOL_TKN)	{

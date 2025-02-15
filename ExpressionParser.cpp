@@ -114,13 +114,15 @@
 #include "common.h"
 
 ExpressionParser::ExpressionParser(CompileExecTerms & inUsrSrcTerms, std::shared_ptr<StackOfScopes> inVarScopeStack
-		, std::wstring userSrcFileName, std::shared_ptr<UserMessages> userMessages) {
+		, std::wstring userSrcFileName, std::shared_ptr<UserMessages> userMessages, logLvlEnum logLvl) {
 	// TODO Auto-generated constructor stub
 	thisSrcFile = util.getLastSegment(util.stringToWstring(__FILE__), L"/");
 	usrSrcTerms = inUsrSrcTerms;
 	scopedNameSpace = inVarScopeStack;
 	this->userSrcFileName = userSrcFileName;
 	this->userMessages = userMessages;
+	logLevel = logLvl;
+	isExprVarDeclaration = false;
 }
 
 
@@ -136,11 +138,12 @@ ExpressionParser::~ExpressionParser() {
  * TODO: isEndedByComma -> isEnclosedByParens? isParenBound?
  * ***************************************************************************/
 int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree
-		, Token & enderTkn, bool isEndedByComma, bool & isExprClosed)  {
+		, Token & enderTkn, bool isEndedByComma, bool & isExprClosed, bool isInVarDec)  {
   int ret_code = GENERAL_FAILURE;
 	isExprClosed = false;
 	int exprCloseLine = 0;
-
+	isExprVarDeclaration = isInVarDec;
+	
   if (expressionTree == NULL)	{
   	userMessages->logMsg (INTERNAL_ERROR, L"Passed parameter expressionTree is NULL!", thisSrcFile, __LINE__, 0);
 
@@ -654,9 +657,28 @@ int ExpressionParser::moveNeighborsIntoTree (Operator & opr8r, ExprTreeNodePtrVe
 			}
 		}
 
-		if (!isFailed && (isMoveLeftNbr || isMoveRightNbr))
+		if (!isFailed && (isMoveLeftNbr || isMoveRightNbr))	{
 			// We tried to do something and didn't fail at it!
 			ret_code = OK;
+			if ((logLevel == PEDANTIC && !isExprVarDeclaration) || logLevel > PEDANTIC)	{
+				std::wstring bannerMsg;
+				if (opr8rState == ATTACH_1ST)
+					bannerMsg.append(L"Left operand");
+				else if (opr8rState == ATTACH_1ST)
+					bannerMsg.append(L"Right operand");
+				else if (opr8rState == ATTACH_BOTH)
+					bannerMsg.append(L"Left & right operands");
+
+				bannerMsg.append (L" moved under (like tree branches)");
+				bannerMsg.append (L" [" + opr8r.symbol + L"] operator");
+				if (!opr8r.description.empty())	{
+					bannerMsg.append (L" (");
+					bannerMsg.append (opr8r.description);
+					bannerMsg.append (L")");
+				}
+				printSingleScope (bannerMsg , exprScopeStack.size() - 1);
+			}
+		}
 	
 	}
 
@@ -701,6 +723,11 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 
 	// [?]._1stChild is the conditional and should be the resolved expression directly to the left
 	// [?]_2ndChild is the [:] OPR8R; [:]._1stChild is the TRUE path; [:]_2ndChild is the FALSE path
+	if (((logLevel == PEDANTIC && !isExprVarDeclaration) || logLevel > PEDANTIC)
+		&& (exprScopeStack.size() > 1 || (exprScopeStack.size() == 1 && exprScopeStack[0]->scopedKids.size() > 1)))	{
+		std::wstring bannerMsg = L"Current highest precedence sub-expression closed; full expression possibly not consumed yet";
+		printScopeStack (bannerMsg, false);
+	}
 	
   // TODO: Code inspect, comment, simplify if you can
 	for (outr8r = usrSrcTerms.grouped_opr8rs.begin(); outr8r != usrSrcTerms.grouped_opr8rs.end() && !isStopFail && !isNowTree; outr8r++){
@@ -710,7 +737,7 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 		for (innr8r = precedenceLvl.opr8rs.begin(); innr8r != precedenceLvl.opr8rs.end() && !isStopFail && !isNowTree; ++innr8r){
 			Operator currOpr8r = *innr8r;
 
-			if (currOpr8r.valid_for_mask & GNR8D_SRC)	{
+			if (currOpr8r.valid_usage & GNR8D_SRC)	{
 				// Filter out OPR8Rs only valid for USER_SRC ([pre|post]-fix ++,--; unary +|- ) and match on unique GNR8D_SRC equivalent
 				// OPR8R match and it hasn't had any child nodes attached to it yet
 				bool isOpr8rExhausted = false;
@@ -800,7 +827,7 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 					isStopFail = true;
 					userMessages->logMsg (INTERNAL_ERROR, L"Failed to attach branches to OPR8R [" + usrSrcTerms.get_ternary_2nd() + L"]"
 						, thisSrcFile, __LINE__, 0);
-				}
+				} 
 				break;
 			}
 		}
@@ -1194,28 +1221,77 @@ int ExpressionParser::getExpectedEndToken (std::shared_ptr<Token> startTkn, uint
 }
 
 /* ****************************************************************************
- * Used an aid in debugging.
+ * Used an aid in debugging and instruction
+ * ***************************************************************************/
+ void ExpressionParser::printSingleScope (std::wstring headerMsg, int scopeLvl)	{
+	if (scopeLvl >=0 && scopeLvl < exprScopeStack.size())	{
+		std::wstringstream outLine;
+
+		if (!headerMsg.empty())
+			std::wcout << headerMsg << std::endl;
+
+		outLine << L"Scope Level " << scopeLvl << L": ";
+		
+		std::shared_ptr<NestedScopeExpr> chosenScope = exprScopeStack[scopeLvl];
+		std::vector<std::shared_ptr<ExprTreeNode>>::iterator kidR8r;
+
+		for (kidR8r = chosenScope->scopedKids.begin(); kidR8r != chosenScope->scopedKids.end(); kidR8r++)	{
+			std::shared_ptr<ExprTreeNode> currKid = *kidR8r;
+			if (currKid->_1stChild != NULL)
+				// Give the user a visual hint that it's a tree
+				outLine << L"/";
+			else
+				outLine << L"[";
+			outLine << currKid->originalTkn->_string;
+			if (currKid->_2ndChild != NULL)
+				// Give the user a visual hint that it's a tree
+				outLine << L"\\";
+			else
+				outLine << L"]";
+		}
+
+		std::wcout << outLine.str() << std::endl;
+
+		if (!headerMsg.empty())
+			std::wcout << std::endl;
+
+	}
+}
+
+/* ****************************************************************************
+ * Used an aid in debugging and instruction
  * ***************************************************************************/
 void ExpressionParser::printScopeStack (std::wstring fileName, int lineNumber)	{
+
+	std::wstringstream banner;
+	banner << L"********** ExpressionParser::printScopeStack called from " << fileName << L":" << lineNumber << L" **********";
+	printScopeStack (banner.str(), false);
+
+}
+
+/* ****************************************************************************
+ * Used an aid in debugging and instruction
+ * ***************************************************************************/
+ void ExpressionParser::printScopeStack (std::wstring bannerMsg, bool isUseDefault)	{
+	std::wstring defaultMsg = L"Compiler's expression; may be incomplete. Scope levels > 0 opened by parentheses [(]";
+	defaultMsg.append (L"\n[] contains a single OPR8R, e.g., [*]. /\\ contains a tree with left and|or right operands beneath it, e.g., /*\\");
+
+	if (isUseDefault && !defaultMsg.empty())
+		std::wcout << defaultMsg << std::endl;
+
+	else if (!isUseDefault && !bannerMsg.empty())
+		std::wcout << bannerMsg << std::endl;
 
 	std::vector<std::shared_ptr<NestedScopeExpr>>::reverse_iterator scopeR8r;
 	std::vector<std::shared_ptr<ExprTreeNode>>::iterator kidR8r;
 	int scopeLvl = exprScopeStack.size() - 1;
 
-	std::wcout << L"********** ExpressionParser::printScopeStack called from " << fileName << L":" << lineNumber << L" **********" << std::endl;
 	for (scopeR8r = exprScopeStack.rbegin(); scopeR8r != exprScopeStack.rend(); scopeR8r++)	{
-		std::wcout << L"Scope Level " << scopeLvl << L":";
-		std::shared_ptr<NestedScopeExpr> currScope = *scopeR8r;
-		for (kidR8r = currScope->scopedKids.begin(); kidR8r != currScope->scopedKids.end(); kidR8r++)	{
-			std::shared_ptr<ExprTreeNode> currKid = *kidR8r;
-			std::wcout << L" " << currKid->originalTkn->_string;
-		}
-
-		// Done with this scope level
-		std::wcout << std::endl;
+		printSingleScope (L"", scopeLvl);
 		scopeLvl--;
 	}
-}
+
+ }
 
 /* ****************************************************************************
  * Used an aid in debugging.

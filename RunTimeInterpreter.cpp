@@ -136,6 +136,7 @@ RunTimeInterpreter::RunTimeInterpreter() {
 	zeroTkn->isInitialized = true;
 	thisSrcFile = util.getLastSegment(util.stringToWstring(__FILE__), L"/");
 	failOnSrcLine = 0;
+	logLevel = SILENT;
 	// The no parameter constructor should never get called
 	assert (0);
 }
@@ -144,7 +145,7 @@ RunTimeInterpreter::RunTimeInterpreter() {
  *
  * ***************************************************************************/
 RunTimeInterpreter::RunTimeInterpreter(CompileExecTerms & execTerms, std::shared_ptr<StackOfScopes> inVarScopeStack
-		, std::wstring userSrcFileName, std::shared_ptr<UserMessages> userMessages) {
+		, std::wstring userSrcFileName, std::shared_ptr<UserMessages> userMessages, logLvlEnum logLvl) {
 	// TODO Auto-generated constructor stub
   oneTkn = std::make_shared<Token> (UINT64_TKN, L"1");
   // TODO: Token value not automatically filled in currently
@@ -160,6 +161,7 @@ RunTimeInterpreter::RunTimeInterpreter(CompileExecTerms & execTerms, std::shared
 	this->userMessages = userMessages;
 	this->userSrcFileName = userSrcFileName;
 	failOnSrcLine = 0;
+	logLevel = logLvl;
 	usageMode = COMPILE_TIME;
 }
 
@@ -167,7 +169,7 @@ RunTimeInterpreter::RunTimeInterpreter(CompileExecTerms & execTerms, std::shared
  *
  * ***************************************************************************/
 RunTimeInterpreter::RunTimeInterpreter(std::string interpretedFileName, std::wstring userSrcFileName
-	, std::shared_ptr<StackOfScopes> inVarScope,  std::shared_ptr<UserMessages> userMessages)
+	, std::shared_ptr<StackOfScopes> inVarScope,  std::shared_ptr<UserMessages> userMessages, logLvlEnum logLvl)
 		: execTerms ()
 		, fileReader (interpretedFileName, execTerms)	{
 	// TODO Auto-generated constructor stub
@@ -184,6 +186,7 @@ RunTimeInterpreter::RunTimeInterpreter(std::string interpretedFileName, std::wst
 	this->userMessages = userMessages;
 	this->userSrcFileName = userSrcFileName;
 	failOnSrcLine = 0;
+	logLevel = logLvl;
 	usageMode = INTERPRETER;
 
 }

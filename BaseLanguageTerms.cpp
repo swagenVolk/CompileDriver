@@ -130,7 +130,7 @@ void BaseLanguageTerms::validityCheck()	{
   			statementEnderCnt++;
   		}
 
-  		if (nxtDefOpr8r.valid_for_mask & GNR8D_SRC)	{
+  		if (nxtDefOpr8r.valid_usage & GNR8D_SRC)	{
   	  	// Add to our map of exec time OPR8Rs
 	 			assert (nxtDefOpr8r.op_code != INVALID_OPCODE);
   			assert (0 == execTimeOpr8rMap.count (nxtDefOpr8r.symbol));
@@ -210,7 +210,7 @@ bool BaseLanguageTerms::is_valid_opr8r (std::wstring check_for_opr8r, uint8_t us
 
       	if (0 == nxtOpr8r.symbol.compare(check_for_opr8r))	{
       		// Operator string matches
-      		if (usage_mode == (usage_mode & nxtOpr8r.valid_for_mask))	{
+      		if (usage_mode == (usage_mode & nxtOpr8r.valid_usage))	{
       			// And the current usage_mode is acceptable also
       			is_valid = true;
       		}
@@ -409,7 +409,7 @@ std::wstring BaseLanguageTerms::getUniqExecOpr8rStr (std::wstring srcStr, uint8_
 		for (innr8r = precedenceLvl.opr8rs.begin(); innr8r != precedenceLvl.opr8rs.end(); ++innr8r){
 			Operator nxtOpr8r = *innr8r;
 
-			if (req_type_mask == (req_type_mask & nxtOpr8r.type_mask) && (nxtOpr8r.valid_for_mask & GNR8D_SRC))	{
+			if (req_type_mask == (req_type_mask & nxtOpr8r.type_mask) && (nxtOpr8r.valid_usage & GNR8D_SRC))	{
 				// The current usage mode of this defined OPR8R meets the search criteria
 				for (pssblR8r = pssblExecOpr8rs.begin(); pssblR8r != pssblExecOpr8rs.end(); pssblR8r++)	{
 					if (0 == nxtOpr8r.symbol.compare(*pssblR8r))	{
@@ -537,4 +537,92 @@ bool BaseLanguageTerms::isViableVarName (std::wstring varName)	{
 	}
 
 	return (isViable);
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+ std::wstring BaseLanguageTerms::getOpr8rsInPrecedenceList()  {
+
+  std::wstring resultStr;
+  
+  std::list<Opr8rPrecedenceLvl>::iterator outr8r;
+  std::list<Operator>::iterator innr8r;
+  Opr8rPrecedenceLvl precedenceLvl;
+	std::wstring srcOpr8rSymbol;
+
+	resultStr.append (L"\nOperators shown below in precedence order, each contained in []. ");
+	resultStr.append (L"\nOperators on the same line have the same precedence level.\n" );
+	resultStr.append (L"\nFor operators with duplicate source symbols, a \"=>\" will show the unambiguous internal symbol");
+	resultStr.append (L"\nAdditional operator attribute info contained in ().");
+	resultStr.append (L"\n");
+
+	std::wstring singleLine;
+
+  for (outr8r = grouped_opr8rs.begin(); outr8r != grouped_opr8rs.end(); outr8r++){
+		// Move through each precedence level of OPR8Rs. Note that some precedence levels will have multiple OPR8Rs and they must be
+		// treated as having the same precedence, and therefore we can't rely on an ABSOUTE ordering of OPR8R precedence
+		precedenceLvl = *outr8r;
+		
+		singleLine.clear();
+		for (innr8r = precedenceLvl.opr8rs.begin(); innr8r != precedenceLvl.opr8rs.end(); ++innr8r)	{
+			Operator currOpr8r = *innr8r;
+
+			if (currOpr8r.valid_usage & GNR8D_SRC)	{
+				singleLine.append (L"[");
+
+				srcOpr8rSymbol = getSrcOpr8rStrFor (currOpr8r.op_code);
+				singleLine.append(srcOpr8rSymbol);
+
+				if (currOpr8r.symbol != srcOpr8rSymbol)	{
+					singleLine.append (L" => ");
+					singleLine.append (currOpr8r.symbol);
+					if (currOpr8r.type_mask & PREFIX)
+						singleLine.append (L" (PREFIX)");
+					else if (currOpr8r.type_mask & POSTFIX)
+						singleLine.append (L" (POSTFIX)");
+					else if (currOpr8r.type_mask & UNARY)
+						singleLine.append (L" (UNARY)");
+					else if (currOpr8r.type_mask & BINARY)
+					singleLine.append (L" (BINARY)");
+				}
+
+				singleLine.append (L"]");
+
+				while (singleLine.length() % 5 > 0)
+					singleLine.append (L" ");
+			}
+    }
+
+		resultStr.append (L"\n");
+		resultStr.append (singleLine);
+  }
+
+	resultStr.append (L"\n**********************************************************************************");
+	resultStr.append (L"\nOperator precedence gives everybody rules on what order to do things in.");
+	resultStr.append (L"\nOperator precedence example expression");
+	resultStr.append (L"\n(3 * 4 + 12 / 6)");
+	resultStr.append (L"\n");
+	resultStr.append (L"\nWhat if we ignored precedence and just went left-to-right?");
+	resultStr.append (L"\n3 * 4 -> [12]; 12 + 12 -> [24]; 24 / 6 -> [4]");
+	resultStr.append (L"\nGives us a final result of [4]");
+	resultStr.append (L"\n");
+	resultStr.append (L"\nWhat if we ignored precedence and just went right-to-left?");
+	resultStr.append (L"\n6 /12 -> [0.5]; 0.5 + 4 -> [4.5]; 4.5 * 3 -> [13.5]");
+	resultStr.append (L"\nGives us a final result of [13.5]");
+	resultStr.append (L"\n");
+	resultStr.append (L"\nReferencing the operator precedence above, [*] and [/] are at the same level.");
+	resultStr.append (L"\nTheir relative ordering is now decided on a left-to right basis");
+	resultStr.append (L"\nThe [+] operator has the lowest precedence in this example, and will be executed last");
+	resultStr.append (L"\n3 * 4 -> [12] gets resolved 1st, and reduces the expression to: ");
+	resultStr.append (L"\n12 + 12 / 6");
+	resultStr.append (L"\n12 / 6 -> [2] gets resolved 2nd, and reduces the expression to: ");
+	resultStr.append (L"\n12 + 2");
+	resultStr.append (L"\nExpression evaluates to [14]");
+	resultStr.append (L"\n");
+	resultStr.append (L"\nUse parentheses to force a preferred ordering and provide clarity if needed.");
+	resultStr.append (L"\n**********************************************************************************");
+
+	return (resultStr);
+
 }
