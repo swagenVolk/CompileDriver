@@ -108,6 +108,7 @@
 #include "RunTimeInterpreter.h"
 #include "BaseLanguageTerms.h"
 #include "OpCodes.h"
+#include "Operator.h"
 #include "Token.h"
 #include "TokenCompareResult.h"
 #include <cassert>
@@ -137,6 +138,7 @@ RunTimeInterpreter::RunTimeInterpreter() {
 	thisSrcFile = util.getLastSegment(util.stringToWstring(__FILE__), L"/");
 	failOnSrcLine = 0;
 	logLevel = SILENT;
+	isIllustrative = false;
 	// The no parameter constructor should never get called
 	assert (0);
 }
@@ -162,6 +164,7 @@ RunTimeInterpreter::RunTimeInterpreter(CompileExecTerms & execTerms, std::shared
 	this->userSrcFileName = userSrcFileName;
 	failOnSrcLine = 0;
 	logLevel = logLvl;
+	isIllustrative = false;
 	usageMode = COMPILE_TIME;
 }
 
@@ -187,6 +190,7 @@ RunTimeInterpreter::RunTimeInterpreter(std::string interpretedFileName, std::wst
 	this->userSrcFileName = userSrcFileName;
 	failOnSrcLine = 0;
 	logLevel = logLvl;
+	isIllustrative = false;
 	usageMode = INTERPRETER;
 
 }
@@ -298,9 +302,12 @@ int RunTimeInterpreter::execCurrScope (uint32_t execStartPos, uint32_t afterScop
 
 					} else if (op_code == EXPRESSION_OPCODE)	{		
 						Token resultTkn;	
+						isIllustrative = (usageMode == INTERPRETER ? true : false);
+						
 						if (OK != execExpression (objStartPos, resultTkn))	{
 							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 						}
+						isIllustrative = false;
 					
 					} else if (op_code == IF_SCOPE_OPCODE)	{	
 						if (OK != execIfBlock (objStartPos, objectLen, afterScopeBndry))	{
@@ -1753,12 +1760,14 @@ int RunTimeInterpreter::execLogicalOrOp (std::vector<Token> & exprTknStream, int
  * ***************************************************************************/
 int RunTimeInterpreter::execTernary1stOp(std::vector<Token> & exprTknStream, int opr8rIdx)     {
 	int ret_code = GENERAL_FAILURE;
-	
+
 	if (OK != execFlatExpr_OLR(exprTknStream, opr8rIdx + 1))	{
 		// Resolve the conditional
 		failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 	
 	} else {
+		illustrativeB4op (exprTknStream, opr8rIdx);
+
 		bool isTernaryConditionTrue = exprTknStream[opr8rIdx + 1].evalResolvedTokenAsIf();
 		// Remove TERNARY_1ST and conditional result from list
 		exprTknStream.erase(exprTknStream.begin() + opr8rIdx, exprTknStream.begin() + opr8rIdx + 2);
@@ -1797,8 +1806,10 @@ int RunTimeInterpreter::execTernary1stOp(std::vector<Token> & exprTknStream, int
 		}
 	}
 
-	if (!failOnSrcLine)
+	if (!failOnSrcLine)	{
+		illustrativeAfterOp(exprTknStream);
 		ret_code = OK;
+	}
 
 	return (ret_code);
 }
@@ -1921,6 +1932,83 @@ int RunTimeInterpreter::execOperation (Operator opr8r, int opr8rIdx, std::vector
 }
 
 /* ****************************************************************************
+ * For ILLUSTRATIVE display purposes. Before performing an operation, show the 
+ * current Token list with a caret [^] below that line showing which OPR8R will
+ * be executed next.
+ * ***************************************************************************/
+ void RunTimeInterpreter::illustrativeB4op (std::vector<Token> & flatExprTkns, int opr8rIdx)	{
+	int caretPos = -1;
+	std::wstring tmpStr;
+
+	if (isIllustrative && usageMode == INTERPRETER && logLevel >= ILLUSTRATIVE)	{
+		if (tknsIllustrativeStr.empty())	{
+			tknsIllustrativeStr = util.getTokenListStr(flatExprTkns, opr8rIdx, caretPos);
+			std::wcout << tknsIllustrativeStr << std::endl;
+			caretPos >= 0 ? caretPos++ : 1;
+
+		} else {
+			// Calc caret pos on Token list displayed after previous operation
+			int nxtBrktPos = -1;
+			int brktCnt = 0;
+			int currPos = 0;
+			
+			while (caretPos < 0)	{
+				nxtBrktPos = tknsIllustrativeStr.find(L"[", currPos);
+				if (nxtBrktPos != std::string::npos)	{
+					brktCnt++;
+					currPos = nxtBrktPos + 1;
+				}
+				else	{
+				 	break;
+				}
+				
+				if (brktCnt == opr8rIdx + 1)
+					caretPos = nxtBrktPos + 1;
+			}
+		}
+
+		if (caretPos >= 0)	{
+			// Put the ^ underneath the target OPR8R from the previous line
+			tmpStr.insert (0, caretPos, ' ');
+			tmpStr.append(L"^");
+			if (opr8rIdx >= 0 && opr8rIdx < flatExprTkns.size())	{
+				Operator opr8r;
+				if (OK == execTerms.getExecOpr8rDetails (flatExprTkns[opr8rIdx]._unsigned, opr8r))	{
+					int randCnt = opr8r.numReqExecOperands;
+					tmpStr.append (L" takes next ");
+					tmpStr.append (std::to_wstring(randCnt));
+					tmpStr.append (L" operand");
+					if (randCnt != 1)
+						tmpStr.append(L"s");
+
+					if (opr8r.op_code == TERNARY_1ST_OPR8R_OPCODE)	{
+						tmpStr.append (L"; [Conditional][TRUE path][FALSE path]");
+					}
+				}
+			}
+			std::wcout << tmpStr << std::endl;
+		}
+	}
+}
+
+/* ****************************************************************************
+ * 
+ * ***************************************************************************/
+ void RunTimeInterpreter::illustrativeAfterOp (std::vector<Token> & flatExprTkns)	{
+
+	if (isIllustrative && usageMode == INTERPRETER && logLevel >= ILLUSTRATIVE)	{
+		int caretPos = 0;
+		std::wstring prevStr = tknsIllustrativeStr;
+		tknsIllustrativeStr = util.getTokenListStr(flatExprTkns, 0, caretPos);
+
+		if (tknsIllustrativeStr != prevStr)	{
+			if (flatExprTkns.size() == 1)
+				tknsIllustrativeStr.append(L" expression resolved");
+			std::wcout << tknsIllustrativeStr << std::endl;
+		}
+	}
+}
+/* ****************************************************************************
  * Fxn to evaluate expressions.  
  * NOTE the startIdx parameter. Fxn can also be called recursively to resolve
  * sub-expressions further down the expression stream. Useful for resolving the
@@ -1948,6 +2036,7 @@ int RunTimeInterpreter::execFlatExpr_OLR(std::vector<Token> & flatExprTkns, int 
 	} else 	{
 		int opr8rCnt = 0;
 		bool isOutOfTkns = false;
+		int caretPos;
 
 		while (!isOutOfTkns && !failOnSrcLine && !isSubExprComplete)	{
 			prevTknCnt = flatExprTkns.size();
@@ -2002,11 +2091,18 @@ int RunTimeInterpreter::execFlatExpr_OLR(std::vector<Token> & flatExprTkns, int 
 							if (!failOnSrcLine && numRandsFnd == numRandsReq)	{
 								// EXECUTE THE OPR8R!!!
 								isOneOpr8rDone = true;
-								if (OK == execOperation (opr8r, currIdx, flatExprTkns))
+								illustrativeB4op (flatExprTkns, currIdx);
+								// TODO: Build a string that displays the Tokens and send it out if different from prev
+
+								// Make a string with a caret to point to the OPR8R that's going to get executed....search for N "[" for placement
+								if (OK == execOperation (opr8r, currIdx, flatExprTkns))	{
 									// Operation result stored in Token that previously held the OPR8R. We need to delete any associatd operands
 									flatExprTkns.erase(flatExprTkns.begin() + currIdx + 1, flatExprTkns.begin() + currIdx + numRandsReq + 1);
-								else
+									// TODO: Build a string to display remaining Tokens
+									illustrativeAfterOp (flatExprTkns);
+								} else	{
 									failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+								}
 							}
 						}
 					}
@@ -2075,6 +2171,7 @@ int RunTimeInterpreter::resolveFlatExpr(std::vector<Token> & flatExprTkns)     {
 	
 	} else	{
 		// util.dumpTokenList(flatExprTkns, execTerms, thisSrcFile, __LINE__);
+		tknsIllustrativeStr.clear();
 		ret_code = execFlatExpr_OLR(flatExprTkns, 0);
 	}
 

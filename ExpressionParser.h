@@ -58,7 +58,7 @@ public:
     , std::shared_ptr<UserMessages> userMessages, logLvlEnum logLvl);
 	virtual ~ExpressionParser();
 	int makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree, Token & enderTkn
-			, bool isEndedByComma, bool & isExprClosed, bool isInVarDec);
+			, bool isEndedByComma, bool & isCallerExprClosed, bool isInVarDec);
 
 private:
   TokenPtrVector tknStream;
@@ -72,6 +72,7 @@ private:
 	std::shared_ptr<UserMessages> userMessages;
   logLvlEnum logLevel;
   bool isExprVarDeclaration;
+  bool isExprClosed;
 
   void cleanScopeStack ();
   std::wstring makeExpectedTknTypesStr (uint32_t expected_tkn_types);

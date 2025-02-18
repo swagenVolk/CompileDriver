@@ -63,7 +63,9 @@ void ExprTreeNode::showTree (std::wstring fileName, int lineNumber)	{
 
 	std::vector<std::wstring> treeGraph;
 
-	std::wcout << L"********** ExprTreeNode::showTree called from "<< fileName << L":" << lineNumber << L" **********" << std::endl;
+	// std::wcout << L"********** ExprTreeNode::showTree called from "<< fileName << L":" << lineNumber << L" **********" << std::endl;
+	std::wcout << L"********** Expression Parse Tree **********" << std::endl;
+	std::wcout << L"TODO: Formatting needs improvement" << std::endl;
 
 	// Handle the ROOT node here
 	treeGraph.push_back(L"");

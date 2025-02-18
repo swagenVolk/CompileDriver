@@ -126,11 +126,6 @@ int GeneralParser::compileRootScope () 	{
   	userMessages->logMsg (INTERNAL_ERROR, L"Token stream is unexpectedly empty!", thisSrcFile, __LINE__, 0);
 
   } else	{
-
-		if (logLevel >= PEDANTIC)	{
-			std::wcout << usrSrcTerms.getOpr8rsInPrecedenceList() << std::endl;
-		}
-
 		uint32_t length_pos = interpretedFileWriter.writeFlexLenOpCode (ANON_SCOPE_OPCODE);
 		// TODO: Do I want to add a checksum for ANON_SCOPEs? Would only be calculated for ROOT
 		// TODO: Remove ROOT scope creation from StackOfScopes?
@@ -286,7 +281,7 @@ int GeneralParser::compileCurrScope () 	{
 			  	userMessages->logMsg (INTERNAL_ERROR, L"[while] RESERVED_WORD not supported yet!", thisSrcFile, __LINE__, 0);
 					isStopFail = true;
 				} else	{
-					userMessages->logMsg (USER_ERROR, L"Unrecognized USER_WORD: " + currTkn->descr_sans_line_num_col()
+					userMessages->logMsg (USER_ERROR, L"Unexpected Token: " + currTkn->descr_sans_line_num_col()
 						, userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
 			  	isStopFail = true;
 				}

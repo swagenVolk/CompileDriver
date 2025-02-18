@@ -1,0 +1,88 @@
+/* *************** <COMPILATION STAGE> **************** */
+Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
+Scope Level 2: [one][B+][two]
+Scope Level 1: [(]
+Scope Level 0: [result][=][(]
+Left & right operands moved under (like tree branches) [B+] operator (Addition)
+Scope Level 2: /B+\
+
+Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
+Scope Level 1: /B+\[B+][three]
+Scope Level 0: [result][=][(]
+Left & right operands moved under (like tree branches) [B+] operator (Addition)
+Scope Level 1: /B+\
+
+Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
+Scope Level 1: [four][B+][six]
+Scope Level 0: [result][=]/B+\[*][(]
+Left & right operands moved under (like tree branches) [B+] operator (Addition)
+Scope Level 1: /B+\
+
+Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
+Scope Level 1: [six][*][three]
+Scope Level 0: [result][=]/B+\[*]/B+\[B+][(]
+Left & right operands moved under (like tree branches) [*] operator (Multiply)
+Scope Level 1: /*\
+
+Current highest precedence sub-expression closed; compiler has read in all Tokens for this expression.
+Scope Level 0: [result][=]/B+\[*]/B+\[B+]/*\
+Left & right operands moved under (like tree branches) [*] operator (Multiply)
+Scope Level 0: [result][=]/*\[B+]/*\
+
+Left & right operands moved under (like tree branches) [B+] operator (Addition)
+Scope Level 0: [result][=]/B+\
+
+Left & right operands moved under (like tree branches) [=] operator (Assignment)
+Scope Level 0: /=\
+
+********** Expression Parse Tree **********
+TODO: Formatting needs improvement
+[ROOT[=]]
+[[(1st)result]     [(2nd)B+]]
+[[(1st)*]     [(2nd)*]]
+[[(1st)B+]     [(2nd)B+]     [(1st)six]     [(2nd)three]]
+[[(1st)B+]     [(2nd)three]     [(1st)four]     [(2nd)six]]
+[[(1st)one]     [(2nd)two]]
+
+********** </ExprTreeNode::showTree> **********
+Compiler ret_code = 0
+/* *************** </COMPILATION STAGE> *************** */
+/* *************** <EXECUTION STAGE> **************** */
+[=][result][B+][*][B+][B+][one][two][three][B+][four][six][*][six][three]
+                       ^ takes next 2 operands
+[=][result][B+][*][B+][3][three][B+][four][six][*][six][three]
+                   ^ takes next 2 operands
+[=][result][B+][*][6][B+][four][six][*][six][three]
+                      ^ takes next 2 operands
+[=][result][B+][*][6][10][*][six][three]
+                ^ takes next 2 operands
+[=][result][B+][60][*][six][three]
+                    ^ takes next 2 operands
+[=][result][B+][60][18]
+            ^ takes next 2 operands
+[=][result][78]
+ ^ takes next 2 operands
+[78] expression resolved
+Interpreter ret_code = 0
+INTERNAL ERROR MESSAGES: Unique messages = 0; Total messages = 0;
+
+USER ERROR MESSAGES: Unique messages = 0; Total messages = 0;
+
+USER WARNING MESSAGES: Unique messages = 0; Total messages = 0;
+
+USER INFO MESSAGES: Unique messages = 0; Total messages = 0;
+
+// ********** <SCOPE LEVEL 0> ********** 
+// Scope opened by: INTERNAL_USE_TKN(U)->[__ROOT_SCOPE] on line 0 column 0
+eight  = 8;
+five   = 5;
+four   = 4;
+nine   = 9;
+one    = 1;
+result = 78;
+seven  = 7;
+six    = 6;
+three  = 3;
+two    = 2;
+// ********** </SCOPE LEVEL 0> ********** 
+/* *************** </EXECUTION STAGE> *************** */

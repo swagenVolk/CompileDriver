@@ -123,6 +123,7 @@ ExpressionParser::ExpressionParser(CompileExecTerms & inUsrSrcTerms, std::shared
 	this->userMessages = userMessages;
 	logLevel = logLvl;
 	isExprVarDeclaration = false;
+	isExprClosed = false;
 }
 
 
@@ -138,7 +139,7 @@ ExpressionParser::~ExpressionParser() {
  * TODO: isEndedByComma -> isEnclosedByParens? isParenBound?
  * ***************************************************************************/
 int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree
-		, Token & enderTkn, bool isEndedByComma, bool & isExprClosed, bool isInVarDec)  {
+		, Token & enderTkn, bool isEndedByComma, bool & isCallerExprClosed, bool isInVarDec)  {
   int ret_code = GENERAL_FAILURE;
 	isExprClosed = false;
 	int exprCloseLine = 0;
@@ -246,7 +247,9 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 						if (OK != closeNestedScopes ())	{
 							isStopFail = true;
 
-						} else if (!isEndedByComma && exprScopeStack.size() == 1 && exprScopeStack[0]->scopedKids.size() == 1)	{
+						} else if (expectedEndTkn.tkn_type == SPR8R_TKN && expectedEndTkn._string == currTkn->_string 
+							&& exprScopeStack.size() == 1 && exprScopeStack[0]->scopedKids.size() == 1)	{
+							// TODO: Failure when expecting to close by a [;]
 							isExprClosed = true;
 							enderTkn = *currTkn;
 							exprCloseLine = __LINE__;
@@ -288,7 +291,11 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 						// TODO: Double check tree health before calling it a day?
 						ret_code = OK;
 						expressionTree = exprScopeStack[0]->scopedKids[0];
-				} else	{
+
+						if ((logLevel == ILLUSTRATIVE && !isExprVarDeclaration) || logLevel > ILLUSTRATIVE)	{
+							expressionTree->showTree(thisSrcFile, __LINE__);
+						}
+					} else	{
 					std::wstring devMsg = L"Expression closed but tree conversion failed! Remaining Token count at stack top = ";
 					devMsg.append ( std::to_wstring(numTknsLeftInExpr));
 					devMsg.append (L"; # scope levels = ");
@@ -304,6 +311,10 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 
 		cleanScopeStack();
   }
+
+	isCallerExprClosed = isExprClosed;
+	// Init for next call into proc
+	isExprClosed = false;
 
   return (ret_code);
 }
@@ -660,7 +671,7 @@ int ExpressionParser::moveNeighborsIntoTree (Operator & opr8r, ExprTreeNodePtrVe
 		if (!isFailed && (isMoveLeftNbr || isMoveRightNbr))	{
 			// We tried to do something and didn't fail at it!
 			ret_code = OK;
-			if ((logLevel == PEDANTIC && !isExprVarDeclaration) || logLevel > PEDANTIC)	{
+			if ((logLevel == ILLUSTRATIVE && !isExprVarDeclaration) || logLevel > ILLUSTRATIVE)	{
 				std::wstring bannerMsg;
 				if (opr8rState == ATTACH_1ST)
 					bannerMsg.append(L"Left operand");
@@ -723,9 +734,12 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 
 	// [?]._1stChild is the conditional and should be the resolved expression directly to the left
 	// [?]_2ndChild is the [:] OPR8R; [:]._1stChild is the TRUE path; [:]_2ndChild is the FALSE path
-	if (((logLevel == PEDANTIC && !isExprVarDeclaration) || logLevel > PEDANTIC)
+	if (((logLevel == ILLUSTRATIVE && !isExprVarDeclaration) || logLevel > ILLUSTRATIVE)
 		&& (exprScopeStack.size() > 1 || (exprScopeStack.size() == 1 && exprScopeStack[0]->scopedKids.size() > 1)))	{
-		std::wstring bannerMsg = L"Current highest precedence sub-expression closed; full expression possibly not consumed yet";
+		std::wstring bannerMsg = L"Current highest precedence sub-expression closed; compiler has";
+		if (!isExprClosed) 
+			bannerMsg.append (L" NOT");
+	 	bannerMsg.append (L" read in all Tokens for this expression.");
 		printScopeStack (bannerMsg, false);
 	}
 	
@@ -1187,7 +1201,8 @@ int ExpressionParser::getExpectedEndToken (std::shared_ptr<Token> startTkn, uint
 			|| startTkn->tkn_type == INT32_TKN
 			|| startTkn->tkn_type == INT64_TKN
 			|| startTkn->tkn_type == DOUBLE_TKN)	{
-			expectedEndTkn.tkn_type = SRC_OPR8R_TKN;
+				// TODO: I don't understand why I put this here....
+			// expectedEndTkn.tkn_type = SRC_OPR8R_TKN;
 			_1stTknType = LITERAL_NXT_OK;
 
 		} else	{
@@ -1273,7 +1288,7 @@ void ExpressionParser::printScopeStack (std::wstring fileName, int lineNumber)	{
  * Used an aid in debugging and instruction
  * ***************************************************************************/
  void ExpressionParser::printScopeStack (std::wstring bannerMsg, bool isUseDefault)	{
-	std::wstring defaultMsg = L"Compiler's expression; may be incomplete. Scope levels > 0 opened by parentheses [(]";
+	std::wstring defaultMsg = L"Compiler's expression; may be incomplete. Scope levels > 0 opened by [(] or [?] from previous level.";
 	defaultMsg.append (L"\n[] contains a single OPR8R, e.g., [*]. /\\ contains a tree with left and|or right operands beneath it, e.g., /*\\");
 
 	if (isUseDefault && !defaultMsg.empty())

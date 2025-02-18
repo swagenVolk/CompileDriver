@@ -25,8 +25,7 @@ public:
 	void dumpTokenList (std::vector<Token> & tokenStream, int startIdx, CompileExecTerms execTerms, std::wstring callersSrcFile, int lineNum);
 	void dumpTokenList (TokenPtrVector & tknPtrVector, CompileExecTerms execTerms, std::wstring callersSrcFile, int lineNum, bool isShowDetail);
 	void dumpTokenList (TokenPtrVector & tknPtrVector, int startIdx, CompileExecTerms execTerms, std::wstring callersSrcFile, int lineNum, bool isShowDetail);
-	void displayToken (Token & token);
-
+	std::wstring getTokenListStr (std::vector<Token> & tokenStream, int caretTgtIdx, int & caretPos);
 };
 
 #endif /* UTILITIES_H_ */

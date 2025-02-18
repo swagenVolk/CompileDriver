@@ -66,6 +66,7 @@ class Token {
     std::wstring descr_sans_line_num_col ();
     std::wstring descr_line_num_col ();
     std::wstring getValueStr ();
+    std::wstring getBracketedValueStr ();
     TokenCompareResult compare (Token & otherTkn);
     // Make isOperand static to live beyond any single Token instance
     static bool isDirectOperand (TokenTypeEnum tokenType);

@@ -48,6 +48,8 @@ private:
 	InterpretedFileReader fileReader;
 	int failOnSrcLine;
 	logLvlEnum logLevel;
+	bool isIllustrative;
+	std::wstring tknsIllustrativeStr;
 
 	int execCurrScope (uint32_t execStartPos, uint32_t afterBoundaryPos);
   int execFlatExpr_OLR (std::vector<Token> & exprTknStream, int startIdx);
@@ -69,7 +71,8 @@ private:
 	int resolveTknOrVar (Token & originalTkn, Token & resolvedTkn, std::wstring & varName, bool isCheckInit);
 	int resolveTknOrVar (Token & originalTkn, Token & resolvedTkn, std::wstring & varName);
 	int execIfBlock (uint32_t scopeStartPos, uint32_t if_scope_len, uint32_t afterIfParentScopePos);
-	
+	void illustrativeB4op (std::vector<Token> & flatExprTkns, int currIdx);	
+	void illustrativeAfterOp (std::vector<Token> & flatExprTkns);
 };
 
 #endif /* RUNTIMEINTERPRETER_H_ */

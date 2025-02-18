@@ -1,0 +1,62 @@
+/* *************** <COMPILATION STAGE> **************** */
+Current highest precedence sub-expression closed; compiler has read in all Tokens for this expression.
+Scope Level 0: [result][=][one][B+][two][*][three][*][four][/][six]
+Left & right operands moved under (like tree branches) [*] operator (Multiply)
+Scope Level 0: [result][=][one][B+]/*\[*][four][/][six]
+
+Left & right operands moved under (like tree branches) [*] operator (Multiply)
+Scope Level 0: [result][=][one][B+]/*\[/][six]
+
+Left & right operands moved under (like tree branches) [/] operator (Divide)
+Scope Level 0: [result][=][one][B+]//\
+
+Left & right operands moved under (like tree branches) [B+] operator (Addition)
+Scope Level 0: [result][=]/B+\
+
+Left & right operands moved under (like tree branches) [=] operator (Assignment)
+Scope Level 0: /=\
+
+********** Expression Parse Tree **********
+TODO: Formatting needs improvement
+[ROOT[=]]
+[[(1st)result]     [(2nd)B+]]
+[[(1st)one]     [(2nd)/]]
+[[(1st)*]     [(2nd)six]]
+[[(1st)*]     [(2nd)four]]
+[[(1st)two]     [(2nd)three]]
+
+********** </ExprTreeNode::showTree> **********
+Compiler ret_code = 0
+/* *************** </COMPILATION STAGE> *************** */
+/* *************** <EXECUTION STAGE> **************** */
+[=][result][B+][one][/][*][*][two][three][four][six]
+                           ^ takes next 2 operands
+[=][result][B+][one][/][*][6][four][six]
+                        ^ takes next 2 operands
+[=][result][B+][one][/][24][six]
+                     ^ takes next 2 operands
+[=][result][B+][one][4]
+            ^ takes next 2 operands
+[=][result][5]
+ ^ takes next 2 operands
+[5] expression resolved
+Interpreter ret_code = 0
+INTERNAL ERROR MESSAGES: Unique messages = 0; Total messages = 0;
+
+USER ERROR MESSAGES: Unique messages = 0; Total messages = 0;
+
+USER WARNING MESSAGES: Unique messages = 0; Total messages = 0;
+
+USER INFO MESSAGES: Unique messages = 0; Total messages = 0;
+
+// ********** <SCOPE LEVEL 0> ********** 
+// Scope opened by: INTERNAL_USE_TKN(U)->[__ROOT_SCOPE] on line 0 column 0
+five   = 5;
+four   = 4;
+one    = 1;
+result = 5;
+six    = 6;
+three  = 3;
+two    = 2;
+// ********** </SCOPE LEVEL 0> ********** 
+/* *************** </EXECUTION STAGE> *************** */

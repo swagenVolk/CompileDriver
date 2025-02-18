@@ -6,9 +6,11 @@
  * Clarity of error messages
  *
  * TODO:
- * Pedantic OPR8R precedence example?
- * Pedantic - display a tree; make the formatting look nice
- * Pedantic mode - verbose output for instructional purposes
+ * Make ILLUSTRATIVE a flag option
+ * Illustrative - display a tree; make the formatting look nice
+ * Illustrative mode - verbose output for instructional purposes
+ *  Show that [(] and [?] open a new expression scope level
+ *  Show when an expr scope level is closed, that the opening [(] or [?] is overwritten
  *	Print out top scope of expression after (or end of) moveNeighborsIntoTree.  
  *	Could indicate tree w/ additional chars e.g. [{*}] [/*\] [_*_] [`*`] or /*\
  * 	When reading in expression list from Interpreted file, could add file location to Tokens (maybe)
@@ -34,7 +36,7 @@
  * file for the location. It can do a quick(er) lookup
  *
  * RECENTLY DONE:
- * Pedantic - description of what each OPR8R does?  Allude to info early; show when OPR8R's neighbors get moved.  Add to Operator class
+ * Illustrative - description of what each OPR8R does?  Allude to info early; show when OPR8R's neighbors get moved.  Add to Operator class
  * Have a defined ROOT scope in the interpreted file
  * User warning on encapsulated [=] since it has lowest priority
  * isFailed -> failedOnSrcLine at RunTimeInterpreter class level - Display via destructor if set
@@ -119,20 +121,18 @@ int main(int argc, const char * argv[])
 			std::wstring wide_output_file_name = util.stringToWstring(output_file_name);
 
 			// TODO: Make input parameter
-			logLvlEnum logLevel = PEDANTIC;
+			logLvlEnum logLevel = ILLUSTRATIVE;
 
 			std::shared_ptr<StackOfScopes> rootScope = std::make_shared <StackOfScopes> ();
 			// TODO: Previously passing &, but it appeared to be behaving like a copy: UserMessages userMessages;
 			std::shared_ptr<UserMessages> userMessages = std::make_shared <UserMessages> ();
 			GeneralParser generalParser (tokenStream, userSrcFileName, srcExecTerms, userMessages, output_file_name, rootScope, logLevel);
 
-			std::wcout << L"/* *************** <COMPILATION STAGE> ***************   " << std::endl;
+			std::wcout << L"/* *************** <COMPILATION STAGE> **************** */" << std::endl;
 			int compileRetCode = generalParser.compileRootScope();
-			std::wcout << L"compileRetCode = " << compileRetCode << std::endl;
+			std::wcout << L"Compiler ret_code = " << compileRetCode << std::endl;
 			userMessages->showMessagesByInsertOrder(true);
-			// userMessages->showMessagesByGroup();
-		  rootScope->displayVariables();
-			std::wcout << L" *************** </COMPILATION STAGE> *************** */" << std::endl;
+			std::wcout << L"/* *************** </COMPILATION STAGE> *************** */" << std::endl;
 
 			int numUnqUserErrors, numTotalUserErrors;
 			userMessages->getUserErrorCnt(numUnqUserErrors, numTotalUserErrors);
@@ -148,14 +148,13 @@ int main(int argc, const char * argv[])
 	
 				RunTimeInterpreter interpreter (interpretedFileName, userSrcFileName, execVarScope, execMessages, logLevel);
 
-				// TODO: An option to dump the NameSpace?
-				std::wcout << L"/* *************** <EXECUTION STAGE> ***************   " << std::endl;
+				std::wcout << L"/* *************** <EXECUTION STAGE> **************** */" << std::endl;
 				ret_code = interpreter.execRootScope();
-				std::wcout << L"ret_code = " << ret_code << std::endl;
+				std::wcout << L"Interpreter ret_code = " << ret_code << std::endl;
 				// execMessages->showMessagesByInsertOrder(true);
 				execMessages->showMessagesByGroup();
 			  execVarScope->displayVariables();
-				std::wcout << L" *************** </EXECUTION STAGE> *************** */" << std::endl;
+				std::wcout << L"/* *************** </EXECUTION STAGE> *************** */" << std::endl;
 				execMessages.reset();
 				execVarScope.reset();
 			}

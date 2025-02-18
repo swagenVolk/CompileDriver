@@ -157,7 +157,7 @@ void Utilities::dumpTokenList (std::vector<Token> & tokenStream, int startIdx, C
 	std::wcout << L"********** dumpTokenList called from " << callersSrcFile << L":" << lineNum << L" **********" << std::endl;
 	if (startIdx >= 0 && startIdx < tokenStream.size())	{
 		for (int idx = startIdx; idx < tokenStream.size(); idx++)	{
-			displayToken (tokenStream[idx]);
+			std::wcout << tokenStream[idx].getBracketedValueStr();
 		}
 	
 	} else {
@@ -191,7 +191,7 @@ void Utilities::dumpTokenList (TokenPtrVector & tknPtrVector, int startIdx, Comp
 		for (int idx = startIdx; idx < tknPtrVector.size(); idx++)	{
 			Token currTkn = *tknPtrVector[idx];
 			if (!isShowDetail)
-				displayToken (currTkn);
+				std::wcout << currTkn.getBracketedValueStr();
 			else
 			 	std::wcout << currTkn.descr_line_num_col() << std::endl;
 		}
@@ -203,10 +203,20 @@ void Utilities::dumpTokenList (TokenPtrVector & tknPtrVector, int startIdx, Comp
 	std::wcout << std::endl;
 
 }
+
 /* ****************************************************************************
  *
  * ***************************************************************************/
-void Utilities::displayToken (Token & token)	{
-	std::wcout << L"[" << token.getValueStr() << L"]";
+std::wstring Utilities::getTokenListStr (std::vector<Token> & tokenStream, int caretTgtIdx, int & caretPos)	{
+	std::wstring tknStrmStr = L"";
+	if (caretTgtIdx < 0 || caretTgtIdx > tokenStream.size())
+		caretPos = -1;
+	
+	for (int idx = 0; idx < tokenStream.size(); idx++)	{
+		if (idx == caretTgtIdx)
+			caretPos = tknStrmStr.length();
+		tknStrmStr.append(tokenStream[idx].getBracketedValueStr());
+	}
 
+	return (tknStrmStr);
 }

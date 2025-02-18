@@ -1,10 +1,11 @@
 Operators shown below in precedence order, each contained in []. 
 Operators on the same line have the same precedence level.
+Precedence is then decided on left-to-right order.
 
 For operators with duplicate source symbols, a "=>" will show the unambiguous internal symbol
 Additional operator attribute info contained in ().
-The unambiguous internal symbol will be used in example output files that show how both the 
-compiler and interpreter handle expressions.
+The unambiguous internal symbol will be used in example output files that show  
+compiler and interpreter expression handling details.
 
 ********************************************************************************
 [++ => 1+ (POSTFIX)][-- => 1- (POSTFIX)]
@@ -32,12 +33,12 @@ Operator precedence example expression
 ********************************************************************************
 What if we ignored precedence and just went left-to-right?
 3 * 4 -> [12]; 12 + 12 -> [24]; 24 / 6 -> [4]
-Gives us a final result of [4]
+Evaluating to a final result of [4]
 
 ********************************************************************************
 What if we ignored precedence and just went right-to-left?
 6 /12 -> [0.5]; 0.5 + 4 -> [4.5]; 4.5 * 3 -> [13.5]
-Gives us a final result of [13.5]
+Evaluating to a final result of [13.5]
 
 ********************************************************************************
 Referencing the operator precedence above, [*] and [/] are at the same level.
@@ -47,7 +48,7 @@ The [+] operator has the lowest precedence in this example, and will be executed
 12 + 12 / 6
 12 / 6 -> [2] gets resolved 2nd, and reduces the expression to: 
 12 + 2
-Expression evaluates to [14]
+Evaluating to a final result [14]
 
 Use parentheses to force a preferred ordering and provide clarity if needed.
 ********************************************************************************

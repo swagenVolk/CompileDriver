@@ -1,0 +1,72 @@
+/* *************** <COMPILATION STAGE> **************** */
+Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
+Scope Level 2: [3][B+][4]
+Scope Level 1: [(]
+Scope Level 0: [value][=][1][B+][2][*][(]
+Left & right operands moved under (like tree branches) [B+] operator (Addition)
+Scope Level 2: /B+\
+
+Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
+Scope Level 2: [5][B+][6]
+Scope Level 1: /B+\[*][(]
+Scope Level 0: [value][=][1][B+][2][*][(]
+Left & right operands moved under (like tree branches) [B+] operator (Addition)
+Scope Level 2: /B+\
+
+Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
+Scope Level 1: /B+\[*]/B+\
+Scope Level 0: [value][=][1][B+][2][*][(]
+Left & right operands moved under (like tree branches) [*] operator (Multiply)
+Scope Level 1: /*\
+
+Current highest precedence sub-expression closed; compiler has read in all Tokens for this expression.
+Scope Level 0: [value][=][1][B+][2][*]/*\
+Left & right operands moved under (like tree branches) [*] operator (Multiply)
+Scope Level 0: [value][=][1][B+]/*\
+
+Left & right operands moved under (like tree branches) [B+] operator (Addition)
+Scope Level 0: [value][=]/B+\
+
+Left & right operands moved under (like tree branches) [=] operator (Assignment)
+Scope Level 0: /=\
+
+********** Expression Parse Tree **********
+TODO: Formatting needs improvement
+[ROOT[=]]
+[[(1st)value]     [(2nd)B+]]
+[[(1st)1]     [(2nd)*]]
+[[(1st)2]     [(2nd)*]]
+[[(1st)B+]     [(2nd)B+]]
+[[(1st)3]     [(2nd)4]     [(1st)5]     [(2nd)6]]
+
+********** </ExprTreeNode::showTree> **********
+Compiler ret_code = 0
+/* *************** </COMPILATION STAGE> *************** */
+/* *************** <EXECUTION STAGE> **************** */
+[=][value][B+][1][*][2][*][B+][3][4][B+][5][6]
+                           ^ takes next 2 operands
+[=][value][B+][1][*][2][*][7][B+][5][6]
+                              ^ takes next 2 operands
+[=][value][B+][1][*][2][*][7][11]
+                        ^ takes next 2 operands
+[=][value][B+][1][*][2][77]
+                  ^ takes next 2 operands
+[=][value][B+][1][154]
+           ^ takes next 2 operands
+[=][value][155]
+ ^ takes next 2 operands
+[155] expression resolved
+Interpreter ret_code = 0
+INTERNAL ERROR MESSAGES: Unique messages = 0; Total messages = 0;
+
+USER ERROR MESSAGES: Unique messages = 0; Total messages = 0;
+
+USER WARNING MESSAGES: Unique messages = 0; Total messages = 0;
+
+USER INFO MESSAGES: Unique messages = 0; Total messages = 0;
+
+// ********** <SCOPE LEVEL 0> ********** 
+// Scope opened by: INTERNAL_USE_TKN(U)->[__ROOT_SCOPE] on line 0 column 0
+value = 155;
+// ********** </SCOPE LEVEL 0> ********** 
+/* *************** </EXECUTION STAGE> *************** */
