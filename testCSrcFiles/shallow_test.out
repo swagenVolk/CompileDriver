@@ -1,0 +1,89 @@
+/* *************** <COMPILATION STAGE> **************** */
+
+Compiler ret_code = 0
+WARNING: Uninitialized variable used - USER_WORD_TKN(U)->[three] shallow_test.c:4:9
+WARNING: Uninitialized variable used - USER_WORD_TKN(U)->[four] shallow_test.c:4:17
+
+/* *************** </COMPILATION STAGE> *************** */
+
+/* *************** <INTERPRETER STAGE> **************** */
+Interpreter ret_code = 0
+
+INTERNAL ERROR MESSAGES: Unique messages = 0; Total messages = 0;
+
+USER ERROR MESSAGES: Unique messages = 0; Total messages = 0;
+
+USER WARNING MESSAGES: Unique messages = 0; Total messages = 0;
+
+USER INFO MESSAGES: Unique messages = 0; Total messages = 0;
+
+/* ********** <SHOW VARIABLES & VALUES> ********** */
+// ********** <SCOPE LEVEL 0> ********** 
+// Scope opened by: INTERNAL_USE_TKN(U)->[__ROOT_SCOPE] on line 0 column 0
+MikeWasHere             = "Mike was HERE!!!! But he went skipping to the Louvre";
+altCount                = 5;
+count                   = 1723;
+count1                  = "one";
+count2                  = "two";
+count3                  = "three";
+countBunches            = "BUNCHES";
+countHordes             = "HORDES";
+countLegions            = "Legions";
+countLots               = "HORDES";
+countMany               = "MANY";
+decExpect10             = 10;
+decExpect12             = 12;
+decExpect14             = 14;
+decExpect6              = 6;
+decExpect8              = 8;
+eight                   = 8;
+expect1                 = 1;
+expect1024              = 1024;
+expect128               = 128;
+expect2                 = 2;
+expect256               = 256;
+expect32                = 32;
+expect512               = 512;
+expect513               = 513;
+expect64                = 64;
+fifty                   = 0x32;
+fiftySix                = 0x38;
+fiftyTwo                = 0x34;
+five                    = 0x5;
+fortyTwo                = 0x2a;
+four                    = 0x4;
+init1                   = 0x2;
+init2                   = 0x3;
+isFalse1                = false;
+isFalse2                = false;
+isFalse3                = false;
+isShortCircuitAndFalse1 = false;
+isShortCircuitOrTrue1   = true;
+isTrue1                 = true;
+isTrue2                 = true;
+isTrue3                 = true;
+mathBitAnd0xDooDFa8e    = 0xd00dfa8e;
+mathBitOr0xDEADFBDE     = 0xdeadfbde;
+mathDiv512              = 512;
+mathLshft90210          = 0x90210;
+mathMod8                = 8;
+mathPlus3579            = 3579;
+mathRshftCAFE           = 0xcafe;
+mathSub2222             = 2222;
+mathX111                = 111;
+mathXorFFs              = 0xffffffff;
+one                     = 0x1;
+rzlt_12345              = 12345;
+seven                   = 0x7;
+shortCircuitAnd987      = 987;
+shortCircuitOr456       = 456;
+six                     = 0x6;
+three                   = 0x3;
+twenty                  = 0x14;
+twentySix               = 0x1a;
+two                     = 0x2;
+whichIfBlock            = 1;
+witchBlock              = 1;
+// ********** </SCOPE LEVEL 0> ********** 
+/* ********** </SHOW VARIABLES & VALUES> ********** */
+/* *************** </INTERPRETER STAGE> *************** */
