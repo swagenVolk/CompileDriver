@@ -1,4 +1,6 @@
 /* *************** <COMPILATION STAGE> **************** */
+// Starting compilation of expression that begins on illustrate_literals2.c:5:1
+
 Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
 Scope Level 2: [3][B+][4]
 Scope Level 1: [(]
@@ -23,7 +25,7 @@ Scope Level 0: [value][=]/B+\
 Left & right operands moved under (like tree branches) [=] operator (Assignment)
 Scope Level 0: /=\
 
-********** Expression Parse Tree **********
+/* ********** <Show Expression Parse Tree> ********** */
 TODO: Formatting needs improvement
 [ROOT[=]]
 [[(1st)value]     [(2nd)B+]]
@@ -31,23 +33,26 @@ TODO: Formatting needs improvement
 [[(1st)2]     [(2nd)*]]
 [[(1st)B+]     [(2nd)5]]
 [[(1st)3]     [(2nd)4]]
+/* ********** </Show Expression Parse Tree> ********** */
 
-********** </ExprTreeNode::showTree> **********
 Compiler ret_code = 0
 /* *************** </COMPILATION STAGE> *************** */
-/* *************** <EXECUTION STAGE> **************** */
+
+
+/* *************** <INTERPRETER STAGE> **************** */
 [=][value][B+][1][*][2][*][B+][3][4][5]
-                           ^ takes next 2 operands
+                           ^ takes next 2 operands (Addition)
 [=][value][B+][1][*][2][*][7][5]
-                        ^ takes next 2 operands
+                        ^ takes next 2 operands (Multiply)
 [=][value][B+][1][*][2][35]
-                  ^ takes next 2 operands
+                  ^ takes next 2 operands (Multiply)
 [=][value][B+][1][70]
-           ^ takes next 2 operands
+           ^ takes next 2 operands (Addition)
 [=][value][71]
- ^ takes next 2 operands
+ ^ takes next 2 operands (Assignment)
 [71] expression resolved
 Interpreter ret_code = 0
+
 INTERNAL ERROR MESSAGES: Unique messages = 0; Total messages = 0;
 
 USER ERROR MESSAGES: Unique messages = 0; Total messages = 0;
@@ -56,8 +61,10 @@ USER WARNING MESSAGES: Unique messages = 0; Total messages = 0;
 
 USER INFO MESSAGES: Unique messages = 0; Total messages = 0;
 
+/* ********** <SHOW VARIABLES & VALUES> ********** */
 // ********** <SCOPE LEVEL 0> ********** 
 // Scope opened by: INTERNAL_USE_TKN(U)->[__ROOT_SCOPE] on line 0 column 0
 value = 71;
 // ********** </SCOPE LEVEL 0> ********** 
-/* *************** </EXECUTION STAGE> *************** */
+/* ********** </SHOW VARIABLES & VALUES> ********** */
+/* *************** </INTERPRETER STAGE> *************** */

@@ -1984,6 +1984,10 @@ int RunTimeInterpreter::execOperation (Operator opr8r, int opr8rIdx, std::vector
 					if (opr8r.op_code == TERNARY_1ST_OPR8R_OPCODE)	{
 						tmpStr.append (L"; [Conditional][TRUE path][FALSE path]");
 					}
+
+					if (!opr8r.description.empty())	{
+						tmpStr.append (L" (" + opr8r.description + L")");
+					}
 				}
 			}
 			std::wcout << tmpStr << std::endl;

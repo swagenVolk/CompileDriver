@@ -176,6 +176,7 @@ void StackOfScopes::displayVariables()	{
 
 	std::vector<std::wstring> varNames;
 	int maxNameLen = 0;
+	std::wcout << L"/* ********** <SHOW VARIABLES & VALUES> ********** */" << std::endl;
 
 	for (int currIdx = scopeTopIdx; currIdx >= 0; currIdx--)	{
 		std::wcout << L"// ********** <SCOPE LEVEL " << currIdx << L"> ********** " << std::endl;
@@ -205,4 +206,6 @@ void StackOfScopes::displayVariables()	{
 
 		std::wcout << L"// ********** </SCOPE LEVEL " << currIdx << L"> ********** " << std::endl;
 	}
+
+	std::wcout << L"/* ********** </SHOW VARIABLES & VALUES> ********** */" << std::endl;
 }

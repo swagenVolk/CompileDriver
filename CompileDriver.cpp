@@ -130,9 +130,9 @@ int main(int argc, const char * argv[])
 
 			std::wcout << L"/* *************** <COMPILATION STAGE> **************** */" << std::endl;
 			int compileRetCode = generalParser.compileRootScope();
-			std::wcout << L"Compiler ret_code = " << compileRetCode << std::endl;
+			std::wcout << std::endl << L"Compiler ret_code = " << compileRetCode << std::endl;
 			userMessages->showMessagesByInsertOrder(true);
-			std::wcout << L"/* *************** </COMPILATION STAGE> *************** */" << std::endl;
+			std::wcout << std::endl << L"/* *************** </COMPILATION STAGE> *************** */" << std::endl;
 
 			int numUnqUserErrors, numTotalUserErrors;
 			userMessages->getUserErrorCnt(numUnqUserErrors, numTotalUserErrors);
@@ -148,13 +148,13 @@ int main(int argc, const char * argv[])
 	
 				RunTimeInterpreter interpreter (interpretedFileName, userSrcFileName, execVarScope, execMessages, logLevel);
 
-				std::wcout << L"/* *************** <EXECUTION STAGE> **************** */" << std::endl;
+				std::wcout << std::endl << L"/* *************** <INTERPRETER STAGE> **************** */" << std::endl;
 				ret_code = interpreter.execRootScope();
-				std::wcout << L"Interpreter ret_code = " << ret_code << std::endl;
+				std::wcout << L"Interpreter ret_code = " << ret_code << std::endl << std::endl;
 				// execMessages->showMessagesByInsertOrder(true);
 				execMessages->showMessagesByGroup();
 			  execVarScope->displayVariables();
-				std::wcout << L"/* *************** </EXECUTION STAGE> *************** */" << std::endl;
+				std::wcout << L"/* *************** </INTERPRETER STAGE> *************** */" << std::endl;
 				execMessages.reset();
 				execVarScope.reset();
 			}

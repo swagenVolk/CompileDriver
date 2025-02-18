@@ -1,4 +1,6 @@
 /* *************** <COMPILATION STAGE> **************** */
+// Starting compilation of expression that begins on illustrate_literals1.c:3:1
+
 Current highest precedence sub-expression closed; compiler has read in all Tokens for this expression.
 Scope Level 0: [sum][=][1][*][2][B+][3]
 Left & right operands moved under (like tree branches) [*] operator (Multiply)
@@ -10,25 +12,28 @@ Scope Level 0: [sum][=]/B+\
 Left & right operands moved under (like tree branches) [=] operator (Assignment)
 Scope Level 0: /=\
 
-********** Expression Parse Tree **********
+/* ********** <Show Expression Parse Tree> ********** */
 TODO: Formatting needs improvement
 [ROOT[=]]
 [[(1st)sum]     [(2nd)B+]]
 [[(1st)*]     [(2nd)3]]
 [[(1st)1]     [(2nd)2]]
+/* ********** </Show Expression Parse Tree> ********** */
 
-********** </ExprTreeNode::showTree> **********
 Compiler ret_code = 0
 /* *************** </COMPILATION STAGE> *************** */
-/* *************** <EXECUTION STAGE> **************** */
+
+
+/* *************** <INTERPRETER STAGE> **************** */
 [=][sum][B+][*][1][2][3]
-             ^ takes next 2 operands
+             ^ takes next 2 operands (Multiply)
 [=][sum][B+][2][3]
-         ^ takes next 2 operands
+         ^ takes next 2 operands (Addition)
 [=][sum][5]
- ^ takes next 2 operands
+ ^ takes next 2 operands (Assignment)
 [5] expression resolved
 Interpreter ret_code = 0
+
 INTERNAL ERROR MESSAGES: Unique messages = 0; Total messages = 0;
 
 USER ERROR MESSAGES: Unique messages = 0; Total messages = 0;
@@ -37,8 +42,10 @@ USER WARNING MESSAGES: Unique messages = 0; Total messages = 0;
 
 USER INFO MESSAGES: Unique messages = 0; Total messages = 0;
 
+/* ********** <SHOW VARIABLES & VALUES> ********** */
 // ********** <SCOPE LEVEL 0> ********** 
 // Scope opened by: INTERNAL_USE_TKN(U)->[__ROOT_SCOPE] on line 0 column 0
 sum = 5;
 // ********** </SCOPE LEVEL 0> ********** 
-/* *************** </EXECUTION STAGE> *************** */
+/* ********** </SHOW VARIABLES & VALUES> ********** */
+/* *************** </INTERPRETER STAGE> *************** */

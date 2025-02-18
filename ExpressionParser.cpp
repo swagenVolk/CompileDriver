@@ -177,6 +177,11 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 						if (OK != getExpectedEndToken(currTkn, curr_legal_tkn_types, expectedEndTkn, isEndedByComma))	{
 							isStopFail = true;
 							break;
+						
+						} else if ((logLevel == ILLUSTRATIVE && !isExprVarDeclaration) || logLevel > ILLUSTRATIVE)		{
+							std::wcout << L"// Starting compilation of expression that begins on " << userSrcFileName;
+							std::wcout << L":" << std::to_wstring(currTkn->get_line_number()) << L":" << std::to_wstring(currTkn->get_column_pos());
+							std::wcout << std::endl << std::endl;
 						}
 						is1stTkn = false;
 					}
