@@ -1,3 +1,10 @@
+int8 sum;
+
+sum = 1 * 2 + 3;
+
+
+^^^^^^^^^^ Contents of illustrate_literals1.c included above for reference ^^^^^^^^^^
+
 /* *************** <COMPILATION STAGE> **************** */
 // Starting compilation of expression that begins on illustrate_literals1.c:3:1
 
@@ -21,8 +28,8 @@ TODO: Formatting needs improvement
 /* ********** </Show Expression Parse Tree> ********** */
 
 Compiler ret_code = 0
-/* *************** </COMPILATION STAGE> *************** */
 
+/* *************** </COMPILATION STAGE> *************** */
 
 /* *************** <INTERPRETER STAGE> **************** */
 [=][sum][B+][*][1][2][3]

@@ -1,3 +1,12 @@
+int8 value;
+
+// This expression uses parentheses to force the precedence & ordering
+// of operations to 3 scope levels
+value = 1 + 2 * ((3 + 4) * 5);
+
+
+^^^^^^^^^^ Contents of illustrate_literals2.c included above for reference ^^^^^^^^^^
+
 /* *************** <COMPILATION STAGE> **************** */
 // Starting compilation of expression that begins on illustrate_literals2.c:5:1
 
@@ -36,8 +45,8 @@ TODO: Formatting needs improvement
 /* ********** </Show Expression Parse Tree> ********** */
 
 Compiler ret_code = 0
-/* *************** </COMPILATION STAGE> *************** */
 
+/* *************** </COMPILATION STAGE> *************** */
 
 /* *************** <INTERPRETER STAGE> **************** */
 [=][value][B+][1][*][2][*][B+][3][4][5]
