@@ -9,14 +9,8 @@
  * Make ILLUSTRATIVE a flag option
  * Illustrative - display a tree; make the formatting look nice
  * Illustrative mode - verbose output for instructional purposes
- *  Show that [(] and [?] open a new expression scope level
- *  Show when an expr scope level is closed, that the opening [(] or [?] is overwritten
- *	Print out top scope of expression after (or end of) moveNeighborsIntoTree.  
- *	Could indicate tree w/ additional chars e.g. [{*}] [/*\] [_*_] [`*`] or /*\
  * 	When reading in expression list from Interpreted file, could add file location to Tokens (maybe)
  *  Tie together expression start on both stages with interpreted file location
- *	Dump out compilation token list at selected stages. Include indication of shrubification
- *	During interpretation, dump out token list on each operation
  * Generic ("Unique") scope objects?
  * Should ROOT scope include a checksum? If so, should others have the field also, but gets ignored?
  * Differentiate between expressions and statements?  ie include support for [,] OPR8R beyond var declaration?
@@ -37,6 +31,13 @@
  *
  * RECENTLY DONE:
  * Illustrative - description of what each OPR8R does?  Allude to info early; show when OPR8R's neighbors get moved.  Add to Operator class
+ * Illustrative mode - verbose output for instructional purposes
+ *  Show that [(] and [?] open a new expression scope level
+ *  Show when an expr scope level is closed, that the opening [(] or [?] is overwritten
+ *	Print out top scope of expression after (or end of) moveNeighborsIntoTree.  
+ *	Could indicate tree w/ additional chars e.g. [{*}] [/*\] [_*_] [`*`] or /*\
+ *	Dump out compilation token list at selected stages. Include indication of shrubification
+ *	During interpretation, dump out token list on each operation
  * Have a defined ROOT scope in the interpreted file
  * User warning on encapsulated [=] since it has lowest priority
  * isFailed -> failedOnSrcLine at RunTimeInterpreter class level - Display via destructor if set
@@ -89,9 +90,69 @@
 #include <string>
 
 using namespace std;
+logLvlEnum logLevel = SILENT;
 
 /* ****************************************************************************
  *
+ * ***************************************************************************/
+bool isCmdLineArgsOK (int argc, const char * argv[])	{
+	bool isGood = false;
+	bool isFailed = false;
+	int idx = 2;
+	std::string nextArg, nextValue;
+	int completedArgCnt = 0;
+
+	while (!isFailed && idx < argc)	{
+		if (idx % 2 == 0)	{
+			// Pick up the flag
+			nextArg = argv[idx];
+		} else {
+			// Grab the value
+			nextValue = argv[idx];
+			if (nextArg.compare("-l") == 0 || nextArg.compare("--log_level") == 0)	{
+
+				if (nextValue.compare ("SILENT") == 0)	{
+					logLevel = SILENT;
+					completedArgCnt++;
+
+				} else if (nextValue.compare ("ILLUSTRATIVE") == 0)	{
+					logLevel = ILLUSTRATIVE;
+					completedArgCnt++;
+					
+				} else if (nextValue.compare ("VERBOSE") == 0)	{
+					logLevel = VERBOSE;
+					completedArgCnt++;
+					
+				} else if (nextValue.compare ("EFFUSIVE") == 0)	{
+					logLevel = EFFUSIVE;
+					completedArgCnt++;
+					
+				} else if (nextValue.compare ("DEBUG") == 0)	{
+					logLevel = DEBUG;
+					completedArgCnt++;
+					
+				} else	{
+					isFailed = true;
+				}
+			
+			 } else {
+				isFailed = true;
+			}
+			nextArg.clear();
+		}
+
+		idx++;
+	}
+	
+	if (!nextArg.empty())
+		isFailed = true;
+
+	if (!isFailed && completedArgCnt > 0)
+		isGood = true;
+
+	return (isGood);
+}
+/* ****************************************************************************
  *
  * ***************************************************************************/
 int main(int argc, const char * argv[])
@@ -99,68 +160,76 @@ int main(int argc, const char * argv[])
   int ret_code = GENERAL_FAILURE;
   int num_errors = 0;
   Utilities util;
+	bool isArgsOK = false;
 
-  if (argc == 2)  {
-    std::string input_file = argv[1];
+  if (argc >= 2)  {
+    std::string input_file_path = argv[1];
 
     std::wstring userSrcFileName;
 
     // Prep our source code input file
     // TODO: This is hacky, but #include <codecvt> (for std::wstring_convert) can't be found
     // TODO: Might not be necessary until Unicode is supported for file names in the future
-    userSrcFileName = util.getLastSegment(util.stringToWstring(input_file), L"/");
+    userSrcFileName = util.getLastSegment(util.stringToWstring(input_file_path), L"/");
 
-    TokenPtrVector tokenStream;
-    CompileExecTerms srcExecTerms;
-    FileParser fileParser (srcExecTerms, userSrcFileName);
-    if (OK == fileParser.gnr8_token_stream(input_file, tokenStream))	{
+		if (argc > 2)
+			isArgsOK = isCmdLineArgsOK(argc, argv);
+		else 
+			isArgsOK = true;
 
-			// TODO: For early debug
-			// util.dumpTokenList(tokenStream, 0, srcExecTerms, L"main", __LINE__, true);
-    	std::string output_file_name = "interpreted_file.o";
-			std::wstring wide_output_file_name = util.stringToWstring(output_file_name);
+		if (isArgsOK)	{
+			TokenPtrVector tokenStream;
+			CompileExecTerms srcExecTerms;
+			FileParser fileParser (srcExecTerms, userSrcFileName);
+			if (OK == fileParser.gnr8_token_stream(input_file_path, tokenStream))	{
 
-			// TODO: Make input parameter
-			logLvlEnum logLevel = ILLUSTRATIVE;
+				// TODO: For early debug
+				// util.dumpTokenList(tokenStream, 0, srcExecTerms, L"main", __LINE__, true);
+				std::string output_file_name = "interpreted_file.o";
+				std::wstring wide_output_file_name = util.stringToWstring(output_file_name);
 
-			std::shared_ptr<StackOfScopes> rootScope = std::make_shared <StackOfScopes> ();
-			// TODO: Previously passing &, but it appeared to be behaving like a copy: UserMessages userMessages;
-			std::shared_ptr<UserMessages> userMessages = std::make_shared <UserMessages> ();
-			GeneralParser generalParser (tokenStream, userSrcFileName, srcExecTerms, userMessages, output_file_name, rootScope, logLevel);
+				std::shared_ptr<StackOfScopes> rootScope = std::make_shared <StackOfScopes> ();
+				// TODO: Previously passing &, but it appeared to be behaving like a copy: UserMessages userMessages;
+				std::shared_ptr<UserMessages> userMessages = std::make_shared <UserMessages> ();
+				GeneralParser generalParser (tokenStream, userSrcFileName, srcExecTerms, userMessages, output_file_name, rootScope, logLevel);
 
-			std::wcout << L"/* *************** <COMPILATION STAGE> **************** */" << std::endl;
-			int compileRetCode = generalParser.compileRootScope();
-			std::wcout << std::endl << L"Compiler ret_code = " << compileRetCode << std::endl;
-			userMessages->showMessagesByInsertOrder(true);
-			std::wcout << std::endl << L"/* *************** </COMPILATION STAGE> *************** */" << std::endl;
+				std::wcout << std::endl << L"/* *************** <COMPILATION STAGE> **************** */" << std::endl;
+				int compileRetCode = generalParser.compileRootScope();
+				std::wcout << std::endl << L"Compiler ret_code = " << compileRetCode << std::endl;
+				userMessages->showMessagesByInsertOrder(true);
+				std::wcout << std::endl << L"/* *************** </COMPILATION STAGE> *************** */" << std::endl;
 
-			int numUnqUserErrors, numTotalUserErrors;
-			userMessages->getUserErrorCnt(numUnqUserErrors, numTotalUserErrors);
-			// TODO: I expected to be able to re-use userMessages, but having problems
-			userMessages.reset();
-			rootScope.reset();
+				int numUnqUserErrors, numTotalUserErrors;
+				userMessages->getUserErrorCnt(numUnqUserErrors, numTotalUserErrors);
+				// TODO: I expected to be able to re-use userMessages, but having problems
+				userMessages.reset();
+				rootScope.reset();
 
-			if (compileRetCode == OK && numUnqUserErrors == 0)	{
-				// TODO: Open input file here; I don't know how to make an fstream member variable (might not be possible)
-				std::string interpretedFileName = output_file_name;
-				std::shared_ptr<UserMessages> execMessages = std::make_shared <UserMessages> ();
-				std::shared_ptr<StackOfScopes> execVarScope = std::make_shared <StackOfScopes> ();
-	
-				RunTimeInterpreter interpreter (interpretedFileName, userSrcFileName, execVarScope, execMessages, logLevel);
+				if (compileRetCode == OK && numUnqUserErrors == 0)	{
+					// TODO: Open input file here; I don't know how to make an fstream member variable (might not be possible)
+					std::string interpretedFileName = output_file_name;
+					std::shared_ptr<UserMessages> execMessages = std::make_shared <UserMessages> ();
+					std::shared_ptr<StackOfScopes> execVarScope = std::make_shared <StackOfScopes> ();
+		
+					RunTimeInterpreter interpreter (interpretedFileName, userSrcFileName, execVarScope, execMessages, logLevel);
 
-				std::wcout << std::endl << L"/* *************** <INTERPRETER STAGE> **************** */" << std::endl;
-				ret_code = interpreter.execRootScope();
-				std::wcout << L"Interpreter ret_code = " << ret_code << std::endl << std::endl;
-				// execMessages->showMessagesByInsertOrder(true);
-				execMessages->showMessagesByGroup();
-			  execVarScope->displayVariables();
-				std::wcout << L"/* *************** </INTERPRETER STAGE> *************** */" << std::endl;
-				execMessages.reset();
-				execVarScope.reset();
+					std::wcout << std::endl;
+					std::wcout << L"/* *************** <INTERPRETER STAGE> **************** */" << std::endl;
+					ret_code = interpreter.execRootScope();
+					std::wcout << L"Interpreter ret_code = " << ret_code << std::endl << std::endl;
+					// execMessages->showMessagesByInsertOrder(true);
+					execMessages->showMessagesByGroup();
+					execVarScope->displayVariables();
+					std::wcout << L"/* *************** </INTERPRETER STAGE> *************** */" << std::endl;
+					execMessages.reset();
+					execVarScope.reset();
+				}
 			}
-		} else  {
-			std::wcout << "Wrong # of arguments!" << std::endl;
 		}
+	}
+
+	if (!isArgsOK)	{
+		std::wcout << "Wrong # of arguments!" << std::endl;
 	}
 
 	return (ret_code);
