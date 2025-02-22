@@ -66,7 +66,7 @@ public:
 	int makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree, Token & enderTkn
 			, bool isEndedByComma, bool & isCallerExprClosed, bool isInVarDec);
 
-  int illustrateTree (std::shared_ptr<ExprTreeNode> startBranch);
+  int illustrateTree (std::shared_ptr<ExprTreeNode> startBranch, int adjustToRight);
   int illustrateTree (std::shared_ptr<ExprTreeNode> startBranch, std::wstring callersSrcFile, int srcLineNum);      
 
 private:
@@ -97,7 +97,10 @@ private:
   int turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope);
   int turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope, bool isOpenedByTernary);
   int getExpectedEndToken (std::shared_ptr<Token> startTkn, uint32_t & _1stTknTypMsk, Token & expectedEndTkn, bool isEndedByComma);
+  
   void printSingleScope (std::wstring headerMsg, int scopeLvl);
+  void printSingleScope (std::wstring headerMsg, int scopeLvl, int tgtIdx, int & tgtStartPos);
+  
   void printScopeStack (std::wstring fileName, int lineNumber);
   void printScopeStack (std::wstring bannerMsg, bool isUseDefault);
   void showDebugInfo (std::wstring srcFileName, int lineNum);
@@ -106,14 +109,19 @@ private:
   int fillDisplayLeft (std::vector<std::wstring> & displayLines, std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists
     , int maxLineLen);
 
-  int fillDisplayRight (std::vector<std::wstring> & displayLines, std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists);    
-        
+  int fillDisplayRight (std::vector<std::wstring> & displayLines, std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists
+    , int centerGapSpaces);
+
+  void setBniPosInsert (std::shared_ptr<BranchNodeInfo> & bnInfo
+    , bool isLefty, std::shared_ptr<BniList> halfScopeList
+    , std::map <std::shared_ptr<ExprTreeNode>, std::shared_ptr<BranchNodeInfo>> & parentMap);
+
   void adjustDisplayOverlap (std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists , bool isLefty
     , std::map <std::shared_ptr<ExprTreeNode>, std::shared_ptr<BranchNodeInfo>> & parentMap
     , int & maxLineLen);
           
   int buildTreeGraph (std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists
-    , bool isLefty, std::shared_ptr<ExprTreeNode> currBranch, int treeDepth, int rootMargin
+    , bool isLefty, std::shared_ptr<ExprTreeNode> currBranch, int treeDepth
     , std::map <std::shared_ptr<ExprTreeNode>, std::shared_ptr<BranchNodeInfo>> & parentMap);
 
 };

@@ -301,8 +301,8 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 						expressionTree = exprScopeStack[0]->scopedKids[0];
 
 						if ((logLevel == ILLUSTRATIVE && !isExprVarDeclaration) || logLevel > ILLUSTRATIVE)	{
-							// TODO: expressionTree->showTree(thisSrcFile, __LINE__);
-							illustrateTree (expressionTree);
+							std::wcout << L"// ILLUSTRATIVE MODE: Compiler's Completed Expression Parse Tree" << std::endl;
+							illustrateTree (expressionTree, 0);
 						}
 					} else	{
 					std::wstring devMsg = L"Expression closed but tree conversion failed! Remaining Token count at stack top = ";
@@ -499,7 +499,7 @@ int ExpressionParser::makeTreeAndLinkParent (bool & isParentFndYet)  {
 								ret_code = OK;
 
 							} else	{
-									illustrateTree(subExpr);
+									illustrateTree(subExpr, 0);
 									std::wstring userMsg = L"Current scope opened by [";
 									userMsg.append(usrSrcTerms.get_ternary_1st());
 									userMsg.append (L"] but could not find paired [");
@@ -691,13 +691,20 @@ int ExpressionParser::moveNeighborsIntoTree (Operator & opr8r, ExprTreeNodePtrVe
 			// We tried to do something and didn't fail at it!
 			ret_code = OK;
 			if ((logLevel == ILLUSTRATIVE && !isExprVarDeclaration) || logLevel > ILLUSTRATIVE)	{
+				int updatedOprIdx = opr8rIdx;
+
 				std::wstring bannerMsg;
-				if (opr8rState == ATTACH_1ST)
+				if (opr8rState == ATTACH_1ST)	{
 					bannerMsg.append(L"Left operand");
-				else if (opr8rState == ATTACH_1ST)
+					updatedOprIdx--;
+				
+				}	else if (opr8rState == ATTACH_1ST)	{
 					bannerMsg.append(L"Right operand");
-				else if (opr8rState == ATTACH_BOTH)
+				
+				} else if (opr8rState == ATTACH_BOTH)	{
 					bannerMsg.append(L"Left & right operands");
+					updatedOprIdx--;
+				}
 
 				bannerMsg.append (L" moved under (like tree branches)");
 				bannerMsg.append (L" [" + opr8r.symbol + L"] operator");
@@ -706,7 +713,15 @@ int ExpressionParser::moveNeighborsIntoTree (Operator & opr8r, ExprTreeNodePtrVe
 					bannerMsg.append (opr8r.description);
 					bannerMsg.append (L")");
 				}
-				printSingleScope (bannerMsg , exprScopeStack.size() - 1);
+				if (exprScopeStack.size() > 1 || currScope.size() > 1)	{
+					// Avoid printing out a completed parse tree, because that happens elsewhere
+					int opr8rStartPos;
+					
+					printSingleScope (bannerMsg , exprScopeStack.size() - 1, updatedOprIdx, opr8rStartPos);
+					std::wcout << L"// ILLUSTRATIVE MODE: Current OPR8R Sub-Expression Parse Tree" << std::endl;
+					illustrateTree(opr8rNode, opr8rStartPos);
+					std::wcout << std::endl;
+				}
 			}
 		}
 	
@@ -1233,34 +1248,56 @@ int ExpressionParser::getExpectedEndToken (std::shared_ptr<Token> startTkn, uint
 /* ****************************************************************************
  * Used an aid in debugging and instruction
  * ***************************************************************************/
- void ExpressionParser::printSingleScope (std::wstring headerMsg, int scopeLvl)	{
+void ExpressionParser::printSingleScope (std::wstring headerMsg, int scopeLvl)	{
+	int tmpPos;
+
+	printSingleScope(headerMsg, scopeLvl, -1, tmpPos);
+}
+
+
+/* ****************************************************************************
+ * Used an aid in debugging and instruction
+ * ***************************************************************************/
+ void ExpressionParser::printSingleScope (std::wstring headerMsg, int scopeLvl
+	, int tgtIdx, int & tgtStartPos)	{
+	
+	tgtStartPos = 0;
+
 	if (scopeLvl >=0 && scopeLvl < exprScopeStack.size())	{
-		std::wstringstream outLine;
+		std::wstring outLine;
 
 		if (!headerMsg.empty())
 			std::wcout << headerMsg << std::endl;
 
-		outLine << L"Scope Level " << scopeLvl << L": ";
+		outLine.append(L"Scope Level ");
+		outLine.append (std::to_wstring(scopeLvl));
+		outLine.append (L": ");
 		
 		std::shared_ptr<NestedScopeExpr> chosenScope = exprScopeStack[scopeLvl];
 		std::vector<std::shared_ptr<ExprTreeNode>>::iterator kidR8r;
+		int currIdx = 0;
 
 		for (kidR8r = chosenScope->scopedKids.begin(); kidR8r != chosenScope->scopedKids.end(); kidR8r++)	{
+			if (currIdx == tgtIdx)
+				tgtStartPos = outLine.length();
+
 			std::shared_ptr<ExprTreeNode> currKid = *kidR8r;
 			if (currKid->_1stChild != NULL)
 				// Give the user a visual hint that it's a tree
-				outLine << L"/";
+				outLine.append (L"/");
 			else
-				outLine << L"[";
-			outLine << currKid->originalTkn->_string;
+				outLine.append (L"[");
+			outLine.append (currKid->originalTkn->_string);
 			if (currKid->_2ndChild != NULL)
 				// Give the user a visual hint that it's a tree
-				outLine << L"\\";
+				outLine.append (L"\\");
 			else
-				outLine << L"]";
+				outLine.append (L"]");
+
+			currIdx++;				
 		}
 
-		std::wcout << outLine.str() << std::endl;
+		std::wcout << outLine << std::endl;
 
 		if (!headerMsg.empty())
 			std::wcout << std::endl;
@@ -1297,6 +1334,7 @@ void ExpressionParser::printScopeStack (std::wstring fileName, int lineNumber)	{
 	int scopeLvl = exprScopeStack.size() - 1;
 
 	for (scopeR8r = exprScopeStack.rbegin(); scopeR8r != exprScopeStack.rend(); scopeR8r++)	{
+		
 		printSingleScope (L"", scopeLvl);
 		scopeLvl--;
 	}
@@ -1315,7 +1353,7 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
 
 		for (nodeR8r = childList.begin(); nodeR8r != childList.end(); nodeR8r++)	{
 			std::shared_ptr<ExprTreeNode> currNode = *nodeR8r;
-			illustrateTree(currNode);
+			illustrateTree(currNode, 0);
 		}
 	}
 }
@@ -1345,10 +1383,99 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
 }
 
 /* ****************************************************************************
+ * 
+ * ***************************************************************************/
+void ExpressionParser::setBniPosInsert (std::shared_ptr<BranchNodeInfo> & bnInfo
+	, bool isLefty, std::shared_ptr<BniList> halfScopeList
+	, std::map <std::shared_ptr<ExprTreeNode>, std::shared_ptr<BranchNodeInfo>> & parentMap)	{
+
+	bool isFailed = false;
+	int parentCtrPos = 0;
+	int myCenterPos = 0;
+	bool isOuterHalf = false;
+	bool isInnerOperand = false;
+
+	if (bnInfo->nodePtr != NULL && bnInfo->nodePtr->treeParent != NULL)	{
+		// We've got a parent that we need to line up our centerPos on
+		if (auto search = parentMap.find (bnInfo->nodePtr->treeParent); search != parentMap.end())	{
+			parentCtrPos = search->second->centerSidePos;
+		}
+		std::shared_ptr<BranchNodeInfo> prevBni;
+
+		if (isLefty && bnInfo->nodePtr == bnInfo->nodePtr->treeParent->_1stChild)	{
+			isOuterHalf = true;
+			if (halfScopeList->empty())	{
+				isFailed = true;
+			} else if (bnInfo->nodePtr->originalTkn->tkn_type != EXEC_OPR8R_TKN)	{
+				isInnerOperand = true;
+			}
+
+		} else if (!isLefty && bnInfo->nodePtr == bnInfo->nodePtr->treeParent->_2ndChild)	{
+			isOuterHalf = true;
+			if (halfScopeList->empty())	{
+				isFailed = true;
+			} else if (halfScopeList->at(halfScopeList->size() - 1)->nodePtr->originalTkn->tkn_type != EXEC_OPR8R_TKN)	{
+				isInnerOperand = true;
+			}
+		}
+	}
+
+	
+	std::shared_ptr<BranchNodeInfo> prevBni = NULL;
+	bool isSiblingPair = false;
+	bool isBothOperands = false;
+
+	if (!halfScopeList->empty())	{
+		if (isLefty)	{
+			auto itr8r = halfScopeList->begin();
+			prevBni = *itr8r;
+		
+		} else {
+			auto itr8r = --halfScopeList->end();
+			prevBni = *itr8r;
+		}
+		
+		if (prevBni->nodePtr != NULL && bnInfo->nodePtr != NULL && prevBni->nodePtr->treeParent == bnInfo->nodePtr->treeParent)	{
+			isSiblingPair = true;
+
+			if (prevBni->nodePtr->originalTkn->tkn_type != EXEC_OPR8R_TKN
+				&& bnInfo->nodePtr->originalTkn->tkn_type != EXEC_OPR8R_TKN)	{
+				isBothOperands = true;
+			}
+		}
+
+		if (!isSiblingPair && !isBothOperands)
+			// If we've got two child leaves back to back, leave out the gap!
+			// [+]
+			// [one][two]
+			prevBni->outerSidePos += DISPLAY_GAP_SPACES;
+
+		if (isLefty)	{
+			// Left shift everything by length of new string before adding new bnInfo
+			for (auto itr8r = halfScopeList->begin(); itr8r != halfScopeList->end(); itr8r++)	{
+				std::shared_ptr<BranchNodeInfo> residentBni = *itr8r;
+				residentBni->centerSidePos += bnInfo->tokenStr.length();
+				residentBni->outerSidePos += bnInfo->tokenStr.length();
+			}
+		}
+	}
+
+	bnInfo->centerSidePos = parentCtrPos;
+	bnInfo->outerSidePos = parentCtrPos + bnInfo->tokenStr.length();
+
+	if (isLefty)
+		// LEFTY: Each level will be built R2L                            
+		halfScopeList->insert(halfScopeList->begin(), bnInfo);
+	else
+		// RIGHTY: Each level will be built L2R
+		halfScopeList->push_back(bnInfo);
+}
+
+/* ****************************************************************************
  * Recursive proc to fill in Token descriptions at corresponding tree levels
  * ***************************************************************************/
  int ExpressionParser::buildTreeGraph (std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists
-	, bool isLefty, std::shared_ptr<ExprTreeNode> currBranch, int treeDepth, int rootMargin
+	, bool isLefty, std::shared_ptr<ExprTreeNode> currBranch, int treeDepth
 	, std::map <std::shared_ptr<ExprTreeNode>, std::shared_ptr<BranchNodeInfo>> & parentMap)	{
 
 	int ret_code = GENERAL_FAILURE;
@@ -1367,51 +1494,24 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
 	if (parentMap.find (currBranch) == parentMap.end())
 		parentMap.insert( std::pair {currBranch, bnInfo});
 
-	if (isLefty)	{
-		// Each level will be built R2L
-		if (currDepthList->empty())	{
-			bnInfo->centerSidePos = rootMargin;
-			bnInfo->outerSidePos = rootMargin + bnInfo->tokenStr.length(); // TODO: + DISPLAY_GAP_SPACES;
-		}
-		
-		else if (currBranch->treeParent != NULL)	{
-			if (auto search = parentMap.find(currBranch->treeParent); search != parentMap.end())	{
-				std::shared_ptr<BranchNodeInfo> parentBni = search->second;
-				bnInfo->centerSidePos = parentBni->centerSidePos;
-				bnInfo->outerSidePos = parentBni->centerSidePos + parentBni->tokenStr.length() + DISPLAY_GAP_SPACES;
-			}
-		}
-
-		currDepthList->insert(currDepthList->begin(), bnInfo);
+	setBniPosInsert(bnInfo, isLefty, currDepthList, parentMap);
+	
+/* 	if (isLefty)	{
 		if (currBranch->_2ndChild != NULL 
-			&& OK != buildTreeGraph (arrayOfNodeLists, isLefty, currBranch->_2ndChild, treeDepth + 1, rootMargin, parentMap))
+			&& OK != buildTreeGraph (arrayOfNodeLists, isLefty, currBranch->_2ndChild, treeDepth + 1, parentMap))
 			isFailed = true;
 		else if (currBranch->_1stChild != NULL 
-			&& OK != buildTreeGraph(arrayOfNodeLists, isLefty, currBranch->_1stChild, treeDepth + 1, rootMargin, parentMap))
+			&& OK != buildTreeGraph(arrayOfNodeLists, isLefty, currBranch->_1stChild, treeDepth + 1, parentMap))
 			isFailed = true;
 
 	} else {
-		// Each level will be built L2R
-		if (currDepthList->empty())
-			bnInfo->centerSidePos = rootMargin;
-
-		else if (currBranch->treeParent != NULL)	{
-			if (auto search = parentMap.find(currBranch->treeParent); search != parentMap.end())	{
-				std::shared_ptr<BranchNodeInfo> parentBni = search->second;
-				bnInfo->centerSidePos = parentBni->centerSidePos;
-				bnInfo->outerSidePos = parentBni->tokenStr.length() + DISPLAY_GAP_SPACES;
-			}
-		}
-
-		currDepthList->push_back(bnInfo);
-		if (currBranch->_1stChild != NULL 
-			&& OK != buildTreeGraph(arrayOfNodeLists, isLefty, currBranch->_1stChild, treeDepth + 1, rootMargin, parentMap))
+ */		if (currBranch->_1stChild != NULL 
+			&& OK != buildTreeGraph(arrayOfNodeLists, isLefty, currBranch->_1stChild, treeDepth + 1, parentMap))
 			isFailed = true;
 		else if (currBranch->_2ndChild != NULL 
-			&& OK != buildTreeGraph (arrayOfNodeLists, isLefty, currBranch->_2ndChild, treeDepth + 1, rootMargin, parentMap))
+			&& OK != buildTreeGraph (arrayOfNodeLists, isLefty, currBranch->_2ndChild, treeDepth + 1, parentMap))
 			isFailed = true;
-	
-	}
+//	}
 
 	if (!isFailed)
 		ret_code = OK;
@@ -1434,21 +1534,21 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
 
 	for (odx = 0; odx < arrayOfNodeLists.size(); odx++)	{
 		std::shared_ptr<BniList> currBniList = arrayOfNodeLists[odx];
+		int currListSize = currBniList->size();
 
 		int resumeIdx = 0;
 		bool isCurrListDone = false;
 
-		while (!isCurrListDone && resumeIdx < currBniList->size())	{
+		while (currListSize > 1 && !isCurrListDone && resumeIdx < currListSize)	{
 			int numSpacesToShiftOut = 0;
 
-			for (idx = resumeIdx; idx < currBniList->size(); idx++)	{
+			for (idx = resumeIdx; idx < currListSize; idx++)	{
 				// Work through all the BNIs at this level
 				std::shared_ptr<BranchNodeInfo> currBni = currBniList->at(idx);
 				if (numSpacesToShiftOut > 0)	{
-					currBni->centerSidePos += numSpacesToShiftOut;
+/*  					currBni->centerSidePos += numSpacesToShiftOut;
 					currBni->outerSidePos += numSpacesToShiftOut;
-
-				
+ */				
 				} else {
 					if (isLefty)	{
 						if (currBni->nodePtr->_1stChild != NULL)	{
@@ -1466,7 +1566,7 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
 							}
 						}
 					}
-				
+
 					if (numSpacesToShiftOut > 0)	{
 						// Fix this:
 						// /*\  /+\
@@ -1475,12 +1575,13 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
 						// /*\                                /+\
 						// [firstMultRand]  [secondMultRand]  [firstPlusRand]  [secondPlusRand]
 						resumeIdx = idx + 1;
+/* 						currBni->centerSidePos += numSpacesToShiftOut;
 						currBni->outerSidePos += numSpacesToShiftOut;
-					}
+ */					}
 				}
 			}
 
-			if (numSpacesToShiftOut == 0)	{
+			if (numSpacesToShiftOut == 0 || idx == currListSize)	{
 				isCurrListDone = true;
 			}
 		}
@@ -1488,7 +1589,7 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
 		int lineOuterSidePos;
 		if (isLefty && !currBniList->empty())	{
 			// Get max pos from the END of the list
-			lineOuterSidePos = currBniList->at(currBniList->size() - 1)->outerSidePos;
+			lineOuterSidePos = currBniList->at(currListSize - 1)->outerSidePos;
 			if (lineOuterSidePos > maxLineLen)
 				maxLineLen = lineOuterSidePos;
 				
@@ -1507,7 +1608,7 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
 int ExpressionParser::illustrateTree (std::shared_ptr<ExprTreeNode> startBranch, std::wstring callersSrcFile, int srcLineNum)	{
 	std::wcout << L"********** illustrateTree called from " << callersSrcFile << L":" << srcLineNum << L" **********" << std::endl;
 
-	return (illustrateTree(startBranch));
+	return (illustrateTree(startBranch, 0));
 }
 
 /* ****************************************************************************
@@ -1516,35 +1617,11 @@ int ExpressionParser::illustrateTree (std::shared_ptr<ExprTreeNode> startBranch,
  * graphical tree representation for display when operating in 
  * ILLUSTRATIVE mode
  * ***************************************************************************/
- int ExpressionParser::illustrateTree (std::shared_ptr<ExprTreeNode> startBranch)	{
+ int ExpressionParser::illustrateTree (std::shared_ptr<ExprTreeNode> startBranch, int adjustToRight)	{
 	int ret_code = GENERAL_FAILURE;
 
 	std::shared_ptr<BranchNodeInfo> rootBni = std::make_shared<BranchNodeInfo> (startBranch, makeTreeNodeStr(startBranch), false);
-	// Determine margin size from middle on nodes below root closest to middle
-	int rootDisplayMargin = rootBni->tokenStr.length() / 2;
-/* 	if (rootBni->tokenStr.length() % 2)
-		rootDisplayMargin++;
 
-   /=\
-[sum]  /B+\    
-       /*\     [3]     
-       [1][2] 
-
-Instead of rootMargin - centerSidePos calc doubled up, use a single value slapped in
-when joining left & right			 
-    /=\
-[sum] /B+\    
-      /*\     [3]     
-      [1][2]        		
-
-************************
-			
-     /=\
-[sum]   /B+\    
-        /*\     [3]     
-        [1][2]        		
-
-			*/
 	// parentMap enables quick lookup of parent tree's display position to determine
 	// current child node's position
 	std::map <std::shared_ptr<ExprTreeNode>, std::shared_ptr<BranchNodeInfo>> parentMap;
@@ -1560,17 +1637,17 @@ when joining left & right
 	if (startBranch->_1stChild == NULL)
 		left_ret = OK;
 	else
-	 	left_ret = buildTreeGraph (leftList, true, startBranch->_1stChild, 0, rootDisplayMargin, parentMap);
+	 	left_ret = buildTreeGraph (leftList, true, startBranch->_1stChild, 0, parentMap);
 
  	if (startBranch->_2ndChild == NULL)
 		 right_ret = OK;
 	 else
-			right_ret = buildTreeGraph (rightList, false, startBranch->_2ndChild, 0, rootDisplayMargin, parentMap);
+			right_ret = buildTreeGraph (rightList, false, startBranch->_2ndChild, 0, parentMap);
 
 	if (left_ret == OK && right_ret == OK)	{			
 		int leftMaxLineLen;
 		int rightMaxLineLen;
-		adjustDisplayOverlap (leftList, true, parentMap, leftMaxLineLen);
+ 		adjustDisplayOverlap (leftList, true, parentMap, leftMaxLineLen);
 		adjustDisplayOverlap (rightList, false, parentMap, rightMaxLineLen);
 
 		int numDisplayLines = leftList.size();
@@ -1587,16 +1664,19 @@ when joining left & right
 			displayLines.push_back(L"");
 
 
-		displayLines[0] = rootBni->tokenStr;
-		size_t numBlanks = leftMaxLineLen - rootBni->tokenStr.length();
-		displayLines[0].insert (displayLines[0].begin(), numBlanks, L' ');
+		displayLines[0].insert (displayLines[0].begin(), leftMaxLineLen, L' ');
+		displayLines[0].append(rootBni->tokenStr);
 
 		fillDisplayLeft (displayLines, leftList, leftMaxLineLen);
-		fillDisplayRight(displayLines, rightList);
+		fillDisplayRight(displayLines, rightList, rootBni->tokenStr.length());
 
+		std::wstring rightAdjustStr;
+
+		if (leftMaxLineLen < adjustToRight)
+			rightAdjustStr.insert ( rightAdjustStr.begin(), adjustToRight - leftMaxLineLen, L' ');
 
 		for (ldx = 0; ldx < displayLines.size(); ldx++)
-			std::wcout << displayLines[ldx] << std::endl;
+			std::wcout << rightAdjustStr << displayLines[ldx] << std::endl;
 
 		ret_code = OK;
  	}
@@ -1667,7 +1747,9 @@ when joining left & right
 /* ****************************************************************************
  * 
  * ***************************************************************************/
- int ExpressionParser::fillDisplayRight (std::vector<std::wstring> & displayLines, std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists)	{
+ int ExpressionParser::fillDisplayRight (std::vector<std::wstring> & displayLines, std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists
+	, int centerGapSpaces)	{
+
 	int ret_code = GENERAL_FAILURE;
 	std::wstring nextLine;
 	int odx = 0;
@@ -1679,6 +1761,9 @@ when joining left & right
 		for (odx = 0; odx < arrayOfNodeLists.size(); odx++)	{
 			std::shared_ptr<BniList> currBniList = arrayOfNodeLists[odx];
 			nextLine.clear();
+			// Fill in the center gap
+			if (centerGapSpaces > 0)
+				nextLine.insert ( nextLine.end(), centerGapSpaces, L' ');
 
 			for (idx = 0; idx < currBniList->size(); idx++)	{
 				// Build line from current expression scope level
