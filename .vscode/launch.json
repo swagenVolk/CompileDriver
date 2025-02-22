@@ -10,7 +10,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "/home/mike/eclipse-workspace/CompileDriver/build/CompileDriver",
-            "args": ["./testCSrcFiles/illustrate_variables4.c"],
+            "args": ["./testCSrcFiles/illustrate_literals1.c", "-l", "ILLUSTRATIVE"],
             "stopAtEntry": true,
             "cwd": "/home/mike/eclipse-workspace/CompileDriver",
             "environment": [],

@@ -8,6 +8,7 @@
 #ifndef EXPRESSIONPARSER_H_
 #define EXPRESSIONPARSER_H_
 
+#include <memory>
 #include <string>
 #include <stdint.h>
 #include <cassert>
@@ -23,6 +24,7 @@
 #include "InterpretedFileWriter.h"
 #include "StackOfScopes.h"
 #include "UserMessages.h"
+#include "BranchNodeInfo.h"
 
 // Values below used in a bit mask variable that indicates
 // allowable next states.
@@ -43,6 +45,8 @@
 #define END_COMMA_IS_EXPECTED				true
 #define END_COMMA_NOT_EXPECTED			false
 
+#define DISPLAY_GAP_SPACES          5
+
 enum opr8r_ready_state_enum  {
   OPR8R_NOT_READY
   ,ATTACH_1ST
@@ -52,6 +56,8 @@ enum opr8r_ready_state_enum  {
 
 typedef opr8r_ready_state_enum opr8rReadyState;
 
+typedef std::vector<std::shared_ptr<BranchNodeInfo>> BniList;
+
 class ExpressionParser {
 public:
 	ExpressionParser(CompileExecTerms & inUsrSrcTerms, std::shared_ptr<StackOfScopes> inVarScopeStack, std::wstring userSrcFileName
@@ -59,6 +65,9 @@ public:
 	virtual ~ExpressionParser();
 	int makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree, Token & enderTkn
 			, bool isEndedByComma, bool & isCallerExprClosed, bool isInVarDec);
+
+  int illustrateTree (std::shared_ptr<ExprTreeNode> startBranch);
+  int illustrateTree (std::shared_ptr<ExprTreeNode> startBranch, std::wstring callersSrcFile, int srcLineNum);      
 
 private:
   TokenPtrVector tknStream;
@@ -92,7 +101,20 @@ private:
   void printScopeStack (std::wstring fileName, int lineNumber);
   void printScopeStack (std::wstring bannerMsg, bool isUseDefault);
   void showDebugInfo (std::wstring srcFileName, int lineNum);
+    std::wstring makeTreeNodeStr (std::shared_ptr<ExprTreeNode> treeNode);
+
+  int fillDisplayLeft (std::vector<std::wstring> & displayLines, std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists
+    , int maxLineLen);
+
+  int fillDisplayRight (std::vector<std::wstring> & displayLines, std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists);    
+        
+  void adjustDisplayOverlap (std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists , bool isLefty
+    , std::map <std::shared_ptr<ExprTreeNode>, std::shared_ptr<BranchNodeInfo>> & parentMap
+    , int & maxLineLen);
+          
+  int buildTreeGraph (std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists
+    , bool isLefty, std::shared_ptr<ExprTreeNode> currBranch, int treeDepth, int rootMargin
+    , std::map <std::shared_ptr<ExprTreeNode>, std::shared_ptr<BranchNodeInfo>> & parentMap);
 
 };
-
 #endif /* EXPRESSIONPARSER_H_ */

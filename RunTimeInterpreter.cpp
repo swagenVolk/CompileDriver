@@ -303,6 +303,10 @@ int RunTimeInterpreter::execCurrScope (uint32_t execStartPos, uint32_t afterScop
 					} else if (op_code == EXPRESSION_OPCODE)	{		
 						Token resultTkn;	
 						isIllustrative = (usageMode == INTERPRETER ? true : false);
+
+						if (isIllustrative)
+							std::wcout << L"// ILLUSTRATIVE MODE: Interpreter will resolve expression " << std::endl;
+
 						
 						if (OK != execExpression (objStartPos, resultTkn))	{
 							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;

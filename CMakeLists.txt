@@ -11,7 +11,7 @@ add_executable(
 	Operator.h Operator.cpp TokenCompareResult.h TokenCompareResult.cpp Token.h Token.cpp
 	OpCodes.h Opr8rPrecedenceLvl.h Opr8rPrecedenceLvl.cpp
 	BaseLanguageTerms.h BaseLanguageTerms.cpp CompileExecTerms.h CompileExecTerms.cpp RunTimeInterpreter.h RunTimeInterpreter.cpp
-	ExprTreeNode.h ExprTreeNode.cpp
+	BranchNodeInfo.h BranchNodeInfo.cpp ExprTreeNode.h ExprTreeNode.cpp
 	FileParser.h FileParser.cpp
 	NestedScopeExpr.h NestedScopeExpr.cpp
 	ScopeWindow.h ScopeWindow.cpp
