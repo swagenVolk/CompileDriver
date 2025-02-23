@@ -6,32 +6,37 @@ sum = 1 * 2 + 3;
 ^^^^^^^^^^ Contents of illustrate_literals1.c included above for reference ^^^^^^^^^^
 
 /* *************** <COMPILATION STAGE> **************** */
-// Starting compilation of expression that begins on illustrate_literals1.c:3:1
+// ILLUSTRATIVE MODE: Starting compilation of expression that begins on illustrate_literals1.c:3:1
 
 Current highest precedence sub-expression closed; compiler has read in all Tokens for this expression.
 Scope Level 0: [sum][=][1][*][2][B+][3]
 Left & right operands moved under (like tree branches) [*] operator (Multiply)
 Scope Level 0: [sum][=]/*\[B+][3]
 
+Parse tree of moved operator 
+                       /*\
+                    [1]   [2]
+
 Left & right operands moved under (like tree branches) [B+] operator (Addition)
 Scope Level 0: [sum][=]/B+\
 
-Left & right operands moved under (like tree branches) [=] operator (Assignment)
-Scope Level 0: /=\
+Parse tree of moved operator 
+                       /B+\
+                    /*\    [3]
+                 [1][2]
 
-/* ********** <Show Expression Parse Tree> ********** */
-TODO: Formatting needs improvement
-[ROOT[=]]
-[[(1st)sum]     [(2nd)B+]]
-[[(1st)*]     [(2nd)3]]
-[[(1st)1]     [(2nd)2]]
-/* ********** </Show Expression Parse Tree> ********** */
+Compiler's Parse Tree for Complete Expression
+     /=\
+[sum]   /B+\
+        /*\[3]
+        [1][2]
 
 Compiler ret_code = 0
 
 /* *************** </COMPILATION STAGE> *************** */
 
 /* *************** <INTERPRETER STAGE> **************** */
+// ILLUSTRATIVE MODE: Interpreter will resolve expression 
 [=][sum][B+][*][1][2][3]
              ^ takes next 2 operands (Multiply)
 [=][sum][B+][2][3]

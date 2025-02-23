@@ -1578,6 +1578,7 @@ void ExpressionParser::getMaxLineLen (std::vector<std::shared_ptr<BniList>> & ar
 	, BranchNodeInfo parentBni, BranchNodeInfo & callerCopyBni, int treeLevel)	{
 
 	int ret_code = GENERAL_FAILURE;
+	bool isFailed = false;
 
 	if (treeNode != NULL)	{
 		int _1stChildLen = 0;
@@ -1608,47 +1609,62 @@ void ExpressionParser::getMaxLineLen (std::vector<std::shared_ptr<BniList>> & ar
 		std::shared_ptr<BranchNodeInfo> bnInfo = std::make_shared<BranchNodeInfo> (treeNode, makeTreeNodeStr(treeNode), isLefty);
 		bnInfo->allocatedLen = _1stChildLen + middleGapLen + _2ndChildLen;
 
+		bool isCenterChild = false;
 		// Determine centerSidePos
 		if (isLefty)	{
 			if (treeNode->treeParent != NULL && treeNode == treeNode->treeParent->_2ndChild)
-				// We're the _2ndChild, so our right side is lined up with our parent's right side
-				bnInfo->centerSidePos = parentBni.centerSidePos;
+				isCenterChild = true;
+			else if (treeNode->treeParent != NULL && treeNode == treeNode->treeParent->_1stChild)
+				// We're the _1stChild (towards outside), so determining our position takes more work
+				isCenterChild = false;
 			else
-				// Get centerSidePos + allocatedLen of parent
-				bnInfo->centerSidePos = parentBni.centerSidePos + parentBni.allocatedLen + 1;
+				// TODO: What about unary OPR8Rs?
+				isFailed = true;
 		
 		} else {
 			if (treeNode->treeParent != NULL && treeNode == treeNode->treeParent->_1stChild)
-				// We're the _1stChild, so our left side is lined up with our parent's left side
-				bnInfo->centerSidePos = parentBni.centerSidePos;
+				isCenterChild = true;
+			else if (treeNode->treeParent != NULL && treeNode == treeNode->treeParent->_2ndChild)
+				isCenterChild = false;
 			else
-				// Get centerSidePos + allocatedLen of parent
-				bnInfo->centerSidePos = parentBni.centerSidePos + parentBni.allocatedLen + 1;
+				// TODO: What about unary OPR8Rs?
+				isFailed = true;
+			
+		}
+
+				// Determining position takes more work for outside child
+		if (!isFailed)	{
+			if (isCenterChild)
+				bnInfo->centerSidePos = parentBni.centerSidePos;
+			else if (parentBni.allocatedLen > 0)
+					// Get centerSidePos + allocatedLen of parent
+					bnInfo->centerSidePos = parentBni.centerSidePos + parentBni.allocatedLen + middleGapLen - bnInfo->tokenStr.length();
+			else
+				bnInfo->centerSidePos = parentBni.centerSidePos + middleGapLen;			
+
+			if (arrayOfNodeLists.size() < (treeLevel + 1))	{
+				// Create level for this list if it doesn't already exist
+				std::shared_ptr<BniList> newList = std::make_shared<BniList> ();
+				arrayOfNodeLists.push_back(newList);
+			}
 		
-		}
-
-		if (arrayOfNodeLists.size() < (treeLevel + 1))	{
-			// Create level for this list if it doesn't already exist
-			std::shared_ptr<BniList> newList = std::make_shared<BniList> ();
-			arrayOfNodeLists.push_back(newList);
-		}
+			callerCopyBni = *bnInfo;
+			std::shared_ptr<BniList> currDepthList = arrayOfNodeLists[treeLevel];
 	
-		callerCopyBni = *bnInfo;
-		std::shared_ptr<BniList> currDepthList = arrayOfNodeLists[treeLevel];
-
-		bool isInserted = false;
-		for (auto itr8r = currDepthList->begin(); itr8r != currDepthList->end() && !isInserted; itr8r++)	{
-			auto currBni = *itr8r;
-			if (currBni->centerSidePos > bnInfo->centerSidePos)	{
-				currDepthList->insert(itr8r, bnInfo);
-				isInserted = true;
+			bool isInserted = false;
+			for (auto itr8r = currDepthList->begin(); itr8r != currDepthList->end() && !isInserted; itr8r++)	{
+				auto currBni = *itr8r;
+				if (currBni->centerSidePos > bnInfo->centerSidePos)	{
+					currDepthList->insert(itr8r, bnInfo);
+					isInserted = true;
+					ret_code = OK;
+				}
+			}
+	
+			if (!isInserted)	{
+				currDepthList->push_back(bnInfo);
 				ret_code = OK;
 			}
-		}
-
-		if (!isInserted)	{
-			currDepthList->push_back(bnInfo);
-			ret_code = OK;
 		}
 	}
 
@@ -1723,6 +1739,32 @@ void ExpressionParser::getMaxLineLen (std::vector<std::shared_ptr<BniList>> & ar
 		int numDisplayLines = leftList.size();
 		if (rightList.size() > numDisplayLines)
 			numDisplayLines = rightList.size();
+
+		// DEBUG OUTPUT
+#if 0		
+		for (int odx = 0; odx < numDisplayLines; odx++)	{
+			if (odx < leftList.size())	{
+				std::shared_ptr<BniList> currList = leftList.at(odx);
+				for (int leftIdx = 0; leftIdx < currList->size(); leftIdx++)	{
+					std::shared_ptr<BranchNodeInfo> bni = currList->at(leftIdx);
+					std::wcout << L"[" << bni->tokenStr << L"," << bni->centerSidePos << L"] ";
+				}
+			}
+
+			std::wcout << L" | ";
+
+			if (odx < rightList.size())	{
+				std::shared_ptr<BniList> currList = rightList.at(odx);
+				for (int rightIdx = 0; rightIdx < currList->size(); rightIdx++)	{
+					std::shared_ptr<BranchNodeInfo> bni = currList->at(rightIdx);
+					std::wcout << L"[" << bni->tokenStr << L"," << bni->centerSidePos << L"] ";
+				}
+			}
+
+			std::wcout << std::endl;
+
+		}
+#endif		
 		
 		// Need some space for the root node
 		numDisplayLines++;

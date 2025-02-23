@@ -10,40 +10,58 @@ result = one + two * three * four / six;
 ^^^^^^^^^^ Contents of illustrate_variables1.c included above for reference ^^^^^^^^^^
 
 /* *************** <COMPILATION STAGE> **************** */
-// Starting compilation of expression that begins on illustrate_variables1.c:7:1
+// ILLUSTRATIVE MODE: Starting compilation of expression that begins on illustrate_variables1.c:7:1
 
 Current highest precedence sub-expression closed; compiler has read in all Tokens for this expression.
 Scope Level 0: [result][=][one][B+][two][*][three][*][four][/][six]
 Left & right operands moved under (like tree branches) [*] operator (Multiply)
 Scope Level 0: [result][=][one][B+]/*\[*][four][/][six]
 
+Parse tree of moved operator 
+                                   /*\
+                              [two]   [three]
+
 Left & right operands moved under (like tree branches) [*] operator (Multiply)
 Scope Level 0: [result][=][one][B+]/*\[/][six]
+
+Parse tree of moved operator 
+                                   /*\
+                                /*\   [four]
+                       [two][three]
 
 Left & right operands moved under (like tree branches) [/] operator (Divide)
 Scope Level 0: [result][=][one][B+]//\
 
+Parse tree of moved operator 
+                                   //\
+                                /*\   [six]
+                          /*\[four]
+                 [two][three]      
+
 Left & right operands moved under (like tree branches) [B+] operator (Addition)
 Scope Level 0: [result][=]/B+\
 
-Left & right operands moved under (like tree branches) [=] operator (Assignment)
-Scope Level 0: /=\
+Parse tree of moved operator 
+                          /B+\
+                     [one]    //\
+                              /*\[six]
+                              /*\[four]
+                              [two][three]
 
-/* ********** <Show Expression Parse Tree> ********** */
-TODO: Formatting needs improvement
-[ROOT[=]]
-[[(1st)result]     [(2nd)B+]]
-[[(1st)one]     [(2nd)/]]
-[[(1st)*]     [(2nd)six]]
-[[(1st)*]     [(2nd)four]]
-[[(1st)two]     [(2nd)three]]
-/* ********** </Show Expression Parse Tree> ********** */
+Compiler's Parse Tree for Complete Expression
+        /=\
+[result]   /B+\
+           [one]//\
+             /*\[six]
+             /*\[four]
+             [two][three]
 
 Compiler ret_code = 0
 
 /* *************** </COMPILATION STAGE> *************** */
 
 /* *************** <INTERPRETER STAGE> **************** */
+// ILLUSTRATIVE MODE: Interpreter will resolve expression 
 [=][result][B+][one][/][*][*][two][three][four][six]
                            ^ takes next 2 operands (Multiply)
 [=][result][B+][one][/][*][6][four][six]
