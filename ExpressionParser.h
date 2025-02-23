@@ -45,7 +45,7 @@
 #define END_COMMA_IS_EXPECTED				true
 #define END_COMMA_NOT_EXPECTED			false
 
-#define DISPLAY_GAP_SPACES          5
+#define DISPLAY_GAP_SPACES          3
 
 enum opr8r_ready_state_enum  {
   OPR8R_NOT_READY
@@ -104,7 +104,7 @@ private:
   void printScopeStack (std::wstring fileName, int lineNumber);
   void printScopeStack (std::wstring bannerMsg, bool isUseDefault);
   void showDebugInfo (std::wstring srcFileName, int lineNum);
-    std::wstring makeTreeNodeStr (std::shared_ptr<ExprTreeNode> treeNode);
+  std::wstring makeTreeNodeStr (std::shared_ptr<ExprTreeNode> treeNode);
 
   int fillDisplayLeft (std::vector<std::wstring> & displayLines, std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists
     , int maxLineLen);
@@ -115,10 +115,16 @@ private:
   void setBniPosInsert (std::shared_ptr<BranchNodeInfo> & bnInfo
     , bool isLefty, std::shared_ptr<BniList> halfScopeList, int parentCtrPos);
     
-  void adjustDisplayOverlap (std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists, bool isLefty, int & maxLineLen);
+  void getMaxLineLen (std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists, bool isLefty, int & maxLineLen);
               
   int buildTreeGraph (std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists
-    , bool isLefty, std::shared_ptr<ExprTreeNode> currBranch, int treeDepth, std::shared_ptr<BranchNodeInfo> parentBni);
+    , bool isLefty, std::shared_ptr<ExprTreeNode> currBranch, int treeLevel
+    , BranchNodeInfo parentBni);
+  
+  int calcDisplayNodePos (std::shared_ptr<ExprTreeNode> treeNode
+    , std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists, bool isLefty
+    , BranchNodeInfo parentBni, BranchNodeInfo & callerCopyBni, int treeLevel);
+            
 
 };
 #endif /* EXPRESSIONPARSER_H_ */

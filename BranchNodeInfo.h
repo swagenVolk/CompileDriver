@@ -13,13 +13,13 @@
   public:
     BranchNodeInfo (std::shared_ptr<ExprTreeNode> inNodePtr, std::wstring inTokenStr, bool isLefty);
     virtual ~BranchNodeInfo();
+    BranchNodeInfo& operator= (const BranchNodeInfo& srcBni);
   
     std::shared_ptr<ExprTreeNode> nodePtr;
     std::wstring tokenStr;
     bool isLeftAligned;
     int centerSidePos;
-    int numSpacesOnLeft;
-    int numSpacesOnRight;
+    int allocatedLen;
   };
 
  #endif /* BRANCH_NODE_INFO_H_ */

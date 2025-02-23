@@ -16,8 +16,7 @@
   tokenStr = inTokenStr;
   isLeftAligned = isLefty;
   centerSidePos = 0;
-  numSpacesOnLeft = 0;
-  numSpacesOnRight = 0;
+  allocatedLen = 0;
 
 }
  
@@ -25,4 +24,23 @@
    // Clean up our allocated memory
    nodePtr.reset();
  }
+
+ BranchNodeInfo& BranchNodeInfo::operator= (const BranchNodeInfo& srcBni) {
+	// self-assignment check
+	if (this == &srcBni)
+		return *this;
+
+	// if data exists in the current string, delete it
+  nodePtr = srcBni.nodePtr;
+  tokenStr.clear();
+  tokenStr = srcBni.tokenStr;
+  isLeftAligned = srcBni.isLeftAligned;
+  centerSidePos = srcBni.centerSidePos;
+  allocatedLen = srcBni.allocatedLen;
+
+	// TODO: I don't understand the comment below
+	// return the existing object so we can chain this operator
+	return *this;
+}
+
  
