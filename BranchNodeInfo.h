@@ -18,7 +18,6 @@
     std::wstring tokenStr;
     bool isLeftAligned;
     int centerSidePos;
-    int outerSidePos;
     int numSpacesOnLeft;
     int numSpacesOnRight;
   };

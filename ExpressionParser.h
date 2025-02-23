@@ -113,16 +113,12 @@ private:
     , int centerGapSpaces);
 
   void setBniPosInsert (std::shared_ptr<BranchNodeInfo> & bnInfo
-    , bool isLefty, std::shared_ptr<BniList> halfScopeList
-    , std::map <std::shared_ptr<ExprTreeNode>, std::shared_ptr<BranchNodeInfo>> & parentMap);
-
-  void adjustDisplayOverlap (std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists , bool isLefty
-    , std::map <std::shared_ptr<ExprTreeNode>, std::shared_ptr<BranchNodeInfo>> & parentMap
-    , int & maxLineLen);
-          
+    , bool isLefty, std::shared_ptr<BniList> halfScopeList, int parentCtrPos);
+    
+  void adjustDisplayOverlap (std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists, bool isLefty, int & maxLineLen);
+              
   int buildTreeGraph (std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists
-    , bool isLefty, std::shared_ptr<ExprTreeNode> currBranch, int treeDepth
-    , std::map <std::shared_ptr<ExprTreeNode>, std::shared_ptr<BranchNodeInfo>> & parentMap);
+    , bool isLefty, std::shared_ptr<ExprTreeNode> currBranch, int treeDepth, std::shared_ptr<BranchNodeInfo> parentBni);
 
 };
 #endif /* EXPRESSIONPARSER_H_ */

@@ -16,7 +16,6 @@
   tokenStr = inTokenStr;
   isLeftAligned = isLefty;
   centerSidePos = 0;
-  outerSidePos = 0;
   numSpacesOnLeft = 0;
   numSpacesOnRight = 0;
 
