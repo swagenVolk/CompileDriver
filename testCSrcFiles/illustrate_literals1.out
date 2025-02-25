@@ -17,7 +17,7 @@ Parse tree of moved operator
                        /*\
                     [1]   [2]
 
-Left & right operands moved under (like tree branches) [B+] operator (Addition)
+Left & right operands moved under (like tree branches) [B+] operator (Add)
 Scope Level 0: [sum][=]/B+\
 
 Parse tree of moved operator 
@@ -28,7 +28,7 @@ Parse tree of moved operator
 Compiler's Parse Tree for Complete Expression
      /=\
 [sum]   /B+\
-        /*\[3]
+        /*\   [3]
         [1][2]
 
 Compiler ret_code = 0
@@ -40,7 +40,7 @@ Compiler ret_code = 0
 [=][sum][B+][*][1][2][3]
              ^ takes next 2 operands (Multiply)
 [=][sum][B+][2][3]
-         ^ takes next 2 operands (Addition)
+         ^ takes next 2 operands (Add)
 [=][sum][5]
  ^ takes next 2 operands (Assignment)
 [5] expression resolved

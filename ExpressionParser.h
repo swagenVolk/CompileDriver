@@ -66,8 +66,11 @@ public:
 	int makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree, Token & enderTkn
 			, bool isEndedByComma, bool & isCallerExprClosed, bool isInVarDec);
 
+  
   int illustrateTree (std::shared_ptr<ExprTreeNode> startBranch, int adjustToRight);
-  int illustrateTree (std::shared_ptr<ExprTreeNode> startBranch, std::wstring callersSrcFile, int srcLineNum);      
+  int illustrateTree (std::shared_ptr<ExprTreeNode> startBranch, std::wstring callersSrcFile, int srcLineNum);  
+  
+  int displayParseTree (std::shared_ptr<ExprTreeNode> startBranch, int adjustToRight);
 
 private:
   TokenPtrVector tknStream;
@@ -112,9 +115,6 @@ private:
   int fillDisplayRight (std::vector<std::wstring> & displayLines, std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists
     , int centerGapSpaces);
 
-  void setBniPosInsert (std::shared_ptr<BranchNodeInfo> & bnInfo
-    , bool isLefty, std::shared_ptr<BniList> halfScopeList, int parentCtrPos);
-    
   void getMaxLineLen (std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists, bool isLefty, int & maxLineLen);
               
   int buildTreeGraph (std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists
@@ -125,6 +125,9 @@ private:
     , std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists, bool isLefty
     , BranchNodeInfo parentBni, BranchNodeInfo & callerCopyBni, int treeLevel);
             
-
+  int buildDisplayTreeLevels (std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists
+    , bool isLeftTree, std::shared_ptr<ExprTreeNode> currBranch, int treeLevel);
+    
+  int calcAfterCenterGap (std::shared_ptr<ExprTreeNode> parentNode);    
 };
 #endif /* EXPRESSIONPARSER_H_ */

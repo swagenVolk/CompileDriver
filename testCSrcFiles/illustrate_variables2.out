@@ -15,7 +15,7 @@ result = (one + two) * three * four / six;
 Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
 Scope Level 1: [one][B+][two]
 Scope Level 0: [result][=][(]
-Left & right operands moved under (like tree branches) [B+] operator (Addition)
+Left & right operands moved under (like tree branches) [B+] operator (Add)
 Scope Level 1: /B+\
 
 Parse tree of moved operator 
@@ -38,25 +38,25 @@ Scope Level 0: [result][=]/*\[/][six]
 Parse tree of moved operator 
                           /*\
                        /*\   [four]
-               /B+\[three]
-         [one][two]       
+            /B+\   [three]
+      [one][two]          
 
 Left & right operands moved under (like tree branches) [/] operator (Divide)
 Scope Level 0: [result][=]//\
 
 Parse tree of moved operator 
-                          //\
-                       /*\   [six]
-                 /*\[four]
-         /B+\[three]      
-   [one][two]             
+                             //\
+                          /*\   [six]
+                 /*\   [four]
+      /B+\   [three]         
+[one][two]                   
 
 Compiler's Parse Tree for Complete Expression
         /=\
 [result]   //\
-           /*\[six]
-           /*\[four]
-           /B+\[three]
+           /*\   [six]
+           /*\   [four]
+           /B+\   [three]
            [one][two]
 
 Compiler ret_code = 0
@@ -66,7 +66,7 @@ Compiler ret_code = 0
 /* *************** <INTERPRETER STAGE> **************** */
 // ILLUSTRATIVE MODE: Interpreter will resolve expression 
 [=][result][/][*][*][B+][one][two][three][four][six]
-                     ^ takes next 2 operands (Addition)
+                     ^ takes next 2 operands (Add)
 [=][result][/][*][*][3][three][four][six]
                   ^ takes next 2 operands (Multiply)
 [=][result][/][*][9][four][six]

@@ -5,4 +5,8 @@ int32 result;
 
 // The expression below will have illustrative logging.
 result = ((one + two) + three) * (four + six) + (six * one << five <  eight * four ? three : four);
-//           (3 + 3) * 10 + four
+/*
+result = ((one + two) + three) * (four + six) + ((six * one << five) <  (eight * four) ? three : four);
+            parentheses added to show grouping   ^                 ^    ^            ^  
+																										6 << 5 = 192      <   32 is obviously false, so we add [four]
+*/																										

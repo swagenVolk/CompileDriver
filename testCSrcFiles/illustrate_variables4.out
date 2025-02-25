@@ -5,7 +5,11 @@ int32 result;
 
 // The expression below will have illustrative logging.
 result = ((one + two) + three) * (four + six) + (six * one << five <  eight * four ? three : four);
-//           (3 + 3) * 10 + four
+/*
+result = ((one + two) + three) * (four + six) + ((six * one << five) <  (eight * four) ? three : four);
+            parentheses added to show grouping   ^                 ^    ^            ^  
+																										6 << 5 = 192      <   32 is obviously false, so we add [four]
+*/																										
 
 
 ^^^^^^^^^^ Contents of illustrate_variables4.c included above for reference ^^^^^^^^^^
@@ -17,7 +21,7 @@ Current highest precedence sub-expression closed; compiler has NOT read in all T
 Scope Level 2: [one][B+][two]
 Scope Level 1: [(]
 Scope Level 0: [result][=][(]
-Left & right operands moved under (like tree branches) [B+] operator (Addition)
+Left & right operands moved under (like tree branches) [B+] operator (Add)
 Scope Level 2: /B+\
 
 Parse tree of moved operator 
@@ -27,7 +31,7 @@ Parse tree of moved operator
 Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
 Scope Level 1: /B+\[B+][three]
 Scope Level 0: [result][=][(]
-Left & right operands moved under (like tree branches) [B+] operator (Addition)
+Left & right operands moved under (like tree branches) [B+] operator (Add)
 Scope Level 1: /B+\
 
 Parse tree of moved operator 
@@ -38,7 +42,7 @@ Parse tree of moved operator
 Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
 Scope Level 1: [four][B+][six]
 Scope Level 0: [result][=]/B+\[*][(]
-Left & right operands moved under (like tree branches) [B+] operator (Addition)
+Left & right operands moved under (like tree branches) [B+] operator (Add)
 Scope Level 1: /B+\
 
 Parse tree of moved operator 
@@ -85,15 +89,20 @@ Left & right operands moved under (like tree branches) [<] operator
 Scope Level 1: /<\[?\
 
 Parse tree of moved operator 
-                /<\
-            /<<\   /*\
-       /*\[five]   [eight][four]
-[six][one]      
+                   /<\
+               /<<\   /*\
+       /*\   [five]   [eight][four]
+[six][one]         
 
 Left operand moved under (like tree branches) [?] operator (Ternary (if-else))
 Scope Level 1: /?\
 
 Parse tree of moved operator 
+                           /?\
+                        /<\   /:\
+                 /<<\   /*\   [three][four]
+[four]/*\[eight][five]      
+  [six][one]               
 
 Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
 Scope Level 0: [result][=]/B+\[*]/B+\[B+]/?\
@@ -103,15 +112,28 @@ Scope Level 0: [result][=]/*\[B+]/?\
 Parse tree of moved operator 
                           /*\
                       /B+\   /B+\
-               /B+\[three]   [four][six]
-         [one][two]       
+            /B+\   [three]   [four][six]
+      [one][two]          
 
-Left & right operands moved under (like tree branches) [B+] operator (Addition)
+Left & right operands moved under (like tree branches) [B+] operator (Add)
 Scope Level 0: [result][=]/B+\
 
 Parse tree of moved operator 
+                             /B+\
+                          /*\    /?\
+                  /B+\   /B+\    /<\   /:\
+[six]  /B+\[three][four]         /<<\   /*\   [three][four]
+  [one][two]                     /*\   [five] [eight][four]
+                                 [six][one]
 
 Compiler's Parse Tree for Complete Expression
+        /=\
+[result]   /B+\
+           /*\   /?\
+           /B+\   /B+\   /<\   /:\
+           /B+\   [three] [four][six] /<<\   /*\   [three][four]
+           [one][two] /*\   [five] [eight][four]
+                      [six][one]
 
 Compiler ret_code = 0
 
@@ -120,11 +142,11 @@ Compiler ret_code = 0
 /* *************** <INTERPRETER STAGE> **************** */
 // ILLUSTRATIVE MODE: Interpreter will resolve expression 
 [=][result][B+][*][B+][B+][one][two][three][B+][four][six][?][<][<<][*][six][one][five][*][eight][four][three][four]
-                       ^ takes next 2 operands (Addition)
+                       ^ takes next 2 operands (Add)
 [=][result][B+][*][B+][3][three][B+][four][six][?][<][<<][*][six][one][five][*][eight][four][three][four]
-                   ^ takes next 2 operands (Addition)
+                   ^ takes next 2 operands (Add)
 [=][result][B+][*][6][B+][four][six][?][<][<<][*][six][one][five][*][eight][four][three][four]
-                      ^ takes next 2 operands (Addition)
+                      ^ takes next 2 operands (Add)
 [=][result][B+][*][6][10][?][<][<<][*][six][one][five][*][eight][four][three][four]
                 ^ takes next 2 operands (Multiply)
 [=][result][B+][60][?][<][<<][*][six][one][five][*][eight][four][three][four]
@@ -138,7 +160,7 @@ Compiler ret_code = 0
 [=][result][B+][60][?][0x0][three][four]
                     ^ takes next 3 operands; [Conditional][TRUE path][FALSE path] (Ternary (if-else))
 [=][result][B+][60][four]
-            ^ takes next 2 operands (Addition)
+            ^ takes next 2 operands (Add)
 [=][result][64]
  ^ takes next 2 operands (Assignment)
 [64] expression resolved

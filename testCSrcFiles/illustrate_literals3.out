@@ -14,7 +14,7 @@ Current highest precedence sub-expression closed; compiler has NOT read in all T
 Scope Level 2: [3][B+][4]
 Scope Level 1: [(]
 Scope Level 0: [value][=][1][B+][2][*][(]
-Left & right operands moved under (like tree branches) [B+] operator (Addition)
+Left & right operands moved under (like tree branches) [B+] operator (Add)
 Scope Level 2: /B+\
 
 Parse tree of moved operator 
@@ -25,7 +25,7 @@ Current highest precedence sub-expression closed; compiler has NOT read in all T
 Scope Level 2: [5][B+][6]
 Scope Level 1: /B+\[*][(]
 Scope Level 0: [value][=][1][B+][2][*][(]
-Left & right operands moved under (like tree branches) [B+] operator (Addition)
+Left & right operands moved under (like tree branches) [B+] operator (Add)
 Scope Level 2: /B+\
 
 Parse tree of moved operator 
@@ -51,26 +51,26 @@ Scope Level 0: [value][=][1][B+]/*\
 Parse tree of moved operator 
                                 /*\
                              [2]   /*\
-                                   /B+\/B+\
-                                   [3][4][5][6]
+                                   /B+\   /B+\
+                                   [3][4] [5][6]
 
-Left & right operands moved under (like tree branches) [B+] operator (Addition)
+Left & right operands moved under (like tree branches) [B+] operator (Add)
 Scope Level 0: [value][=]/B+\
 
 Parse tree of moved operator 
                          /B+\
                       [1]    /*\
                              [2]/*\
-                             /B+\/B+\
-                             [3][4][5][6]
+                                /B+\   /B+\
+                                [3][4] [5][6]
 
 Compiler's Parse Tree for Complete Expression
        /=\
 [value]   /B+\
           [1]/*\
-          [2]/*\
-             /B+\/B+\
-             [3][4][5][6]
+             [2]/*\
+                /B+\   /B+\
+                [3][4] [5][6]
 
 Compiler ret_code = 0
 
@@ -79,15 +79,15 @@ Compiler ret_code = 0
 /* *************** <INTERPRETER STAGE> **************** */
 // ILLUSTRATIVE MODE: Interpreter will resolve expression 
 [=][value][B+][1][*][2][*][B+][3][4][B+][5][6]
-                           ^ takes next 2 operands (Addition)
+                           ^ takes next 2 operands (Add)
 [=][value][B+][1][*][2][*][7][B+][5][6]
-                              ^ takes next 2 operands (Addition)
+                              ^ takes next 2 operands (Add)
 [=][value][B+][1][*][2][*][7][11]
                         ^ takes next 2 operands (Multiply)
 [=][value][B+][1][*][2][77]
                   ^ takes next 2 operands (Multiply)
 [=][value][B+][1][154]
-           ^ takes next 2 operands (Addition)
+           ^ takes next 2 operands (Add)
 [=][value][155]
  ^ takes next 2 operands (Assignment)
 [155] expression resolved
