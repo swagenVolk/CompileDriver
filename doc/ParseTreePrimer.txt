@@ -1,0 +1,182 @@
+******************** EXPRESSIONS ********************
+
+When the compiler handles an expression, it must use well defined rules regarding order
+defined by sub-expressions and the precedence of operators within each sub-expression.
+A sub-expression is contained within a set of parentheses, and sub-expressions can be
+nested within other sub-expressions. An expression without parentheses has no sub-expressions. 
+Phrased differently, the main expression and the single sub-expression are one and the same.
+
+Example: 2 almost idential expressions
+
+No sub-expression			With sub-expression
+1 + 2 + 3 + 4					1 + 2 + (3 + 4)
+[3] + 3 + 4						1 + 2 + [7]
+[6] + 4								[3] + [7]
+[10] <-Final result		[10] <-Final result
+
+There are no different operator precedence levels because [+] is the only operator.
+In the left side example, the order of operations defaults to left-to-right. The 
+right side example changes the order of operations slightly with parentheses.
+
+Due to the math properties of [+], we'll get the same final result, but the ORDER of
+operations has changed. Many expressions will have different results when the
+sub-expression order is changed by adding, replacing or moving parentheses around.
+	
+
+******************** PARSE TREES ********************
+
+Expressions are open-ended and can range from a single operand to ridiculously long.
+As the compiler is working on an expression, it uses a parse tree to maintain an 
+internal representation of that expression that maintains the order of operations
+that is dictated by both sub-expressions and operator precedence within each
+sub-expression.
+
+A parse tree is a binary tree where higher precedence operations will be 
+represented deeper in the tree.  When the compiler comes to the end of a 
+valid expression, the leaf nodes of the parse tree will contain operands (values)
+and the branch nodes will contain operators that act on the nodes below them.
+
+Higher precedence operations are deeper within the tree, and need to be 
+resolved before lower precedence operations.  This means that the parse tree
+gets resolved in a depth first recursive manner.
+
+
+******************** EXAMPLES ********************
+
+***** Example expression ***** 
+1 + 2
+
+Compiler's parse tree:
+
+   /B+\
+[1]    [2]
+
+Simple example with a final result of [3]
+
+***** Example expression ***** 
+1 + 2 + 3
+
+Compiler's parse tree:
+
+      /B+\
+  /B+\    [3]
+[1][2]
+
+We have to go deep and solve 
+  /B+\
+[1][2]
+
+first.  This sub-expression is equivalent to the previous example. Now
+after resolving the deep left sub-expression, our tree looks like so
+
+      /B+\
+	 [3]    [3]
+
+The parse tree has been simplified down to a single, easy to resolve
+operation and a final result of [6]
+
+***** Example expression ***** 
+1 + 2 + 3 * 4
+
+Compiler's parse tree:
+
+      /B+\
+  /B+\    /*\
+[1][2]    [3][4]
+
+We need to resolve the deeper levels first.  In this case, there is a 
+3rd level on both left and right sides of the tree. We'll go deep on the
+left side 1st, then the right side.
+
+We first solve
+   /B+\
+[1]   [2]
+
+and our tree changes to:
+      /B+\
+  [3]    /*\
+         [3][4]
+
+Next we solve
+   /*\
+[3]  [4]
+
+and our tree reduces to:
+      /B+\
+   [3]    [12]
+
+and this resolves to a final result of [15]
+
+***** Example expression ***** 
+1 + (2 + 3) * 4
+
+Compiler's parse tree:
+
+   /B+\
+[1]    /*\
+       /B+\   [4]
+       [2][3]
+
+Steps to resolve parse tree:
+
+1. Tree level 2: Add [2]+[3] and replace /B+\ with [5]
+2. Tree level 1: Multiply [5]*[4] and replace /*\ with [20]
+3. Tree level 0: Add [1]+[20] for a final result of [21]
+
+***** Example expression ***** 
+1 + 2 * 3 + 4 * 5 + 6
+
+Compiler's parse tree:
+
+                  /B+\
+              /B+\    [6]
+     /B+\     /*\
+[1]   /*\  [4][5]   
+    [2][3]      
+  
+  
+Steps to resolve parse tree:
+
+1. Tree level 3: Multiply [2]*[3] and replace /*\ with [6]
+2. Tree level 2: Add [1]+[6] and replace /B+\ with [7]
+3. Tree level 2: Multiply [4]*[5] and replace /*\ with [20]
+4. Tree level 1: Add [7]+[20] and replace /B+\ with [27]
+5. Tree level 0: Add [27]+[6] for a final result of [33]   
+
+***** Example expression ***** 
+(1 + 2) * (3 + 4) * 5 + 6
+
+Compiler's parse tree:
+
+                   /B+\
+                /*\    [6]
+          /*\   [5]
+  /B+\   /B+\      
+[1][2] [3][4]         
+
+Steps to resolve parse tree:
+
+1. Tree level 3: Add [1]+[2] and replace /B+\ with [3]
+2. Tree level 3: Add [3]+[4] and replace /B+\ with [7]
+3. Tree level 2: Multiply [3]*[7] and replace /*\ with [21]
+4. Tree level 1: Multiply [21]*[5] and replace /*\ with [105]
+5. Tree level 0: Add [105]+[6] for a final result of [111]
+
+
+***** Example expression ***** 
+(1 + 2) * (3 + 4) * (5 + 6)
+
+Compiler's parse tree:
+
+               /*\
+            /*\   /B+\
+  /B+\     /B+\   [5][6]
+[1][2]   [3][4]
+
+Steps to resolve parse tree:
+
+1. Tree level 2: Add [1]+[2] and replace /B+\ with [3]
+2. Tree level 2: Add [3]+[4] and replace /B+\ with [7]
+3. Tree level 1: Multiply [3]*[7] and replace /*\ with [21]
+4. Tree level 1: Add [5]+[6] and replace /B+\ with [11]
+5. Tree level 0: Multiply [21]*[11] for a final result of [231]
