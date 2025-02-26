@@ -20,21 +20,22 @@ right side example changes the order of operations slightly with parentheses.
 
 Due to the math properties of [+], we'll get the same final result, but the ORDER of
 operations has changed. Many expressions will have different results when the
-sub-expression order is changed by adding, replacing or moving parentheses around.
+sub-expression order is changed by adding, removing or changing parentheses around.
 	
 
 ******************** PARSE TREES ********************
 
 Expressions are open-ended and can range from a single operand to ridiculously long.
 As the compiler is working on an expression, it uses a parse tree to maintain an 
-internal representation of that expression that maintains the order of operations
+internal representation of that expression that upholds the order of operations
 that is dictated by both sub-expressions and operator precedence within each
 sub-expression.
 
 A parse tree is a binary tree where higher precedence operations will be 
 represented deeper in the tree.  When the compiler comes to the end of a 
-valid expression, the leaf nodes of the parse tree will contain operands (values)
-and the branch nodes will contain operators that act on the nodes below them.
+valid expression, the leaf nodes at the bottom of the parse tree will contain 
+operands (values) and the branch nodes will contain operators that act on the 
+nodes below them.
 
 Higher precedence operations are deeper within the tree, and need to be 
 resolved before lower precedence operations.  This means that the parse tree
@@ -62,7 +63,7 @@ Compiler's parse tree:
   /B+\    [3]
 [1][2]
 
-We have to go deep and solve 
+We have to go deep and solve the sub-tree
   /B+\
 [1][2]
 
@@ -72,7 +73,7 @@ after resolving the deep left sub-expression, our tree looks like so
       /B+\
 	 [3]    [3]
 
-The parse tree has been simplified down to a single, easy to resolve
+The entire parse tree has been simplified down to a single, easy to resolve
 operation and a final result of [6]
 
 ***** Example expression ***** 
@@ -88,20 +89,20 @@ We need to resolve the deeper levels first.  In this case, there is a
 3rd level on both left and right sides of the tree. We'll go deep on the
 left side 1st, then the right side.
 
-We first solve
+We first solve the sub-tree
    /B+\
 [1]   [2]
 
-and our tree changes to:
+and our whole tree changes to:
       /B+\
   [3]    /*\
          [3][4]
 
-Next we solve
+Next we solve the sub-tree
    /*\
 [3]  [4]
 
-and our tree reduces to:
+and our whole tree reduces to:
       /B+\
    [3]    [12]
 
@@ -112,10 +113,11 @@ and this resolves to a final result of [15]
 
 Compiler's parse tree:
 
-   /B+\
+   /B+\     <- Tree level 0
 [1]    /*\
        /B+\   [4]
        [2][3]
+
 
 Steps to resolve parse tree:
 
@@ -128,7 +130,7 @@ Steps to resolve parse tree:
 
 Compiler's parse tree:
 
-                  /B+\
+                  /B+\     <- Tree level 0
               /B+\    [6]
      /B+\     /*\
 [1]   /*\  [4][5]   
@@ -148,7 +150,7 @@ Steps to resolve parse tree:
 
 Compiler's parse tree:
 
-                   /B+\
+                   /B+\     <- Tree level 0
                 /*\    [6]
           /*\   [5]
   /B+\   /B+\      
@@ -168,7 +170,7 @@ Steps to resolve parse tree:
 
 Compiler's parse tree:
 
-               /*\
+               /*\     <- Tree level 0
             /*\   /B+\
   /B+\     /B+\   [5][6]
 [1][2]   [3][4]
