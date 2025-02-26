@@ -8,11 +8,11 @@ Phrased differently, the main expression and the single sub-expression are one a
 
 Example: 2 almost idential expressions
 
-No sub-expression			With sub-expression
-1 + 2 + 3 + 4					1 + 2 + (3 + 4)
-[3] + 3 + 4						1 + 2 + [7]
-[6] + 4								[3] + [7]
-[10] <-Final result		[10] <-Final result
+No sub-expression      With sub-expression
+1 + 2 + 3 + 4          1 + 2 + (3 + 4)
+[3] + 3 + 4            1 + 2 + [7]
+[6] + 4                [3] + [7]
+[10] <-Final result    [10] <-Final result
 
 There are no different operator precedence levels because [+] is the only operator.
 In the left side example, the order of operations defaults to left-to-right. The 
@@ -21,7 +21,7 @@ right side example changes the order of operations slightly with parentheses.
 Due to the math properties of [+], we'll get the same final result, but the ORDER of
 operations has changed. Many expressions will have different results when the
 sub-expression order is changed by adding, removing or changing parentheses around.
-	
+
 
 ******************** PARSE TREES ********************
 
@@ -71,7 +71,7 @@ first.  This sub-expression is equivalent to the previous example. Now
 after resolving the deep left sub-expression, our tree looks like so
 
       /B+\
-	 [3]    [3]
+   [3]    [3]
 
 The entire parse tree has been simplified down to a single, easy to resolve
 operation and a final result of [6]
