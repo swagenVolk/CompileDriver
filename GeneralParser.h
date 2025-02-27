@@ -29,24 +29,24 @@
 #include "StackOfScopes.h"
 #include "UserMessages.h"
 
-#define RESUME_COMPILATION	L"Continuing compilation after "
+#define RESUME_COMPILATION  L"Continuing compilation after "
 
 enum var_declaration_states_enum {
   GET_VAR_NAME
-	,CHECK_FOR_INIT_EXPR
-	,PARSE_INIT_EXPR
-	,TIDY_AFTER_EXPR
+  ,CHECK_FOR_INIT_EXPR
+  ,PARSE_INIT_EXPR
+  ,TIDY_AFTER_EXPR
 };
 
 typedef var_declaration_states_enum varDeclarationState;
 
 class GeneralParser {
 public:
-	GeneralParser(TokenPtrVector & inTknStream, std::wstring userSrcFileName, CompileExecTerms & inUsrSrcTerms
-			, std::shared_ptr<UserMessages> userMessages, std::string object_file_name, std::shared_ptr<StackOfScopes> inVarNameSpace
+  GeneralParser(TokenPtrVector & inTknStream, std::wstring userSrcFileName, CompileExecTerms & inUsrSrcTerms
+      , std::shared_ptr<UserMessages> userMessages, std::string object_file_name, std::shared_ptr<StackOfScopes> inVarNameSpace
       , logLvlEnum logLvl);
-	virtual ~GeneralParser();
-	int compileRootScope();
+  virtual ~GeneralParser();
+  int compileRootScope();
   int compileCurrScope ();
 
 protected:
