@@ -305,7 +305,7 @@ int RunTimeInterpreter::execCurrScope (uint32_t execStartPos, uint32_t afterScop
 						isIllustrative = (usageMode == INTERPRETER ? true : false);
 
 						if (isIllustrative)
-							std::wcout << L"// ILLUSTRATIVE MODE: Interpreter will resolve expression " << std::endl;
+							std::wcout << L"// ILLUSTRATIVE MODE: Flattened expression resolved below" << std::endl << std::endl;
 
 						
 						if (OK != execExpression (objStartPos, resultTkn))	{
@@ -1974,23 +1974,22 @@ int RunTimeInterpreter::execOperation (Operator opr8r, int opr8rIdx, std::vector
 		if (caretPos >= 0)	{
 			// Put the ^ underneath the target OPR8R from the previous line
 			tmpStr.insert (0, caretPos, ' ');
-			tmpStr.append(L"^");
+			tmpStr.append(L"^ ");
 			if (opr8rIdx >= 0 && opr8rIdx < flatExprTkns.size())	{
 				Operator opr8r;
 				if (OK == execTerms.getExecOpr8rDetails (flatExprTkns[opr8rIdx]._unsigned, opr8r))	{
 					int randCnt = opr8r.numReqExecOperands;
-					tmpStr.append (L" takes next ");
+					if (!opr8r.description.empty())
+						tmpStr.append (opr8r.description);
+          else
+            tmpStr.append (L"Use");
+
+					tmpStr.append (L" next ");
 					tmpStr.append (std::to_wstring(randCnt));
-					tmpStr.append (L" operand");
-					if (randCnt != 1)
-						tmpStr.append(L"s");
+					tmpStr.append (L" sequential operand(s); replace w/ result");
 
 					if (opr8r.op_code == TERNARY_1ST_OPR8R_OPCODE)	{
 						tmpStr.append (L"; [Conditional][TRUE path][FALSE path]");
-					}
-
-					if (!opr8r.description.empty())	{
-						tmpStr.append (L" (" + opr8r.description + L")");
 					}
 				}
 			}
@@ -2178,7 +2177,6 @@ int RunTimeInterpreter::resolveFlatExpr(std::vector<Token> & flatExprTkns)     {
 		userMessages->logMsg (INTERNAL_ERROR, L"Token stream unexpectedly EMPTY!", thisSrcFile, __LINE__, 0);
 	
 	} else	{
-		// util.dumpTokenList(flatExprTkns, execTerms, thisSrcFile, __LINE__);
 		tknsIllustrativeStr.clear();
 		ret_code = execFlatExpr_OLR(flatExprTkns, 0);
 	}

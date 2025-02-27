@@ -496,6 +496,7 @@ int ExpressionParser::makeTreeAndLinkParent (bool & isParentFndYet)  {
 								// The subexpression root is the [:] OPR8R
 								scopener->_2ndChild = subExpr;
 								subExpr->scopenedBy = scopener;
+								// TODO: Is line below relevant?
 								subExpr->treeParent = scopener;
 								isExprAttached = true;
 								ret_code = OK;

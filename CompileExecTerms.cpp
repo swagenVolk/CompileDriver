@@ -57,11 +57,11 @@ CompileExecTerms::CompileExecTerms() {
 
 	grouped_opr8rs.push_back(Opr8rPrecedenceLvl ());
   grouped_opr8rs.back().opr8rs.push_back ( Operator (L"+", BINARY, USR_SRC, 2, 0, INVALID_OPCODE, L""));
-  grouped_opr8rs.back().opr8rs.push_back ( Operator (BINARY_PLUS_OPR8R, BINARY, GNR8D_SRC, 2, 2, BINARY_PLUS_OPR8R_OPCODE, L"Addition"));
+  grouped_opr8rs.back().opr8rs.push_back ( Operator (BINARY_PLUS_OPR8R, BINARY, GNR8D_SRC, 2, 2, BINARY_PLUS_OPR8R_OPCODE, L"Add"));
 	execToSrcOpr8rMap.insert (std::pair {BINARY_PLUS_OPR8R, L"+"});
 
 	grouped_opr8rs.back().opr8rs.push_back ( Operator (L"-", BINARY, USR_SRC, 2, 0, INVALID_OPCODE, L""));
-  grouped_opr8rs.back().opr8rs.push_back ( Operator (BINARY_MINUS_OPR8R, BINARY, GNR8D_SRC, 2, 2, BINARY_MINUS_OPR8R_OPCODE, L"Subtraction"));
+  grouped_opr8rs.back().opr8rs.push_back ( Operator (BINARY_MINUS_OPR8R, BINARY, GNR8D_SRC, 2, 2, BINARY_MINUS_OPR8R_OPCODE, L"Subtract"));
 	execToSrcOpr8rMap.insert (std::pair {BINARY_MINUS_OPR8R, L"-"});
 
 	grouped_opr8rs.push_back(Opr8rPrecedenceLvl ());
@@ -107,7 +107,7 @@ CompileExecTerms::CompileExecTerms() {
   grouped_opr8rs.back().opr8rs.push_back ( Operator (L":", (BINARY|TERNARY_2ND), (USR_SRC|GNR8D_SRC), 2, 2, TERNARY_2ND_OPR8R_OPCODE, L"Ternary (divs TRUE|FALSE paths)"));
 
 	grouped_opr8rs.push_back(Opr8rPrecedenceLvl ());
-  grouped_opr8rs.back().opr8rs.push_back ( Operator (L"=", BINARY, (USR_SRC|GNR8D_SRC), 2, 2, ASSIGNMENT_OPR8R_OPCODE, L"Assignment"));
+  grouped_opr8rs.back().opr8rs.push_back ( Operator (L"=", BINARY, (USR_SRC|GNR8D_SRC), 2, 2, ASSIGNMENT_OPR8R_OPCODE, L"Assign"));
   grouped_opr8rs.back().opr8rs.push_back ( Operator (L"+=", BINARY, (USR_SRC|GNR8D_SRC), 2, 2, PLUS_ASSIGN_OPR8R_OPCODE, L"Add & assign"));
   grouped_opr8rs.back().opr8rs.push_back ( Operator (L"-=", BINARY, (USR_SRC|GNR8D_SRC), 2, 2, MINUS_ASSIGN_OPR8R_OPCODE, L"Subtract & assign"));
   grouped_opr8rs.back().opr8rs.push_back ( Operator (L"*=", BINARY, (USR_SRC|GNR8D_SRC), 2, 2, MULTIPLY_ASSIGN_OPR8R_OPCODE, L"Multiply & assign"));

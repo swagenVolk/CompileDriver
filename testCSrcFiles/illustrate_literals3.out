@@ -77,19 +77,20 @@ Compiler ret_code = 0
 /* *************** </COMPILATION STAGE> *************** */
 
 /* *************** <INTERPRETER STAGE> **************** */
-// ILLUSTRATIVE MODE: Interpreter will resolve expression 
+// ILLUSTRATIVE MODE: Flattened expression resolved below
+
 [=][value][B+][1][*][2][*][B+][3][4][B+][5][6]
-                           ^ takes next 2 operands (Add)
+                           ^ Add next 2 sequential operand(s); replace w/ result
 [=][value][B+][1][*][2][*][7][B+][5][6]
-                              ^ takes next 2 operands (Add)
+                              ^ Add next 2 sequential operand(s); replace w/ result
 [=][value][B+][1][*][2][*][7][11]
-                        ^ takes next 2 operands (Multiply)
+                        ^ Multiply next 2 sequential operand(s); replace w/ result
 [=][value][B+][1][*][2][77]
-                  ^ takes next 2 operands (Multiply)
+                  ^ Multiply next 2 sequential operand(s); replace w/ result
 [=][value][B+][1][154]
-           ^ takes next 2 operands (Add)
+           ^ Add next 2 sequential operand(s); replace w/ result
 [=][value][155]
- ^ takes next 2 operands (Assignment)
+ ^ Assign next 2 sequential operand(s); replace w/ result
 [155] expression resolved
 Interpreter ret_code = 0
 

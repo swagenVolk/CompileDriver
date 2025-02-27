@@ -36,13 +36,14 @@ Compiler ret_code = 0
 /* *************** </COMPILATION STAGE> *************** */
 
 /* *************** <INTERPRETER STAGE> **************** */
-// ILLUSTRATIVE MODE: Interpreter will resolve expression 
+// ILLUSTRATIVE MODE: Flattened expression resolved below
+
 [=][sum][B+][*][1][2][3]
-             ^ takes next 2 operands (Multiply)
+             ^ Multiply next 2 sequential operand(s); replace w/ result
 [=][sum][B+][2][3]
-         ^ takes next 2 operands (Add)
+         ^ Add next 2 sequential operand(s); replace w/ result
 [=][sum][5]
- ^ takes next 2 operands (Assignment)
+ ^ Assign next 2 sequential operand(s); replace w/ result
 [5] expression resolved
 Interpreter ret_code = 0
 

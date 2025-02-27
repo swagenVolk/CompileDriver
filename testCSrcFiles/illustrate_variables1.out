@@ -61,17 +61,18 @@ Compiler ret_code = 0
 /* *************** </COMPILATION STAGE> *************** */
 
 /* *************** <INTERPRETER STAGE> **************** */
-// ILLUSTRATIVE MODE: Interpreter will resolve expression 
+// ILLUSTRATIVE MODE: Flattened expression resolved below
+
 [=][result][B+][one][/][*][*][two][three][four][six]
-                           ^ takes next 2 operands (Multiply)
+                           ^ Multiply next 2 sequential operand(s); replace w/ result
 [=][result][B+][one][/][*][6][four][six]
-                        ^ takes next 2 operands (Multiply)
+                        ^ Multiply next 2 sequential operand(s); replace w/ result
 [=][result][B+][one][/][24][six]
-                     ^ takes next 2 operands (Divide)
+                     ^ Divide next 2 sequential operand(s); replace w/ result
 [=][result][B+][one][4]
-            ^ takes next 2 operands (Add)
+            ^ Add next 2 sequential operand(s); replace w/ result
 [=][result][5]
- ^ takes next 2 operands (Assignment)
+ ^ Assign next 2 sequential operand(s); replace w/ result
 [5] expression resolved
 Interpreter ret_code = 0
 

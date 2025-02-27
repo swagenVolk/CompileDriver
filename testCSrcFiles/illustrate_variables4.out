@@ -140,29 +140,30 @@ Compiler ret_code = 0
 /* *************** </COMPILATION STAGE> *************** */
 
 /* *************** <INTERPRETER STAGE> **************** */
-// ILLUSTRATIVE MODE: Interpreter will resolve expression 
+// ILLUSTRATIVE MODE: Flattened expression resolved below
+
 [=][result][B+][*][B+][B+][one][two][three][B+][four][six][?][<][<<][*][six][one][five][*][eight][four][three][four]
-                       ^ takes next 2 operands (Add)
+                       ^ Add next 2 sequential operand(s); replace w/ result
 [=][result][B+][*][B+][3][three][B+][four][six][?][<][<<][*][six][one][five][*][eight][four][three][four]
-                   ^ takes next 2 operands (Add)
+                   ^ Add next 2 sequential operand(s); replace w/ result
 [=][result][B+][*][6][B+][four][six][?][<][<<][*][six][one][five][*][eight][four][three][four]
-                      ^ takes next 2 operands (Add)
+                      ^ Add next 2 sequential operand(s); replace w/ result
 [=][result][B+][*][6][10][?][<][<<][*][six][one][five][*][eight][four][three][four]
-                ^ takes next 2 operands (Multiply)
+                ^ Multiply next 2 sequential operand(s); replace w/ result
 [=][result][B+][60][?][<][<<][*][six][one][five][*][eight][four][three][four]
-                              ^ takes next 2 operands (Multiply)
+                              ^ Multiply next 2 sequential operand(s); replace w/ result
 [=][result][B+][60][?][<][<<][6][five][*][eight][four][three][four]
-                          ^ takes next 2 operands (Left shift)
+                          ^ Left shift next 2 sequential operand(s); replace w/ result
 [=][result][B+][60][?][<][0xc0][*][eight][four][three][four]
-                                ^ takes next 2 operands (Multiply)
+                                ^ Multiply next 2 sequential operand(s); replace w/ result
 [=][result][B+][60][?][<][0xc0][32][three][four]
-                       ^ takes next 2 operands
+                       ^ Use next 2 sequential operand(s); replace w/ result
 [=][result][B+][60][?][0x0][three][four]
-                    ^ takes next 3 operands; [Conditional][TRUE path][FALSE path] (Ternary (if-else))
+                    ^ Ternary (if-else) next 3 sequential operand(s); replace w/ result; [Conditional][TRUE path][FALSE path]
 [=][result][B+][60][four]
-            ^ takes next 2 operands (Add)
+            ^ Add next 2 sequential operand(s); replace w/ result
 [=][result][64]
- ^ takes next 2 operands (Assignment)
+ ^ Assign next 2 sequential operand(s); replace w/ result
 [64] expression resolved
 Interpreter ret_code = 0
 
