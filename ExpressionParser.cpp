@@ -303,7 +303,6 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 					if ((logLevel == ILLUSTRATIVE && !isExprVarDeclaration) || logLevel > ILLUSTRATIVE)	{
 						std::wcout << L"Compiler's Parse Tree for Complete Expression" << std::endl;
 						illustrateTree (expressionTree, 0);
-						// displayParseTree (expressionTree, 0);
 					}
 				} else	{
 					std::wstring devMsg = L"Expression closed but tree conversion failed! Remaining Token count at stack top = ";

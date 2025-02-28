@@ -135,6 +135,9 @@ Compiler's Parse Tree for Complete Expression
            [one][two] /*\   [five] [eight][four]
                       [six][one]
 
+Parse tree flattened and written out to interpreted file
+[=][result][B+][*][B+][B+][one][two][three][B+][four][six][?][<][<<][*][six][one][five][*][eight][four][three][four]
+
 Compiler ret_code = 0
 
 /* *************** </COMPILATION STAGE> *************** */

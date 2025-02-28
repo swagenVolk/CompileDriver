@@ -83,6 +83,9 @@ Compiler's Parse Tree for Complete Expression
            /B+\   [three] [four][six]
            [one][two]
 
+Parse tree flattened and written out to interpreted file
+[=][result][B+][*][B+][B+][one][two][three][B+][four][six][*][six][three]
+
 Compiler ret_code = 0
 
 /* *************** </COMPILATION STAGE> *************** */

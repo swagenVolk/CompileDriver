@@ -593,7 +593,7 @@ int GeneralParser::handleExpression (bool & isStopFail)	{
 			// (3 + 4) -> [3][4][+]
 			isStopFail = true;
 		
-		} else if (OK != interpretedFileWriter.writeFlatExprToFile(flatExprTkns))	{
+		} else if (OK != interpretedFileWriter.writeFlatExprToFile(flatExprTkns, logLevel >= ILLUSTRATIVE))	{
 			// Write out to interpreted file BEFORE we destructively resolve the flat stream of Tokens that make up the expression
 			isStopFail = true;
 
@@ -650,7 +650,7 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
 		// (3 + 4) -> [3][4][+]
 		isFailed = true;
 	
-	} else if (OK != interpretedFileWriter.writeFlatExprToFile(flatExprTkns))	{
+	} else if (OK != interpretedFileWriter.writeFlatExprToFile(flatExprTkns, false))	{
 		// Write out the expression BEFORE we destructively resolve it
 		isFailed = true;
 

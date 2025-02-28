@@ -52,7 +52,7 @@ InterpretedFileWriter::~InterpretedFileWriter() {
  * just needs to write the Token stream out to the interpreted file as a
  * flexible length object.
  * ***************************************************************************/
-int InterpretedFileWriter::writeFlatExprToFile (std::vector<Token> & flatExprTknList)	{
+int InterpretedFileWriter::writeFlatExprToFile (std::vector<Token> & flatExprTknList, bool isIllustrative)	{
 	int ret_code = GENERAL_FAILURE;
 	int idx;
 	bool isFailed = false;
@@ -82,6 +82,12 @@ int InterpretedFileWriter::writeFlatExprToFile (std::vector<Token> & flatExprTkn
 
 			if (!isFailed)
 				ret_code = writeObjectLen (startFilePos);
+
+      if (OK == ret_code && isIllustrative) {
+        int caretPos;
+        std::wcout << L"\nParse tree flattened and written out to interpreted file" << std::endl;
+        std::wcout << util.getTokenListStr(flatExprTknList, 0, caretPos) << std::endl;
+      }
 
 		}
 	}
