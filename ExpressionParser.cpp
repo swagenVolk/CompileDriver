@@ -98,12 +98,14 @@
 #include "ExpressionParser.h"
 
 #include <bits/stdint-uintn.h>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "BranchNodeInfo.h"
 #include "CompileExecTerms.h"
@@ -127,12 +129,18 @@ ExpressionParser::ExpressionParser(CompileExecTerms & inUsrSrcTerms, std::shared
 	logLevel = logLvl;
 	isExprVarDeclaration = false;
 	isExprClosed = false;
+  failOnSrcLine = 0;
 }
 
 
 ExpressionParser::~ExpressionParser() {
 	// TODO Auto-generated destructor stub
 	cleanScopeStack();
+	if (failOnSrcLine > 0 && !userMessages->isExistsInternalError(thisSrcFile, failOnSrcLine))	{
+		// Dump out a debugging hint
+		std::wcout << L"FAILURE on " << thisSrcFile << L":" << failOnSrcLine << std::endl;
+	}
+
 }
 
 /* ****************************************************************************
@@ -303,7 +311,10 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 					if ((logLevel == ILLUSTRATIVE && !isExprVarDeclaration) || logLevel > ILLUSTRATIVE)	{
 						std::wcout << L"Compiler's Parse Tree for Complete Expression" << std::endl;
 						illustrateTree (expressionTree, 0);
-					}
+
+            std::wcout << L"\ndisplayParseTree" << std::endl;
+            displayParseTree(expressionTree, 0);
+ 					}
 				} else	{
 					std::wstring devMsg = L"Expression closed but tree conversion failed! Remaining Token count at stack top = ";
 					devMsg.append ( std::to_wstring(numTknsLeftInExpr));
@@ -1432,9 +1443,44 @@ void ExpressionParser::getMaxLineLen (std::vector<std::shared_ptr<BniList>> & ar
 }
 
 /* ****************************************************************************
+ * TODO: Only thing this is doing right now is getting longest length 
+ * ***************************************************************************/
+ void ExpressionParser::getMaxLineLen (std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & arrayOfNodeLists, bool isLefty, int & maxLineLen)	{
+
+	int odx;
+	int idx;
+	int outerChildPos;
+	maxLineLen = 0;
+
+	for (odx = 0; odx < arrayOfNodeLists.size(); odx++)	{
+		std::vector<std::shared_ptr<ExprTreeNode>> currLvlList = arrayOfNodeLists[odx];
+		int currListSize = currLvlList.size();
+
+		for (idx = 0; idx < currListSize; idx++)	{
+			// Work through all the BNIs at this level
+			std::shared_ptr<ExprTreeNode> currBni = currLvlList.at(idx);
+
+			int lineOuterSidePos;
+			std::shared_ptr<ExprTreeNode> lastEntry;
+			if (isLefty && !currLvlList.empty())	{
+				// Get max pos from the END of the list
+				lastEntry = currLvlList.at(currListSize - 1);
+        if (lastEntry->displayEndPos > maxLineLen)
+					maxLineLen = lastEntry->displayEndPos;
+					
+			} else if (!currLvlList.empty()) {
+				// Get max pos from the FRONT of the list
+				lastEntry = currLvlList.at(0);
+        if (lastEntry->displayEndPos > maxLineLen)
+					maxLineLen = lastEntry->displayEndPos;
+			}
+		}
+	}
+}
+/* ****************************************************************************
  * 
  * ***************************************************************************/
-int ExpressionParser::calcAfterCenterGap (std::shared_ptr<ExprTreeNode> parentNode)	{
+int ExpressionParser::calcGapAfterCenter (std::shared_ptr<ExprTreeNode> parentNode)	{
 	int gapLen = 0;
 	int numChildOpr8rs = 0;
 
@@ -1453,6 +1499,47 @@ int ExpressionParser::calcAfterCenterGap (std::shared_ptr<ExprTreeNode> parentNo
 	return (gapLen);
 }
 
+/* ****************************************************************************
+ * 
+ * ***************************************************************************/
+ int ExpressionParser::adjAncestorCtrDisplayPos (std::shared_ptr<ExprTreeNode> callersNode)	{
+  int ret_code = GENERAL_FAILURE;
+
+  if (callersNode != NULL && callersNode->treeParent != NULL) {
+    std::shared_ptr<ExprTreeNode> currNode = callersNode->treeParent;
+
+    if (callersNode->displayRow <= 1)  {
+      // Nothing to do
+      ret_code = OK;
+    
+    } else {
+      bool isDone = false;
+
+      while (!isDone) {
+        if (currNode->displayRow <= 1 || currNode->displayCol == 0)  {
+          isDone = true;
+
+        } else  {
+          if (currNode->displayStartPos < callersNode->displayStartPos) {
+            int diff = currNode->displayEndPos - currNode->displayStartPos;
+            currNode->displayStartPos = callersNode->displayStartPos;
+            currNode->displayEndPos = currNode->displayStartPos + diff;
+          }
+          
+          if (currNode->treeParent == NULL) 
+            isDone = true;
+          else
+            currNode = currNode->treeParent;
+        }
+      }
+    }
+  }
+
+  return ret_code;
+
+}
+
+  
 /* ****************************************************************************
  * 
  * ***************************************************************************/
@@ -1577,14 +1664,14 @@ int ExpressionParser::calcAfterCenterGap (std::shared_ptr<ExprTreeNode> parentNo
 					calcMyCtrPos += endBni->tokenStr.length() + (endBni->nodePtr->originalTkn->tkn_type == SRC_OPR8R_TKN ? DISPLAY_GAP_SPACES : 1);
 				else	{
 					// endBni was centered, so we're an outsider
-				 	calcMyCtrPos += calcAfterCenterGap (endBni->nodePtr->treeParent);
+				 	calcMyCtrPos += calcGapAfterCenter (endBni->nodePtr->treeParent);
 				}
 			} else {
 				// int myAfterCtrGap = isCtrOpr8r ? DISPLAY_GAP_SPACES : (isOuterOpr8r && treeLevel > 0) ? 1 : 0;
 				// int myAfterCtrGap = (isCtrOpr8r && isOuterOpr8r) ? DISPLAY_GAP_SPACES : (isCtrOpr8r || isOuterOpr8r) ? 1 : 0;
 				// int childsAfterCtrGap = (isCtrChildOpr8r && isOuterChildOpr8r) ? DISPLAY_GAP_SPACES : (isCtrChildOpr8r || isOuterChildOpr8r) ? 1 : 0;
-				myAfterCtrGap = calcAfterCenterGap (treeNode->treeParent);
-				childsAfterCtrGap = calcAfterCenterGap (treeNode);
+				myAfterCtrGap = calcGapAfterCenter (treeNode->treeParent);
+				childsAfterCtrGap = calcGapAfterCenter (treeNode);
 				myAfterOuterGap = isOuterOpr8r ? DISPLAY_GAP_SPACES : 1;
 				childsAfterOuterGap = isOuterChildOpr8r ? DISPLAY_GAP_SPACES : 1;
 				
@@ -1599,9 +1686,6 @@ int ExpressionParser::calcAfterCenterGap (std::shared_ptr<ExprTreeNode> parentNo
 			int sizedByChildren = _1stChildLen + childsAfterCtrGap + _2ndChildLen + childsAfterOuterGap;
 			int directSize = treeNodeStr.length() + myAfterCtrGap + myAfterOuterGap;
 			bnInfo->allocatedLen = (sizedByChildren > directSize) ? sizedByChildren : directSize;
-
-			if (treeLevel > 1 && isOuterSide && bnInfo->centerSidePos == 0)
-				std::wcout << L"STOP" << std::endl;
 
 			callerCopyBni = *bnInfo;
 	
@@ -1664,55 +1748,609 @@ int ExpressionParser::calcAfterCenterGap (std::shared_ptr<ExprTreeNode> parentNo
 }
 
 /* ****************************************************************************
- * Recursive proc to fill in Token descriptions at corresponding tree levels
+ * inside operand,outside operand - no space between
+ * inside operand,outside opr8r   - 1 space between
+ * inside opr8r, outside operand  - 1 space between
  * ***************************************************************************/
- int ExpressionParser::buildDisplayTreeLevels (std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists
-	, bool isLeftTree, std::shared_ptr<ExprTreeNode> currBranch, int treeLevel)	{
+int ExpressionParser::getOuterNodeStartPos (bool isLeftTree, std::shared_ptr<ExprTreeNode> currBranch) {
+  int ret_code = GENERAL_FAILURE;
+  bool isFailed = false;
+
+  std::shared_ptr<ExprTreeNode> outer;
+  std::shared_ptr<ExprTreeNode> inner;
+  int afterInnerGap = 0;
+
+  if (isLeftTree && currBranch->treeParent != NULL && currBranch->treeParent->_2ndChild != NULL
+    && currBranch != currBranch->treeParent->_2ndChild && currBranch->treeParent->_1stChild != NULL
+    && currBranch == currBranch->treeParent->_1stChild)  {
+    // _1stChild is OUTER; _2ndChild is INNER
+    if (currBranch->treeParent->_2ndChild->originalTkn->tkn_type == SRC_OPR8R_TKN || currBranch->originalTkn->tkn_type == SRC_OPR8R_TKN)
+      afterInnerGap = 1;
+
+    currBranch->displayStartPos = currBranch->treeParent->_2ndChild->displayStartPos + makeTreeNodeStr(currBranch->_2ndChild).length() + afterInnerGap;
+    ret_code = OK;
+
+  } else if (!isLeftTree && currBranch->treeParent != NULL && currBranch->treeParent->_1stChild != NULL
+    && currBranch != currBranch->treeParent->_1stChild && currBranch->treeParent->_2ndChild != NULL
+    && currBranch == currBranch->treeParent->_2ndChild)  {
+    // _1stChild is INNER; _2ndChild is OUTER
+
+    if (currBranch->treeParent->_1stChild->originalTkn->tkn_type == SRC_OPR8R_TKN || currBranch->originalTkn->tkn_type == SRC_OPR8R_TKN)
+      afterInnerGap = 1;
+
+    currBranch->displayStartPos = currBranch->treeParent->_1stChild->displayStartPos + makeTreeNodeStr(currBranch->treeParent->_1stChild).length() + afterInnerGap;
+
+    ret_code = OK;
+  } 
+
+  return ret_code;
+
+}
+
+/* ****************************************************************************
+ * Determine if the current ExprTreeNode is towards the center of the display
+ * tree in its node pair, or towards the outside
+ * TODO: [result]
+ * ***************************************************************************/
+ int ExpressionParser::setIsCenterNode (bool isLeftTree, int halfTreeLevel, std::shared_ptr<ExprTreeNode> currBranch) {
+  int ret_code = GENERAL_FAILURE;
+
+  if (currBranch != NULL) {
+    if (halfTreeLevel == 0 && isLeftTree)  {
+      if (currBranch->treeParent != NULL && currBranch == currBranch->treeParent->_1stChild) {
+        currBranch->nodePos = CENTER_NODE;
+        ret_code = OK;
+      }
+    } else if (halfTreeLevel == 0 && !isLeftTree) {
+      if (currBranch->treeParent != NULL && currBranch == currBranch->treeParent->_2ndChild)  {
+        currBranch->nodePos = CENTER_NODE;
+        ret_code = OK;
+      }
+    } else if (isLeftTree)  {
+      if (currBranch->treeParent != NULL && currBranch == currBranch->treeParent->_2ndChild)  {
+        currBranch->nodePos = CENTER_NODE;
+        ret_code = OK;
+      
+      } else if (currBranch->treeParent != NULL && currBranch == currBranch->treeParent->_1stChild) {
+        currBranch->nodePos = OUTER_NODE;
+        ret_code = OK;
+      }
+    } else {
+      if (currBranch->treeParent != NULL && currBranch == currBranch->treeParent->_1stChild)  {
+        currBranch->nodePos = CENTER_NODE;
+        ret_code = OK;
+      
+      } else if (currBranch->treeParent != NULL && currBranch == currBranch->treeParent->_2ndChild) {
+        currBranch->nodePos = OUTER_NODE;
+        ret_code = OK;
+      }
+    }
+  }
+
+  assert (ret_code == OK);
+
+  return ret_code;
+}
+
+/* ****************************************************************************
+ * Set the display length of currBranch based on the accumulated lengths of the
+ * children below it.
+ * ***************************************************************************/
+ int ExpressionParser::setAccumDisplayEnd (int halfTreeLvl, bool isLeftTree
+  , std::shared_ptr<ExprTreeNode> currBranch, int outerBndryPos)  {
+  int ret_code = GENERAL_FAILURE;
+
+  if (currBranch != NULL) {
+    std::wstring myNodeStr = makeTreeNodeStr(currBranch);
+    int childAggLen = 0;
+    bool isInnerOpr8r = false;
+    bool isOuterOpr8r = false;
+    int opr8rCnt = 0;
+
+    if (myNodeStr == L"/?\\")
+      std::wcout << L"TODO: STOP!" << std::endl;
+
+    if (currBranch->_1stChild != NULL) 
+      childAggLen = currBranch->_1stChild->displayEndPos;
+    
+    if (currBranch->_2ndChild != NULL && currBranch->_2ndChild->displayEndPos > childAggLen) 
+      childAggLen = currBranch->_2ndChild->displayEndPos;
+
+    if (isLeftTree) {
+      if (currBranch->nodePos == CENTER_NODE && currBranch->treeParent != NULL && currBranch->treeParent->_1stChild != NULL)
+        isOuterOpr8r = currBranch->treeParent->_1stChild->originalTkn->tkn_type == SRC_OPR8R_TKN;
+      
+      if (currBranch->nodePos == OUTER_NODE && currBranch->treeParent != NULL && currBranch->treeParent->_2ndChild != NULL)
+        isInnerOpr8r = currBranch->treeParent->_2ndChild->originalTkn->tkn_type == SRC_OPR8R_TKN;
+    
+    } else {
+      // Right side tree
+      if (currBranch->nodePos == CENTER_NODE && currBranch->treeParent != NULL && currBranch->treeParent->_2ndChild != NULL)
+        isOuterOpr8r = currBranch->treeParent->_2ndChild->originalTkn->tkn_type == SRC_OPR8R_TKN;
+
+      if (currBranch->nodePos == OUTER_NODE && currBranch->treeParent != NULL && currBranch->treeParent->_1stChild != NULL)
+        isInnerOpr8r = currBranch->treeParent->_1stChild->originalTkn->tkn_type == SRC_OPR8R_TKN;
+    
+    }
+
+    if (isInnerOpr8r)
+      opr8rCnt++;
+    if (isOuterOpr8r)
+      opr8rCnt++;
+
+    /* *************** HANDLE displayStartPos *************** */
+    // TODO:
+    bool isCtrNode = (currBranch->nodePos == CENTER_NODE);
+    if (!isCtrNode) {
+      // Check if we need to adjust this outside node
+      if (isLeftTree) {
+        if (currBranch->_2ndChild != NULL && currBranch->_2ndChild->displayStartPos > currBranch->displayStartPos)
+          // For this outside node, usle start position from our center child since it was updated via recursion
+          currBranch->displayStartPos = currBranch->_2ndChild->displayStartPos;
+
+      } else {
+        if (currBranch->_1stChild != NULL && currBranch->_1stChild->displayStartPos > currBranch->displayStartPos)
+          // For this outside node, usle start position from our center child since it was updated via recursion
+          currBranch->displayStartPos = currBranch->_1stChild->displayStartPos;
+      }
+    } else {
+      // Go up the tree and find our ancestor with the lowest halfTreeLevel that matches our column
+      // TODO: Not sure if I should be doing this! adjAncestorCtrDisplayPos (currBranch);
+    }
+      
+      
+
+    /* *************** HANDLE displayEndPos *************** */
+    if (isCtrNode && opr8rCnt == 0)
+      // inside operand,outside operand - no space between
+      currBranch->displayEndPos = currBranch->displayStartPos + myNodeStr.length();
+    
+    else if (isCtrNode && opr8rCnt == 1)
+      // inside operand,outside opr8r || inside opr8r, outside operand - 1 space between
+      currBranch->displayEndPos = currBranch->displayStartPos + myNodeStr.length() + 1;
+      
+    else  {
+      int maxPos = outerBndryPos;
+      int assumedMinPos = currBranch->displayStartPos + myNodeStr.length() + 1;
+
+      if (childAggLen > assumedMinPos && childAggLen > maxPos)
+        maxPos = childAggLen;
+      else if (assumedMinPos > childAggLen && assumedMinPos > maxPos)
+        maxPos = assumedMinPos;
+        
+      currBranch->displayEndPos = maxPos;
+
+    }
+     
+    // TODO: Debug
+    // std::wcout << L"[" << currBranch->displayRow << L", " << currBranch->displayCol << L"]; isCtr = " << isCtrNode << L"; " << myNodeStr << L"; startPos = " << currBranch->displayStartPos << L"; endPos = " << currBranch->displayEndPos << L";" << std::endl;
+    ret_code = OK;
+  }
+
+
+  return ret_code;
+
+}
+
+/* ****************************************************************************
+ * Calculate and update the current max display column for a given row in
+ * for parse tree display
+ * ***************************************************************************/
+void ExpressionParser::setDisplayRowCol (bool isLeftTree, int halfTreeLevel, std::shared_ptr<ExprTreeNode> currBranch) {
+
+  currBranch->displayRow = halfTreeLevel;
+
+  if (isLeftTree) {
+    if (leftTreeMaxCol.size() < (halfTreeLevel + 1))  {
+      // A level *ALWAYS* starts with a center node
+      assert (currBranch->nodePos == CENTER_NODE);
+
+      if (currBranch->treeParent != NULL) {
+        // New center entry lines up with parent (also centered)
+        currBranch->displayCol = currBranch->treeParent->displayCol;
+        if (currBranch->displayCol == -1) {
+          assert (halfTreeLevel == 0);
+          currBranch->displayCol++;
+        }
+      }
+
+      while (leftTreeMaxCol.size() < (halfTreeLevel + 1))	{
+        // Create level for this list if it doesn't already exist
+        leftTreeMaxCol.push_back(0);
+      }
+      leftTreeMaxCol[halfTreeLevel] = currBranch->displayCol;
+
+    } else {
+      currBranch->displayCol = ++leftTreeMaxCol[halfTreeLevel];
+    }
+
+  } else {
+    // RIGHT side tree
+    if (rightTreeMaxCol.size() < (halfTreeLevel + 1))  {
+      // A level *ALWAYS* starts with a center node
+      assert (currBranch->nodePos == CENTER_NODE);
+
+      if (currBranch->treeParent != NULL) {
+        // New center entry lines up with parent (also centered)
+        currBranch->displayCol = currBranch->treeParent->displayCol;
+        if (currBranch->displayCol == -1) {
+          assert (halfTreeLevel == 0);
+          currBranch->displayCol++;
+        }
+      }
+
+      while (rightTreeMaxCol.size() < (halfTreeLevel + 1))	{
+        // Create level for this list if it doesn't already exist
+        rightTreeMaxCol.push_back(0);
+      }
+      rightTreeMaxCol[halfTreeLevel] = currBranch->displayCol;
+
+    } else {
+      currBranch->displayCol = ++rightTreeMaxCol[halfTreeLevel];
+    }
+
+  }
+}
+
+/* ****************************************************************************
+ * 
+ * ***************************************************************************/
+int ExpressionParser::getCtrPos1stEntry (int halfTreeLevel, std::shared_ptr<ExprTreeNode> currBranch)  {
+  int ret_code = GENERAL_FAILURE;
+
+  std::wcout << L"1st entry; lvl = " << halfTreeLevel << L"; " << makeTreeNodeStr(currBranch) << std::endl;
+
+  if (currBranch != NULL) {
+    if (halfTreeLevel <= 1) {
+      currBranch->displayStartPos = 0;
+      ret_code = OK;
+    
+    } else if (currBranch->treeParent != NULL)  {
+      currBranch->displayStartPos = currBranch->treeParent->displayStartPos;
+      ret_code = OK;
+    }
+  }
+  return ret_code;
+}
+
+/* ****************************************************************************
+ * 
+ * ***************************************************************************/
+void ExpressionParser::initStartPosOnCtrKids (bool isLeftTree, std::shared_ptr<ExprTreeNode> startBranch)  {
+  
+  if (startBranch != NULL) {
+    int newStartPos = startBranch->displayStartPos;
+    bool isDone = false;
+
+    std::shared_ptr<ExprTreeNode> currBranch = startBranch;
+
+    while (!isDone) {
+      if (isLeftTree) {
+        if (currBranch->_2ndChild == NULL)  {
+          isDone = true;
+        
+        } else  {
+          currBranch = currBranch->_2ndChild;
+          currBranch->displayStartPos = newStartPos;
+        }
+      } else {
+        if (currBranch->_1stChild == NULL)  {
+          isDone = true;
+        
+        } else  {
+          currBranch = currBranch->_1stChild;
+          currBranch->displayStartPos = newStartPos;
+        }
+      }
+    }
+  }
+}
+
+/* ****************************************************************************
+ * Recursive proc to fill in Token descriptions at corresponding tree levels
+ * inside operand,outside operand - no space between
+ * inside operand,outside opr8r   - 1 space between
+ * inside opr8r, outside operand  - 1 space between
+ * inside opr8r, outside opr8r    - resolve inside 1st to determine gap between the two
+ * Compiler's Parse Tree for Complete Expression
+ * [[result],0]  | [/B+\,0] 
+ *  | [/*\,0] [/?\,6] 
+ *  | [/B+\,0] [/B+\,7] [/<\,14] [/:\,20] 
+ *  | [/B+\,0] [[three],7] [[four],15] [[six],21] [/<<\,27] [/*\,34] [[three],40] [[four],47] 
+ *  | [[one],0] [[two],5] [/*\,11] [[five],17] [[eight],24] [[four],31] 
+ *  | [[six],11] [[one],16] 
+ *         /=\
+ * [result]   /B+\
+ *            /*\   /?\
+ *            /B+\   /B+\   /<\   /:\
+ *            /B+\   [three] [four][six] /<<\   /*\   [three][four]
+ *            [one][two] /*\   [five] [eight][four]
+ *                       [six][one]
+ * 
+ * displayParseTree
+ * L; lvl = 0; isCtr = 1; [result]; ctrPos = 0; len = 8;
+ * R; lvl = 0; isCtr = 1; [B+]; ctrPos = 0; len = 4;
+ * 
+ * R; lvl = 1; isCtr = 1; [*]; ctrPos = 0; len = 3;
+ * R; lvl = 1; isCtr = 0; [?]; ctrPos = 4; len = 3;
+ * 
+ * R; lvl = 2; isCtr = 1; [B+]; ctrPos = 0; len = 12;
+ * R; lvl = 2; isCtr = 0; [B+]; ctrPos = 5; len = 6;
+ * R; lvl = 2; isCtr = 1; [<]; ctrPos = 0; len = 13;     <-- Center from next tuple doesn't have correct starting pos
+ * R; lvl = 2; isCtr = 0; [:]; ctrPos = 4; len = 9;
+ * 
+ * R; lvl = 3; isCtr = 1; [B+]; ctrPos = 0; len = 10;
+ * R; lvl = 3; isCtr = 0; [three]; ctrPos = 5; len = 7;
+ * R; lvl = 3; isCtr = 1; [four]; ctrPos = 0; len = 6;   <-- Center from next tuple doesn't have correct starting pos
+ * R; lvl = 3; isCtr = 0; [six]; ctrPos = 6; len = 5;
+ * R; lvl = 3; isCtr = 1; [<<]; ctrPos = 0; len = 10;    <-- Center from next tuple doesn't have correct starting pos
+ * R; lvl = 3; isCtr = 0; [*]; ctrPos = 5; len = 8;
+ * R; lvl = 3; isCtr = 1; [three]; ctrPos = 0; len = 7;  <-- Center from next tuple doesn't have correct starting pos
+ * R; lvl = 3; isCtr = 0; [four]; ctrPos = 7; len = 6;
+ * 
+ * R; lvl = 4; isCtr = 1; [one]; ctrPos = 0; len = 5;
+ * R; lvl = 4; isCtr = 0; [two]; ctrPos = 5; len = 5;
+ * R; lvl = 4; isCtr = 1; [*]; ctrPos = 0; len = 10;     <-- Center from next tuple doesn't have correct starting pos
+ * R; lvl = 4; isCtr = 0; [five]; ctrPos = 4; len = 6;   
+ * R; lvl = 4; isCtr = 1; [eight]; ctrPos = 0; len = 7;  <-- Center from next tuple doesn't have correct starting pos
+ * R; lvl = 4; isCtr = 0; [four]; ctrPos = 7; len = 6;
+ * 
+ * R; lvl = 5; isCtr = 1; [six]; ctrPos = 0; len = 5;
+ * R; lvl = 5; isCtr = 0; [one]; ctrPos = 5; len = 5;
+ * ***************************************************************************/
+ int ExpressionParser::buildDisplayTreeLevels (std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & arrayOfNodeLists
+	, bool isLeftTree, std::shared_ptr<ExprTreeNode> currBranch, int halfTreeLevel, int & callersOutBndryPos)	{
 
 	int ret_code = GENERAL_FAILURE;
-	bool isFailed = false;
 
 	if (currBranch != NULL)	{
-		// TODO: Convert to non-pointer?
-		std::shared_ptr<BranchNodeInfo> myBni = std::make_shared<BranchNodeInfo> (currBranch, makeTreeNodeStr(currBranch), isLeftTree);
-		
-		if (arrayOfNodeLists.size() < (treeLevel + 1))	{
-			// Create level for this list if it doesn't already exist
-			std::shared_ptr<BniList> newList = std::make_shared<BniList> ();
-			arrayOfNodeLists.push_back(newList);
-		}
 
-		arrayOfNodeLists[treeLevel]->push_back(myBni);
+    // TODO
+    if (halfTreeLevel == 1 && currBranch->originalTkn->_string == L"?")
+      std::wcout << L"BEGIN BDTLs: " << halfTreeLevel << L"; " << currBranch->originalTkn->_string << L"; begPos = " << currBranch->displayStartPos 
+        << L"; " << currBranch->displayEndPos << L";" << std::endl;
 
-		if (isLeftTree)	{
-			// 
-			if (currBranch->_2ndChild != NULL 
-				&& OK != buildDisplayTreeLevels (arrayOfNodeLists, isLeftTree, currBranch->_2ndChild, treeLevel + 1))
-				isFailed = true;
-			else if (currBranch->_1stChild != NULL 
-				&& OK != buildDisplayTreeLevels (arrayOfNodeLists, isLeftTree, currBranch->_1stChild, treeLevel + 1))
-				isFailed = true;
-			
-		} else {
-			if (currBranch->_1stChild != NULL 
-				&& OK != buildDisplayTreeLevels(arrayOfNodeLists, isLeftTree, currBranch->_1stChild, treeLevel + 1))
-				isFailed = true;
-			else if (currBranch->_2ndChild != NULL 
-				&& OK != buildDisplayTreeLevels(arrayOfNodeLists, isLeftTree, currBranch->_2ndChild, treeLevel + 1))
-				isFailed = true;
-			
-		}
+    if (halfTreeLevel == 2 && currBranch->originalTkn->_string == L"<")
+      std::wcout << L"BEGIN BDTLs: " << halfTreeLevel << L"; " << currBranch->originalTkn->_string << L"; begPos = " << currBranch->displayStartPos 
+        << L"; " << currBranch->displayEndPos << L";" << std::endl;
+
+    if (OK != setIsCenterNode (isLeftTree, halfTreeLevel, currBranch)) {
+      failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+    
+    } else  {
+      while (arrayOfNodeLists.size() < (halfTreeLevel + 1))	{
+        // Create level for this list if it doesn't already exist
+        arrayOfNodeLists.push_back(std::vector<std::shared_ptr<ExprTreeNode>> ());
+      }
+
+      // Make an alias variable for code readability
+      std::vector<std::shared_ptr<ExprTreeNode>> & currLvlList = arrayOfNodeLists[halfTreeLevel];
+
+      if (currLvlList.empty())  {
+        // New lists should always start with a center node
+        assert (currBranch->nodePos == CENTER_NODE);
+        getCtrPos1stEntry (halfTreeLevel, currBranch);
+      
+      } else if (currBranch->nodePos == CENTER_NODE) {
+        // getCtrPosFollowers (currBranch);
+      } else if (currBranch->nodePos == OUTER_NODE)  {
+        getOuterNodeStartPos (isLeftTree, currBranch);  
+      }
 
 
-		if (!isFailed)
-			ret_code = OK;
 
-	} else 	{
-		std::wcout << L"TODO: Didn't expect to get here" << std::endl;
-	}
+/*    getOuterNodeStartPos (isLeftTree, currBranch)
+      initStartPosOnCtrKids (isLeftTree, currBranch);
+ */
+      if (!failOnSrcLine)  {
+        setDisplayRowCol (isLeftTree, halfTreeLevel, currBranch);
+        currLvlList.push_back(currBranch);
+
+        int ctrBoundaryPos = 0;
+        int outBoundaryPos = 0;
+
+        if (isLeftTree)	{
+          //  
+          if (currBranch->_2ndChild != NULL)  {
+            // Resolve CENTER branch 1st
+            if (OK != buildDisplayTreeLevels (arrayOfNodeLists, isLeftTree, currBranch->_2ndChild, halfTreeLevel + 1,  ctrBoundaryPos))
+              failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+          }
+    
+          if (!failOnSrcLine && currBranch->_1stChild != NULL)  {
+            // Resolve OUTSIDE branch next 
+            if (OK != buildDisplayTreeLevels (arrayOfNodeLists, isLeftTree, currBranch->_1stChild, halfTreeLevel + 1, outBoundaryPos))
+              failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+          }
+
+          if (!failOnSrcLine)  {
+            if (ctrBoundaryPos > outBoundaryPos)  {
+              failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+            
+            } else {
+              callersOutBndryPos = outBoundaryPos;
+              // After recursive calls, set length from accumulated length of tree descendants using OUTER node
+              // treeLevel [0..1] will only have 1 node OR we're dealing with a leaf node (no recursive calls made)
+              if (OK != setAccumDisplayEnd (halfTreeLevel, isLeftTree, currBranch, callersOutBndryPos))
+                failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+            }
+          }
+
+        } else {
+          if (currBranch->_1stChild != NULL)  {
+            // Resolve CENTER branch 1st
+            if (OK != buildDisplayTreeLevels(arrayOfNodeLists, isLeftTree, currBranch->_1stChild, halfTreeLevel + 1, ctrBoundaryPos))
+              failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+          }
+    
+          if (!failOnSrcLine && currBranch->_2ndChild != NULL)  {
+            // Resolve OUTSIDE branch next 
+            if (OK != buildDisplayTreeLevels(arrayOfNodeLists, isLeftTree, currBranch->_2ndChild, halfTreeLevel + 1, outBoundaryPos))
+              failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+          }
+  
+          if (!failOnSrcLine)  {
+            // After recursive calls, set length from accumulated length of tree descendants using OUTER node
+            // treeLevel [0..1] will only have 1 node OR we're dealing with a leaf node (no recursive calls made)
+            if (ctrBoundaryPos > outBoundaryPos)  {
+              failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+            
+            } else {
+              // TODO: Dupe to isLeftTree
+              if (OK != setAccumDisplayEnd (halfTreeLevel, isLeftTree, currBranch, outBoundaryPos))
+                failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+              else if (currBranch->displayEndPos > callersOutBndryPos)
+                callersOutBndryPos = currBranch->displayEndPos;
+              
+              if (halfTreeLevel == 1 && currBranch->originalTkn->_string == L"?")
+                std::wcout << L"END BDTLs: " << halfTreeLevel << L"; " << currBranch->originalTkn->_string << L"; begPos = " << currBranch->displayStartPos 
+                  << L"; " << currBranch->displayEndPos << L";" << std::endl;
+          
+              if (halfTreeLevel == 2 && currBranch->originalTkn->_string == L"<")
+                std::wcout << L"END BDTLs: " << halfTreeLevel << L"; " << currBranch->originalTkn->_string << L"; begPos = " << currBranch->displayStartPos 
+                << L"; " << currBranch->displayEndPos << L";" << std::endl;
+            }
+          }
+        }
+      }
+
+      if (!failOnSrcLine)  {
+        ret_code = OK;
+      }
+    }
+  }
 
 	return (ret_code);
 
+}
+
+/* ****************************************************************************
+ * Serves as an ILLUSTRATIVE aid
+ * After an expression tree has been built, this proc will create a 
+ * graphical tree representation for display when operating in 
+ * ILLUSTRATIVE mode
+ * 
+ * What I've got right now:
+ *         /=\
+ * [result]   /B+\
+ *            /*\/?\
+ *            /B+\/B+\/<\/:\
+ *            /B+\[three][four][six]/<<\/*\[three][four]
+ *            [one][two]/*\[five][eight][four]
+ *            [six][one]
+ *
+ * Start from top level on L or R side
+ * R side - figure out max width for _1stChild side recursively
+ * Push _2ndChild over so there's no overlap
+ * figure out max width for _2ndChild side recursively
+ * 
+ * Probably want it to look something like below:
+ * 
+ * /B+\
+ * /*\                       /?\
+ * /B+\         /B+\         /<\                     /:\
+ * /B+\ [three] [four][six]  /<<\       /*\          [three][four]
+ * [one][two]                /*\ [five] [eight][four]
+ *                           [six][one]
+ *
+ * inside operand,outside operand - no space between
+ * inside operand,outside opr8r   - 1 space between
+ * inside opr8r, outside operand  - 1 space between
+ * inside opr8r, outside opr8r    - resolve inside 1st to determine gap between the two
+ * ***************************************************************************/
+ int ExpressionParser::displayParseTree (std::shared_ptr<ExprTreeNode> startBranch, int adjustToRight)	{
+	int ret_code = GENERAL_FAILURE;
+
+  // TODO:
+  return setFullTreeDisplayPos(startBranch);
+
+  /* TODO:
+	BranchNodeInfo rootBni (startBranch, makeTreeNodeStr(startBranch), false);
+
+	std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> leftList;
+	std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> rightList;
+
+	int left_ret;
+	int right_ret;
+  int leftOutBndryPos, rightOutBndryPos;
+	
+	if (startBranch->_1stChild == NULL)
+		left_ret = OK;
+	else
+	 	left_ret = buildDisplayTreeLevels (leftList, true, startBranch->_1stChild, 0, leftOutBndryPos);
+
+ 	if (startBranch->_2ndChild == NULL)
+		 right_ret = OK;
+	 else
+			right_ret = buildDisplayTreeLevels (rightList, false, startBranch->_2ndChild, 0, rightOutBndryPos);
+
+	if (left_ret == OK && right_ret == OK)	{			
+		int leftMaxLineLen;
+		int rightMaxLineLen;
+
+    int numDisplayLines = leftList.size();
+		if (rightList.size() > numDisplayLines)
+			numDisplayLines = rightList.size();
+
+      // TODO: Get this debug section working.  See if additions are "sticking" to the list
+    getMaxLineLen (leftList, true, leftMaxLineLen);
+		getMaxLineLen (rightList, false, rightMaxLineLen);
+
+    // DEBUG OUTPUT		for (int odx = 0; odx < numDisplayLines; odx++)	{
+    std::wcout << L"TODO: displayParseTree DEBUG OUTPUT" << std::endl;
+		for (int odx = 0; odx < numDisplayLines; odx++)	{		
+			if (odx < leftList.size())	{
+				std::vector<std::shared_ptr<ExprTreeNode>> currList = leftList.at(odx);
+				for (int leftIdx = currList.size() - 1; leftIdx >= 0 ; leftIdx--)	{
+					std::shared_ptr<ExprTreeNode> node = currList.at(leftIdx);
+					std::wcout << L"[(" << node->displayRow << L", " << node->displayCol << L") " << node->originalTkn->_string << L", " << node->displayStartPos << L", " << node->displayEndPos << L"] ";
+				}
+			}
+
+			std::wcout << L" | ";
+
+			if (odx < rightList.size())	{
+				std::vector<std::shared_ptr<ExprTreeNode>> currList = rightList.at(odx);
+				for (int rightIdx = 0; rightIdx < currList.size() ; rightIdx++)	{
+					std::shared_ptr<ExprTreeNode> node = currList.at(rightIdx);
+					std::wcout << L"[(" << node->displayRow << L", " << node->displayCol << L") " << node->originalTkn->_string << L", " << node->displayStartPos << L", " << node->displayEndPos << L"] ";
+				}
+			}
+
+			std::wcout << std::endl;
+		}
+
+    // Need some space for the root node
+		numDisplayLines++;
+
+		std::vector<std::wstring> displayLines;
+		int ldx;
+
+		for (ldx = 0; ldx < numDisplayLines; ldx++)
+			displayLines.push_back(L"");
+
+
+		displayLines[0].insert (displayLines[0].begin(), leftMaxLineLen, L' ');
+		displayLines[0].append(rootBni.tokenStr);
+
+ 		fillDisplayLeft (displayLines, leftList, leftMaxLineLen);
+		fillDisplayRight(displayLines, rightList, rootBni.tokenStr.length());
+ 
+		std::wstring rightAdjustStr;
+
+		if (leftMaxLineLen < adjustToRight)
+			rightAdjustStr.insert ( rightAdjustStr.begin(), adjustToRight - leftMaxLineLen, L' ');
+
+		for (ldx = 0; ldx < displayLines.size(); ldx++)
+			std::wcout << rightAdjustStr << displayLines[ldx] << std::endl;
+
+    ret_code = OK;
+ 	}
+
+	// TODO: Free up memory from map and BniList(s)
+
+	return (ret_code);
+*/
 }
 
 /* ****************************************************************************
@@ -1753,7 +2391,6 @@ int ExpressionParser::calcAfterCenterGap (std::shared_ptr<ExprTreeNode> parentNo
 			numDisplayLines = rightList.size();
 
 		// DEBUG OUTPUT
-#if 0
 		for (int odx = 0; odx < numDisplayLines; odx++)	{
 			if (odx < leftList.size())	{
 				std::shared_ptr<BniList> currList = leftList.at(odx);
@@ -1775,102 +2412,8 @@ int ExpressionParser::calcAfterCenterGap (std::shared_ptr<ExprTreeNode> parentNo
 
 			std::wcout << std::endl;
 		}
-#endif
-		// Need some space for the root node
-		numDisplayLines++;
 
-		std::vector<std::wstring> displayLines;
-		int ldx;
-
-		for (ldx = 0; ldx < numDisplayLines; ldx++)
-			displayLines.push_back(L"");
-
-
-		displayLines[0].insert (displayLines[0].begin(), leftMaxLineLen, L' ');
-		displayLines[0].append(rootBni.tokenStr);
-
-		fillDisplayLeft (displayLines, leftList, leftMaxLineLen);
-		fillDisplayRight(displayLines, rightList, rootBni.tokenStr.length());
-
-		std::wstring rightAdjustStr;
-
-		if (leftMaxLineLen < adjustToRight)
-			rightAdjustStr.insert ( rightAdjustStr.begin(), adjustToRight - leftMaxLineLen, L' ');
-
-		for (ldx = 0; ldx < displayLines.size(); ldx++)
-			std::wcout << rightAdjustStr << displayLines[ldx] << std::endl;
-
-		ret_code = OK;
- 	}
-
-	// TODO: Free up memory from map and BniList(s)
-
-	return (ret_code);
-
-}
-
-/* ****************************************************************************
- * Serves as an ILLUSTRATIVE aid
- * After an expression tree has been built, this proc will create a 
- * graphical tree representation for display when operating in 
- * ILLUSTRATIVE mode
- * ***************************************************************************/
- int ExpressionParser::displayParseTree (std::shared_ptr<ExprTreeNode> startBranch, int adjustToRight)	{
-	int ret_code = GENERAL_FAILURE;
-
-	BranchNodeInfo rootBni (startBranch, makeTreeNodeStr(startBranch), false);
-
-	std::vector<std::shared_ptr<BniList>> leftList;
-	std::vector<std::shared_ptr<BniList>> rightList;
-
-	int left_ret;
-	int right_ret;
-	
-	if (startBranch->_1stChild == NULL)
-		left_ret = OK;
-	else
-	 	left_ret = buildDisplayTreeLevels (leftList, true, startBranch->_1stChild, 0);
-
- 	if (startBranch->_2ndChild == NULL)
-		 right_ret = OK;
-	 else
-			right_ret = buildDisplayTreeLevels (rightList, false, startBranch->_2ndChild, 0);
-
-	if (left_ret == OK && right_ret == OK)	{			
-		int leftMaxLineLen;
-		int rightMaxLineLen;
- 		getMaxLineLen (leftList, true, leftMaxLineLen);
-		getMaxLineLen (rightList, false, rightMaxLineLen);
-
-		int numDisplayLines = leftList.size();
-		if (rightList.size() > numDisplayLines)
-			numDisplayLines = rightList.size();
-
-		// DEBUG OUTPUT
-#if 0
-		for (int odx = 0; odx < numDisplayLines; odx++)	{
-			if (odx < leftList.size())	{
-				std::shared_ptr<BniList> currList = leftList.at(odx);
-				for (int leftIdx = currList->size() - 1; leftIdx >= 0 ; leftIdx--)	{
-					std::shared_ptr<BranchNodeInfo> bni = currList->at(leftIdx);
-					std::wcout << L"[" << bni->tokenStr << L"," << bni->centerSidePos << L"] ";
-				}
-			}
-
-			std::wcout << L" | ";
-
-			if (odx < rightList.size())	{
-				std::shared_ptr<BniList> currList = rightList.at(odx);
-				for (int rightIdx = 0; rightIdx < currList->size(); rightIdx++)	{
-					std::shared_ptr<BranchNodeInfo> bni = currList->at(rightIdx);
-					std::wcout << L"[" << bni->tokenStr << L"," << bni->centerSidePos << L"] ";
-				}
-			}
-
-			std::wcout << std::endl;
-		}
-#endif
-		// Need some space for the root node
+    // Need some space for the root node
 		numDisplayLines++;
 
 		std::vector<std::wstring> displayLines;
@@ -2013,3 +2556,582 @@ int ExpressionParser::calcAfterCenterGap (std::shared_ptr<ExprTreeNode> parentNo
 
 	return (ret_code);
  }
+
+
+/* ****************************************************************************
+ * 
+ * ***************************************************************************/
+ int ExpressionParser::fillDisplayLeft (std::vector<std::wstring> & displayLines, std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & arrayOfNodeLists
+	, int maxLineLen)	{
+	int ret_code = GENERAL_FAILURE;
+
+	std::wstring nextLine;
+	int odx = 0;
+	int idx = 0;
+	int numBlanks;
+
+	// std::wcout << L"TODO: *************** fillDisplayLeft ***************" << std::endl;
+
+	if (displayLines.size() >= arrayOfNodeLists.size() + 1)	{
+
+		for (odx = 0; odx < arrayOfNodeLists.size(); odx++)	{
+			std::vector<std::shared_ptr<ExprTreeNode>> currLvlList = arrayOfNodeLists[odx];
+			nextLine.clear();
+
+			for (idx = 0; idx < currLvlList.size(); idx++)	{
+				// Build line from current expression scope level
+				// from the center leftwards, or from R2L
+				std::shared_ptr<ExprTreeNode> currBranch = currLvlList.at(idx);
+				numBlanks = currBranch->displayStartPos - nextLine.size();
+				if (numBlanks > 0)
+					nextLine.insert (nextLine.begin(), numBlanks, L' ');
+
+				// nextLine.insert(nextLine.begin(), currBni->tokenStr);
+				// nextLine.insert(0, currBni->tokenStr, currBni->tokenStr.size());
+				nextLine = makeTreeNodeStr(currBranch) + nextLine;
+			}
+
+			// Throw some left padding on the front before committing this line
+			numBlanks = maxLineLen - nextLine.size();
+			if (numBlanks > 0)
+				nextLine.insert (nextLine.begin(), numBlanks, L' ');
+
+			// Commit the left half
+			displayLines[odx + 1] = nextLine;
+			// std::wcout << nextLine << std::endl;
+
+		}
+
+		for (int blankIdx = odx + 1; blankIdx < displayLines.size(); blankIdx++)	{
+			// For any lines from rightList but missing from leftList, 
+			// fill left half w/ blanks
+			displayLines[blankIdx].insert (displayLines[blankIdx].begin(), maxLineLen, L' ');
+		}
+	}
+
+	return (ret_code);
+
+}
+
+/* ****************************************************************************
+ * 
+ * ***************************************************************************/
+ int ExpressionParser::fillDisplayRight (std::vector<std::wstring> & displayLines, std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & arrayOfNodeLists
+	, int centerGapSpaces)	{
+
+	int ret_code = GENERAL_FAILURE;
+	std::wstring nextLine;
+	int odx = 0;
+	int idx = 0;
+	size_t numBlanks;
+
+	// std::wcout << L"TODO: *************** fillDisplayRight ***************" << std::endl;
+
+	if (displayLines.size() >= arrayOfNodeLists.size() + 1)	{
+
+		for (odx = 0; odx < arrayOfNodeLists.size(); odx++)	{
+			std::vector<std::shared_ptr<ExprTreeNode>> currLvlList = arrayOfNodeLists[odx];
+			nextLine.clear();
+
+			for (idx = 0; idx < currLvlList.size(); idx++)	{
+				// Build line from current expression scope level
+				// from the center leftwards, or from R2L
+				std::shared_ptr<ExprTreeNode> currBranch = currLvlList.at(idx);
+				if (currBranch->displayStartPos > 0 && currBranch->displayStartPos > nextLine.size())	{
+					numBlanks = currBranch->displayStartPos - nextLine.size();
+					if (numBlanks > 0)
+						nextLine.insert ( nextLine.end(), numBlanks, L' ');
+				}
+				nextLine.append (makeTreeNodeStr(currBranch));
+			}
+
+			if (centerGapSpaces > 0)
+			// Prepend the center gap now; don't mess up earlier blank stuffing 
+			nextLine.insert ( nextLine.begin(), centerGapSpaces, L' ');
+
+			// std::wcout << nextLine << std::endl;
+			displayLines[odx + 1].append(nextLine);
+
+		}
+	}
+
+	// std::wcout << L"TODO: ************************************************" << std::endl;
+
+	return (ret_code);
+ }
+
+/* ****************************************************************************
+ * Set start and end display positions for a leaf node
+ * Leaf node's parent is a CENTER_NODE:
+ *
+ * /B+\
+ * /*\                            /?\
+ * /B+\               /B+\        /<\                       /:\
+ * /B+\       [three] [four][six] /<<\        /*\           [three][four]
+ * [one][two]                     /*\ [five]  [eight][four]
+ *                            --> [six][one] 
+ * What's [six]'s pos? 
+ * Immediate parent /*\ is CENTER_NODE
+ * Go up the tree until we hit an OUTER_NODE --> /?\ 
+ * Jump over to OUTER_NODE's ancestor; pos info probably not be resolved yet!
+ * Go down the child branches until we find a resolved OUTER_NODE
+ *
+ * Leaf node's parent is an OUTER_NODE:
+ * 
+ *
+ * /B+\
+ * /*\                            /?\
+ * /B+\               /B+\        /<\                       /:\
+ * /B+\       [three] [four][six] /<<\        /*\           [three][four]
+ * [one][two]                     /*\ [five]  [eight][four]
+ *                                [six][one]
+ * 
+ * What's [four]'s pos?
+ * Immediate parent /B+\ is an OUTER_NODE
+ * Go up the tree until we hit a CENTER_NODE; pos info probably not resolved yet
+ * Go down the child branches until we find a resolved OUTER_NODE
+ * ***************************************************************************/
+int ExpressionParser::setCtrStartByPrevBndry (bool isLeftTree, std::shared_ptr<ExprTreeNode> currBranch) {
+  int ret_code = GENERAL_FAILURE;
+  bool isOutAncestorFnd = false;
+
+  branchNodeDisplayType lookingFor = UNKNOWN_NODE_TYPE;
+
+  if (currBranch != NULL && currBranch->nodePos == CENTER_NODE) {
+
+    if (currBranch->treeParent == NULL) {
+      failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+    } else if (currBranch->treeParent->nodePos == CENTER_NODE)  {
+      lookingFor = OUTER_NODE;
+
+    } else if (currBranch->treeParent->nodePos == OUTER_NODE) {
+      lookingFor = CENTER_NODE;
+    }
+    
+    std::shared_ptr<ExprTreeNode> nextAncestor;
+    if (currBranch->treeParent->treeParent != NULL)
+      nextAncestor = currBranch->treeParent->treeParent;
+    else
+     failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+    
+    bool isAncestorFound = false;
+
+    while (!isAncestorFound && !failOnSrcLine && ret_code != OK) {
+      if (nextAncestor == NULL) {
+        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+      
+      } else if (nextAncestor->displayRow == 0) {
+        currBranch->displayStartPos = 0;
+        ret_code = OK;
+
+      } else if (nextAncestor->nodePos == lookingFor)  {
+        isAncestorFound = true;
+      
+      } else {
+        nextAncestor = nextAncestor->treeParent;
+      }
+    }
+
+    if (isAncestorFound)  {
+      std::shared_ptr<ExprTreeNode> searchBranch;
+      if (lookingFor == OUTER_NODE && isLeftTree && nextAncestor->_2ndChild != NULL) 
+        // Go down opposite side of tree we came in from
+        searchBranch = nextAncestor->_2ndChild;
+      
+      else if (lookingFor == OUTER_NODE && !isLeftTree && nextAncestor->_1stChild != NULL)
+        searchBranch = nextAncestor->_1stChild;
+      
+      else if (lookingFor == CENTER_NODE && isLeftTree && nextAncestor->treeParent != NULL && nextAncestor->treeParent->_2ndChild != NULL)
+        searchBranch = nextAncestor->_2ndChild;
+
+      else if (lookingFor == CENTER_NODE && !isLeftTree && nextAncestor->treeParent != NULL && nextAncestor->treeParent->_1stChild != NULL)
+        searchBranch = nextAncestor->_1stChild;
+
+      if (searchBranch != NULL) {
+        // Go down the child branches until we find a resolved OUTER_NODE
+        int maxEndPos = 0;
+        bool isDone = false;
+        int numLoops = 0;
+        while (!isDone) {
+
+          if (isLeftTree) {
+            if (searchBranch->_1stChild != NULL && searchBranch->_1stChild->displayEndPos > maxEndPos)
+              maxEndPos = searchBranch->_1stChild->displayEndPos;
+            
+            if (searchBranch->_1stChild != NULL)
+              // Give preference to OUTER_NODE
+              searchBranch = searchBranch->_1stChild;
+            else if (searchBranch->_2ndChild != NULL)
+              // otherwise go INNER_NODE
+              searchBranch = searchBranch->_2ndChild;
+            else
+              isDone = true;
+
+          } else {
+            // RIGHT tree
+            if (searchBranch->_2ndChild != NULL && searchBranch->_2ndChild->displayEndPos > maxEndPos)
+              maxEndPos = searchBranch->_2ndChild->displayEndPos;
+
+            if (searchBranch->_2ndChild != NULL)
+              // Give preference to OUTER_NODE
+              searchBranch = searchBranch->_2ndChild;
+            else if (searchBranch->_1stChild != NULL)
+              // otherwise go INNER_NODE
+              searchBranch = searchBranch->_1stChild;
+            else
+              isDone = true;
+          }
+        }
+
+        currBranch->displayStartPos = maxEndPos;
+        ret_code = OK;
+      }
+    }
+  }
+
+  assert(ret_code == OK);
+  return ret_code;
+ }
+
+/* ****************************************************************************
+ * Set start and end display positions for a leaf node
+ * ***************************************************************************/
+int ExpressionParser::setLeafNodeDisplayPos (bool isLeftTree, int halfTreeLevel, std::shared_ptr<ExprTreeNode> currBranch) {
+  int ret_code = GENERAL_FAILURE;
+
+  if (currBranch->nodePos == CENTER_NODE) {
+    // Check our ancestors. Go up-level until we find the last CENTER_NODE in our ancestry
+    if (currBranch->displayRow <= 1)  {
+      currBranch->displayStartPos = 0;
+      ret_code = OK;
+    
+    } else if (OK == setCtrStartByPrevBndry(isLeftTree, currBranch))  {
+      ret_code = OK;
+    }
+    
+/*     } else {
+      if (OK == getCentersPrevBoundary (currBranch, maxStartPos))  {
+        if (maxStartPos >= 0) {
+          currBranch->displayStartPos = maxStartPos;
+          ret_code = OK;
+  
+        } else if (isLeftTree && currBranch->treeParent != NULL && currBranch->treeParent->treeParent != NULL) {
+          //                     /*\                    
+          //         /B+\       /B+\   
+          // [two][three] [four][six]
+          // We need to figure out [three] - go up 2 levels and then down two levels to get to [four]
+          std::shared_ptr<ExprTreeNode> grandParent = currBranch->treeParent->treeParent;
+          if (grandParent->_2ndChild != NULL && grandParent->_2ndChild->_1stChild != NULL)  {
+            currBranch->displayStartPos = grandParent->_2ndChild->_1stChild->displayStartPos;
+            ret_code = OK;
+          }
+          
+        } else if (!isLeftTree && currBranch->treeParent != NULL && currBranch->treeParent->treeParent != NULL)  {
+            // /*\                    
+            // /B+\         /B+\   
+            // /B+\ [three] [four][six]
+            // We need to figure out [four] - go up 2 levels and then down 2 levels to get to [three]
+            std::shared_ptr<ExprTreeNode> grandParent = currBranch->treeParent->treeParent;
+            if (grandParent->_1stChild != NULL && grandParent->_1stChild->_2ndChild != NULL) {
+              currBranch->displayStartPos = grandParent->_1stChild->_2ndChild->displayStartPos;
+              ret_code = OK;
+            }
+        }
+      }
+    }
+ */
+    if (OK == ret_code)
+      currBranch->displayEndPos = currBranch->displayStartPos + makeTreeNodeStr(currBranch).length();
+
+  } else if (currBranch->nodePos == OUTER_NODE) {
+    // Sibling CENTER_NODE should already be resolved, so use that
+    std::shared_ptr<ExprTreeNode> centerNode;
+    if (isLeftTree && currBranch->treeParent != NULL && currBranch->treeParent->_2ndChild != NULL)  
+      centerNode = currBranch->treeParent->_2ndChild;
+    else if (!isLeftTree && currBranch->treeParent != NULL && currBranch->treeParent->_1stChild != NULL)
+      centerNode = currBranch->treeParent->_1stChild;
+
+    if (centerNode != NULL) {
+      int centerStrLen = makeTreeNodeStr(centerNode).length();
+      int numSiblingOpr8rs = 0;
+
+      currBranch->originalTkn->tkn_type == SRC_OPR8R_TKN ? numSiblingOpr8rs++ : 0;
+      centerNode->originalTkn->tkn_type == SRC_OPR8R_TKN ? numSiblingOpr8rs++ : 0;
+      currBranch->displayStartPos = centerNode->displayEndPos + (numSiblingOpr8rs == 2 ? DISPLAY_GAP_SPACES : numSiblingOpr8rs == 1 ? 1 : 0);
+      currBranch->displayEndPos = currBranch->displayStartPos + makeTreeNodeStr(currBranch).length() + 1;
+      ret_code = OK;
+    }
+  }
+
+  /*  TODO:
+  std::wcout << (isLeftTree ? L"L; " : L"R; ") << L"leaf; "  << L"lvl = " << halfTreeLevel << L"; " << (currBranch->nodePos == CENTER_NODE ? L"ctr; " : L"out; ") 
+    << makeTreeNodeStr(currBranch) << L" (" << currBranch->displayStartPos << L", " << currBranch->displayEndPos << L")" << std::endl;
+  */
+  assert (ret_code == OK);
+  return ret_code;
+
+}
+
+/* ****************************************************************************
+ * Set start and end display positions for a branch [OPR8R] node
+ * ***************************************************************************/
+ int ExpressionParser::setBranchNodeDisplayPos (bool isLeftTree, int halfTreeLevel, std::shared_ptr<ExprTreeNode> currBranch) {
+  int ret_code = GENERAL_FAILURE;
+  int maxStartPos = -1;
+
+  if (currBranch != NULL && currBranch->nodePos == CENTER_NODE) {
+    // TODO: Is this right? How do we handle the start of a new tuple?
+    if (currBranch->displayRow <= 1)
+      // Nothing to calculate; level 0 has 1 node, and level 1 center start pos = 0
+      currBranch->displayStartPos = 0;
+      
+    else if (isLeftTree && currBranch->_1stChild != NULL)
+      // Grab start pos from outside child - already set recursively
+      currBranch->displayStartPos = currBranch->_1stChild->displayStartPos;
+    
+    else if (!isLeftTree && currBranch->_2ndChild != NULL)
+      currBranch->displayStartPos = currBranch->_2ndChild->displayStartPos;
+
+    else 
+      failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;      
+
+/*     if (OK == getOldestCtrAncestorDisplayStartPos (currBranch, maxStartPos))  {
+      currBranch->displayStartPos = maxStartPos;
+ */   
+    if (!failOnSrcLine)   {
+      if (isLeftTree && currBranch->_1stChild != NULL)  {
+        currBranch->displayEndPos = currBranch->_1stChild->displayEndPos;
+        ret_code = OK;
+
+      } else if (!isLeftTree && currBranch->_2ndChild != NULL)  {
+        currBranch->displayEndPos = currBranch->_2ndChild->displayEndPos;
+        ret_code = OK;
+      
+      } else {
+        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;      
+      }
+    }
+
+  } else if (currBranch != NULL && currBranch->nodePos == OUTER_NODE) {
+    // OUTSIDE_NODE - We need to hop over to our sibling CENTER_NODE and find the oldest aligned CENTER_NODE ancestor
+    // TODO:
+    // OUTSIDE_NODE - We need to hop over to our sibling CENTER_NODE and use its info that was updated before us
+    std::shared_ptr<ExprTreeNode> centerNode;
+    if (isLeftTree && currBranch->treeParent != NULL && currBranch->treeParent->_2ndChild != NULL)  
+      centerNode = currBranch->treeParent->_2ndChild;
+    else if (!isLeftTree && currBranch->treeParent != NULL && currBranch->treeParent->_1stChild != NULL)
+      centerNode = currBranch->treeParent->_1stChild;
+
+    if (centerNode != NULL) { // && OK == getOldestCtrAncestorDisplayStartPos(centerNode, maxStartPos)) {
+      int centerStrLen = makeTreeNodeStr(centerNode).length();
+      int numSiblingOpr8rs = 0;
+
+      currBranch->originalTkn->tkn_type == SRC_OPR8R_TKN ? numSiblingOpr8rs++ : 0;
+      centerNode->originalTkn->tkn_type == SRC_OPR8R_TKN ? numSiblingOpr8rs++ : 0;
+      currBranch->displayStartPos = centerNode->displayEndPos + (numSiblingOpr8rs == 2 ? DISPLAY_GAP_SPACES : numSiblingOpr8rs == 1 ? 1 : 0);
+      
+      int calcEndPos = currBranch->displayStartPos + makeTreeNodeStr(currBranch).length() + 1;
+      // We need to get our displayEndPos bubbled up from our outside child
+      if (isLeftTree && currBranch->_1stChild != NULL)  {
+        // TODO: Is it possible we're larger?
+        if (calcEndPos > currBranch->_1stChild->displayEndPos)
+          currBranch->displayEndPos = calcEndPos;
+        else
+          // TODO: Do we ever get here?
+          currBranch->displayEndPos = currBranch->_1stChild->displayEndPos;
+        ret_code = OK;
+      
+      } else if (!isLeftTree && currBranch->_2ndChild != NULL)  {
+        // TODO: Is it possible we're larger?
+        if (calcEndPos > currBranch->_2ndChild->displayEndPos)
+          currBranch->displayEndPos = calcEndPos;
+        else
+          // TODO: Do we ever get here?
+          currBranch->displayEndPos = currBranch->_2ndChild->displayEndPos;
+        ret_code = OK;
+      }
+    }
+  }
+
+/*   
+  TODO:
+  std::wcout << (isLeftTree ? L"L; " : L"R; ") << L"bran; " << L"lvl = " << halfTreeLevel << L"; " << (currBranch->nodePos == CENTER_NODE ? L"ctr; " : L"out; ") 
+    << makeTreeNodeStr(currBranch) << L" (" << currBranch->displayStartPos << L", " << currBranch->displayEndPos << L")" << std::endl;
+ */
+  assert (ret_code == OK);
+  return ret_code;
+
+}
+
+/* ****************************************************************************
+ * Recursive proc to determine node display positions within one left|right half
+ * of a complete parse tree express
+ * ***************************************************************************/
+int ExpressionParser::setHalfTreeDisplayPos (bool isLeftTree, int halfTreeLevel, std::shared_ptr<ExprTreeNode> currBranch)	{
+	int ret_code = GENERAL_FAILURE;
+
+	if (currBranch != NULL)	{
+    bool isCtrNode;
+
+    if (OK != setIsCenterNode (isLeftTree, halfTreeLevel, currBranch))
+      failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+    if (!failOnSrcLine)	{
+      currBranch->displayRow = halfTreeLevel;
+
+      if (currBranch->originalTkn->tkn_type != SRC_OPR8R_TKN) {
+        // We hit a leaf node, so stop recursing
+        ret_code = setLeafNodeDisplayPos (isLeftTree, halfTreeLevel, currBranch);
+
+      } else {
+        // Recursive case
+        if ((isLeftTree && currBranch->_2ndChild != NULL) || (!isLeftTree && currBranch->_1stChild != NULL))  {
+          // Resolve CENTER branch 1st
+          if (OK != setHalfTreeDisplayPos (isLeftTree, halfTreeLevel + 1, isLeftTree ? currBranch->_2ndChild : currBranch->_1stChild))
+            failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+        }
+  
+        if (!failOnSrcLine && ((isLeftTree && currBranch->_1stChild != NULL) || (!isLeftTree && currBranch->_2ndChild != NULL)))  {
+          // Resolve OUTSIDE branch next 
+          if (OK != setHalfTreeDisplayPos (isLeftTree, halfTreeLevel + 1
+              , isLeftTree ? currBranch->_1stChild : currBranch->_2ndChild))
+            failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+        }
+  
+        if (!failOnSrcLine)  {
+          if (OK != setBranchNodeDisplayPos (isLeftTree, halfTreeLevel, currBranch))
+            failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+        }
+      }
+    }
+ 
+    if (!failOnSrcLine)  {
+      ret_code = OK;
+    }
+  }
+
+	return (ret_code);
+
+}
+
+/* ****************************************************************************
+ * Recursive proc to put nodes from parse tree into respective line per 
+ * halfTreeLevel to get ready for display
+ * ***************************************************************************/
+int ExpressionParser::buildDisplayLines (std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & halfDisplayLines
+  , std::shared_ptr<ExprTreeNode> currBranch, bool isLeftTree, int halfTreeLevel)  {
+  int ret_code = GENERAL_FAILURE;
+
+  if (currBranch != NULL) {
+    while (halfDisplayLines.size() < (halfTreeLevel + 1))	{
+      // Create level for this list if it doesn't already exist
+      halfDisplayLines.push_back(std::vector<std::shared_ptr<ExprTreeNode>> ());
+    }
+
+    // Make an alias variable for code readability
+    std::vector<std::shared_ptr<ExprTreeNode>> & currLvlList = halfDisplayLines[halfTreeLevel];
+
+    if (currBranch->displayRow == halfTreeLevel)  {
+      // TODO: isLeftTree?
+      currLvlList.push_back(currBranch);
+    
+      if (currBranch->_1stChild != NULL && OK != buildDisplayLines(halfDisplayLines, currBranch->_1stChild, isLeftTree, halfTreeLevel + 1))
+        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+      if (!failOnSrcLine && currBranch->_2ndChild != NULL && OK != buildDisplayLines(halfDisplayLines, currBranch->_2ndChild, isLeftTree, halfTreeLevel + 1))
+        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+    
+      if (!failOnSrcLine)
+        ret_code = OK;
+     }
+  }
+
+  return ret_code;
+
+}
+
+/* ****************************************************************************
+ * Serves as an ILLUSTRATIVE aid
+ * After an expression tree has been built, this proc will create a 
+ * graphical tree representation for display when operating in 
+ * ILLUSTRATIVE mode
+ * 
+ * What I've got right now:
+ *         /=\
+ * [result]   /B+\
+ *            /*\/?\
+ *            /B+\/B+\/<\/:\
+ *            /B+\[three][four][six]/<<\/*\[three][four]
+ *            [one][two]/*\[five][eight][four]
+ *            [six][one]
+ *
+ * Start from top level on L or R side
+ * R side - figure out max width for _1stChild side recursively
+ * Push _2ndChild over so there's no overlap
+ * figure out max width for _2ndChild side recursively
+ * 
+ * Probably want it to look something like below:
+ * 
+ * /B+\
+ * /*\                       /?\
+ * /B+\         /B+\         /<\                     /:\
+ * /B+\ [three] [four][six]  /<<\       /*\          [three][four]
+ * [one][two]                /*\ [five] [eight][four]
+ *                           [six][one]
+ *
+ * inside operand,outside operand - no space between
+ * inside operand,outside opr8r   - 1 space between
+ * inside opr8r, outside operand  - 1 space between
+ * inside opr8r, outside opr8r    - resolve inside 1st to determine gap between the two
+ * ***************************************************************************/
+ int ExpressionParser::setFullTreeDisplayPos (std::shared_ptr<ExprTreeNode> startBranch)	{
+	int ret_code = GENERAL_FAILURE;
+
+	int left_ret;
+	int right_ret;
+	
+	if (startBranch->_1stChild == NULL)
+		left_ret = OK;
+	else
+	 	left_ret = setHalfTreeDisplayPos (true, 0, startBranch->_1stChild);
+
+ 	if (startBranch->_2ndChild == NULL)
+		 right_ret = OK;
+	 else
+			right_ret = setHalfTreeDisplayPos (false, 0, startBranch->_2ndChild);
+
+	if (left_ret == OK && right_ret == OK)	{			
+    std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> leftLines;
+    std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> rightLines;
+
+    if (OK != buildDisplayLines (leftLines, startBranch->_1stChild, true, 0))
+      failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+    
+    else if (OK != buildDisplayLines (rightLines, startBranch->_2ndChild, false, 0))
+      failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+    if (!failOnSrcLine) {
+      int odx, idx;
+      std::wcout << L"setFullTreeDisplayPos" << std::endl;
+      for (odx = 0; odx < rightLines.size(); odx++) {
+        std::vector<std::shared_ptr<ExprTreeNode>> currLvlList = rightLines[odx];
+        for (idx = 0; idx < currLvlList.size(); idx++)  {
+          std::shared_ptr<ExprTreeNode> currNode = currLvlList[idx];
+          std::wcout << L"lvl = " << odx << L"; " << makeTreeNodeStr(currNode) << L" (" << currNode->displayStartPos << L", " << currNode->displayEndPos << L")" << std::endl;
+        }
+
+        std::wcout << std::endl;
+      }
+    }
+
+    if (!failOnSrcLine)
+      ret_code = OK;
+ 	}
+
+	// TODO: Free up memory from map and BniList(s)
+
+	return (ret_code);
+
+}
+

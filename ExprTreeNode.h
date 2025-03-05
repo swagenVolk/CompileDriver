@@ -12,6 +12,14 @@
 #include <memory>
 #include <iostream>
 
+enum branch_tuple_type_enum {
+  UNKNOWN_NODE_TYPE
+  ,CENTER_NODE
+  ,OUTER_NODE
+};
+
+typedef branch_tuple_type_enum branchNodeDisplayType;
+
 class ExprTreeNode {
 public:
 	ExprTreeNode(std::shared_ptr<Token> startOpr8rTkn);
@@ -23,7 +31,14 @@ public:
   std::shared_ptr<ExprTreeNode> _2ndChild;		// Right operand for a BINARY, PREFIX or the TERNARY TRUE* branch
   														                // Ordering is opposite initial expectations to account for tree recursively 
                                               // flattened in [Operand1][Operand2][OPR8R] order
-  std::shared_ptr<ExprTreeNode> treeParent;                                              
+  std::shared_ptr<ExprTreeNode> treeParent;     
+  
+  int displayStartPos;
+  int displayEndPos;
+  int displayRow;
+  int displayCol;
+  branchNodeDisplayType nodePos;
+
 
 };
 

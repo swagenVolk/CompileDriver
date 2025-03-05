@@ -85,6 +85,10 @@ private:
   logLvlEnum logLevel;
   bool isExprVarDeclaration;
   bool isExprClosed;
+	int failOnSrcLine;
+
+  std::vector<int> leftTreeMaxCol;
+  std::vector<int> rightTreeMaxCol;
 
   void cleanScopeStack ();
   std::wstring makeExpectedTknTypesStr (uint32_t expected_tkn_types);
@@ -111,12 +115,17 @@ private:
 
   int fillDisplayLeft (std::vector<std::wstring> & displayLines, std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists
     , int maxLineLen);
-
   int fillDisplayRight (std::vector<std::wstring> & displayLines, std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists
     , int centerGapSpaces);
 
+  int fillDisplayLeft (std::vector<std::wstring> & displayLines, std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & arrayOfNodeLists
+    , int maxLineLen);
+  int fillDisplayRight (std::vector<std::wstring> & displayLines, std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & arrayOfNodeLists
+    , int centerGapSpaces);
+
   void getMaxLineLen (std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists, bool isLefty, int & maxLineLen);
-              
+  void getMaxLineLen (std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & arrayOfNodeLists, bool isLefty, int & maxLineLen);
+
   int buildTreeGraph (std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists
     , bool isLefty, std::shared_ptr<ExprTreeNode> currBranch, int treeLevel
     , BranchNodeInfo parentBni);
@@ -124,10 +133,33 @@ private:
   int calcDisplayNodePos (std::shared_ptr<ExprTreeNode> treeNode
     , std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists, bool isLefty
     , BranchNodeInfo parentBni, BranchNodeInfo & callerCopyBni, int treeLevel);
-            
-  int buildDisplayTreeLevels (std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists
-    , bool isLeftTree, std::shared_ptr<ExprTreeNode> currBranch, int treeLevel);
+
+  int setAccumDisplayEnd (int halfTreeLvl, bool isLeftTree, std::shared_ptr<ExprTreeNode> currBranch, int outerBoundaryPos);
+
+  int getOuterNodeStartPos (bool isLeftTree, std::shared_ptr<ExprTreeNode> currBranch);
+
+  void setDisplayRowCol (bool isLeftTree, int halfTreeLevel, std::shared_ptr<ExprTreeNode> currBranch);
+
+  int setIsCenterNode (bool isLeftTree, int halfTreeLevel, std::shared_ptr<ExprTreeNode> currBranch);
+  
+  int buildDisplayTreeLevels (std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & arrayOfNodeLists
+    , bool isLeftTree, std::shared_ptr<ExprTreeNode> currBranch, int halfTreeLevel, int & callersOutBndryPos);
     
-  int calcAfterCenterGap (std::shared_ptr<ExprTreeNode> parentNode);    
+  void initStartPosOnCtrKids (bool isLeftTree, std::shared_ptr<ExprTreeNode> currBranch);    
+  
+  int calcGapAfterCenter (std::shared_ptr<ExprTreeNode> parentNode);   
+  
+  int adjAncestorCtrDisplayPos (std::shared_ptr<ExprTreeNode> callersNode); 
+
+  int getCtrPos1stEntry (int halfTreeLevel, std::shared_ptr<ExprTreeNode> currBranch);
+
+  int setCtrStartByPrevBndry (bool isLeftTree, std::shared_ptr<ExprTreeNode> currBranch);  
+  int setLeafNodeDisplayPos (bool isLeftTree, int halfTreeLevel, std::shared_ptr<ExprTreeNode> currBranch);
+  int setBranchNodeDisplayPos (bool isLeftTree, int halfTreeLevel, std::shared_ptr<ExprTreeNode> currBranch);
+  int setHalfTreeDisplayPos (bool isLeftTree, int halfTreeLevel, std::shared_ptr<ExprTreeNode> currBranch);
+  int setFullTreeDisplayPos (std::shared_ptr<ExprTreeNode> startBranch);
+
+  int buildDisplayLines (std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & halfDisplayLines
+    , std::shared_ptr<ExprTreeNode> currBranch, bool isLeftTree, int halfTreeLevel);  
 };
 #endif /* EXPRESSIONPARSER_H_ */
