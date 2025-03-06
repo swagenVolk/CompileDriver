@@ -121,13 +121,7 @@ private:
   int fillDisplayRight (std::vector<std::wstring> & displayLines, std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists
     , int centerGapSpaces);
 
-  int fillDisplayLeft (std::vector<std::wstring> & displayLines, std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & arrayOfNodeLists
-    , int maxLineLen);
-  int fillDisplayRight (std::vector<std::wstring> & displayLines, std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & arrayOfNodeLists
-    , int centerGapSpaces);
-
   void getMaxLineLen (std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists, bool isLefty, int & maxLineLen);
-  void getMaxLineLen (std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & arrayOfNodeLists, bool isLefty, int & maxLineLen);
   int buildTreeGraph (std::vector<std::shared_ptr<BniList>> & arrayOfNodeLists
     , bool isLefty, std::shared_ptr<ExprTreeNode> currBranch, int treeLevel
     , BranchNodeInfo parentBni);
@@ -155,7 +149,13 @@ private:
   int setHalfTreeDisplayPos (bool isLeftTree, int halfTreeLevel, std::shared_ptr<ExprTreeNode> currBranch
     , std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & halfDisplayLines);
     
-  int setFullTreeDisplayPos (std::shared_ptr<ExprTreeNode> startBranch);
+  int setFullTreeDisplayPos (std::shared_ptr<ExprTreeNode> startBranch, std::vector<std::wstring> & displayLines, int & maxLeftLineLen);
+
+  void getMaxLineLen (std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & arrayOfNodeLists, bool isLefty, int & maxLineLen);
+  int fillDisplayLeft (std::vector<std::wstring> & displayLines, std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & arrayOfNodeLists
+    , int maxLineLen);
+  int fillDisplayRight (std::vector<std::wstring> & displayLines, std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & arrayOfNodeLists
+    , int centerGapSpaces);
 
   int buildDisplayLines (std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & halfDisplayLines
     , std::shared_ptr<ExprTreeNode> currBranch, bool isLeftTree, int halfTreeLevel);  

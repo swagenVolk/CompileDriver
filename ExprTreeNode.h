@@ -25,6 +25,8 @@ public:
 	ExprTreeNode(std::shared_ptr<Token> startOpr8rTkn);
 	virtual ~ExprTreeNode();
 
+  void initDisplaySettings();
+
   std::shared_ptr<Token> originalTkn;
   std::shared_ptr<ExprTreeNode> scopenedBy;
   std::shared_ptr<ExprTreeNode> _1stChild;		// Left operand for a BINARY, POSTFIX or the TERNARY FALSE* branch

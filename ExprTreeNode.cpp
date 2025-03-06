@@ -18,12 +18,18 @@ ExprTreeNode::ExprTreeNode(std::shared_ptr<Token> startOpr8rTkn) {
   _2ndChild = NULL;
 	treeParent = NULL;
 
+  initDisplaySettings();
+
+}
+
+void ExprTreeNode::initDisplaySettings() {
   // Will be used for displaying a Compiler parse tree
   displayStartPos = -1;
   displayEndPos = 0;
   displayRow = -1;
   displayCol = -1;
   nodePos = UNKNOWN_NODE_TYPE;
+
 }
 
 ExprTreeNode::~ExprTreeNode() {
