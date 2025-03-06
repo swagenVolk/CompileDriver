@@ -20,7 +20,7 @@ Scope Level 1: /B+\
 
 Parse tree of moved operator 
                /B+\
-          [one]    [two]
+          [one]   [two]
 
 Current highest precedence sub-expression closed; compiler has read in all Tokens for this expression.
 Scope Level 0: [result][=]/B+\[*][three][*][four][/][six]
@@ -38,26 +38,26 @@ Scope Level 0: [result][=]/*\[/][six]
 Parse tree of moved operator 
                           /*\
                        /*\   [four]
-            /B+\   [three]
-      [one][two]          
+              /B+\ [three]
+        [one][two]        
 
 Left & right operands moved under (like tree branches) [/] operator (Divide)
 Scope Level 0: [result][=]//\
 
 Parse tree of moved operator 
-                             //\
-                          /*\   [six]
-                 /*\   [four]
-      /B+\   [three]         
-[one][two]                   
+                          //\
+                       /*\   [six]
+                /*\ [four]
+       /B+\ [three]       
+ [one][two]               
 
 Compiler's Parse Tree for Complete Expression
-        /=\
-[result]   //\
-           /*\   [six]
-           /*\   [four]
-           /B+\   [three]
-           [one][two]
+                       /=\
+               [result]   //\
+                       /*\   [six]
+                /*\ [four]
+       /B+\ [three]       
+ [one][two]               
 
 Parse tree flattened and written out to interpreted file
 [=][result][/][*][*][B+][one][two][three][four][six]

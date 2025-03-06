@@ -22,14 +22,14 @@ Scope Level 0: [sum][=]/B+\
 
 Parse tree of moved operator 
                        /B+\
-                    /*\    [3]
+                    /*\   [3]
                  [1][2]
 
 Compiler's Parse Tree for Complete Expression
      /=\
 [sum]   /B+\
-        /*\   [3]
-        [1][2]
+     /*\   [3]
+  [1][2]
 
 Parse tree flattened and written out to interpreted file
 [=][sum][B+][*][1][2][3]

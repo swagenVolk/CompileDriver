@@ -26,7 +26,7 @@ Scope Level 2: /B+\
 
 Parse tree of moved operator 
                /B+\
-          [one]    [two]
+          [one]   [two]
 
 Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
 Scope Level 1: /B+\[B+][three]
@@ -36,7 +36,7 @@ Scope Level 1: /B+\
 
 Parse tree of moved operator 
                /B+\
-           /B+\    [three]
+           /B+\   [three]
      [one][two]
 
 Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
@@ -47,7 +47,7 @@ Scope Level 1: /B+\
 
 Parse tree of moved operator 
                /B+\
-         [four]    [six]
+         [four]   [six]
 
 Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
 Scope Level 2: [three][:][four]
@@ -82,27 +82,27 @@ Scope Level 1: /<<\[<]/*\[?\
 
 Parse tree of moved operator 
                /<<\
-            /*\    [five]
+            /*\   [five]
      [six][one]
 
 Left & right operands moved under (like tree branches) [<] operator
 Scope Level 1: /<\[?\
 
 Parse tree of moved operator 
-                   /<\
-               /<<\   /*\
-       /*\   [five]   [eight][four]
-[six][one]         
+                  /<\
+              /<<\   /*\
+        /*\ [five]   [eight][four]
+ [six][one]       
 
 Left operand moved under (like tree branches) [?] operator (Ternary (if-else))
 Scope Level 1: /?\
 
 Parse tree of moved operator 
-                           /?\
-                        /<\   /:\
-                 /<<\   /*\   [three][four]
-[four]/*\[eight][five]      
-  [six][one]               
+                                 /?\
+                              /<\   /:\
+              /<<\            /*\   [three][four]
+        /*\ [five]  [eight][four]
+ [six][one]                      
 
 Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
 Scope Level 0: [result][=]/B+\[*]/B+\[B+]/?\
@@ -112,28 +112,28 @@ Scope Level 0: [result][=]/*\[B+]/?\
 Parse tree of moved operator 
                           /*\
                       /B+\   /B+\
-            /B+\   [three]   [four][six]
-      [one][two]          
+              /B+\ [three]   [four][six]
+        [one][two]        
 
 Left & right operands moved under (like tree branches) [B+] operator (Add)
 Scope Level 0: [result][=]/B+\
 
 Parse tree of moved operator 
-                             /B+\
-                          /*\    /?\
-                  /B+\   /B+\    /<\   /:\
-[six]  /B+\[three][four]         /<<\   /*\   [three][four]
-  [one][two]                     /*\   [five] [eight][four]
-                                 [six][one]
+                                /B+\
+                             /*\   /?\
+               /B+\         /B+\   /<\                         /:\
+       /B+\ [three]  [four][six]   /<<\         /*\            [three][four]
+ [one][two]                        /*\  [five]  [eight][four]
+                                   [six][one]
 
 Compiler's Parse Tree for Complete Expression
-        /=\
-[result]   /B+\
-           /*\   /?\
-           /B+\   /B+\   /<\   /:\
-           /B+\   [three] [four][six] /<<\   /*\   [three][four]
-           [one][two] /*\   [five] [eight][four]
-                      [six][one]
+                             /=\
+                     [result]   /B+\
+                             /*\   /?\
+               /B+\         /B+\   /<\                         /:\
+       /B+\ [three]  [four][six]   /<<\         /*\            [three][four]
+ [one][two]                        /*\  [five]  [eight][four]
+                                   [six][one]
 
 Parse tree flattened and written out to interpreted file
 [=][result][B+][*][B+][B+][one][two][three][B+][four][six][?][<][<<][*][six][one][five][*][eight][four][three][four]

@@ -35,26 +35,26 @@ Scope Level 0: [result][=][one][B+]//\
 Parse tree of moved operator 
                                    //\
                                 /*\   [six]
-                       /*\   [four]
-              [two][three]         
+                         /*\ [four]
+                [two][three]       
 
 Left & right operands moved under (like tree branches) [B+] operator (Add)
 Scope Level 0: [result][=]/B+\
 
 Parse tree of moved operator 
                           /B+\
-                     [one]    //\
-                              /*\   [six]
-                              /*\   [four]
-                              [two][three]
+                     [one]   //\
+                             /*\          [six]
+                             /*\  [four]
+                             [two][three]
 
 Compiler's Parse Tree for Complete Expression
         /=\
 [result]   /B+\
-           [one]//\
-                /*\   [six]
-                /*\   [four]
-                [two][three]
+      [one]   //\
+              /*\          [six]
+              /*\  [four]
+              [two][three]
 
 Parse tree flattened and written out to interpreted file
 [=][result][B+][one][/][*][*][two][three][four][six]

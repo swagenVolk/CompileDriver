@@ -19,7 +19,7 @@ Scope Level 2: /B+\
 
 Parse tree of moved operator 
                /B+\
-            [3]    [4]
+            [3]   [4]
 
 Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
 Scope Level 2: [5][B+][6]
@@ -30,7 +30,7 @@ Scope Level 2: /B+\
 
 Parse tree of moved operator 
                /B+\
-            [5]    [6]
+            [5]   [6]
 
 Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
 Scope Level 1: /B+\[*]/B+\
@@ -51,26 +51,26 @@ Scope Level 0: [value][=][1][B+]/*\
 Parse tree of moved operator 
                                 /*\
                              [2]   /*\
-                                   /B+\   /B+\
-                                   [3][4] [5][6]
+                                   /B+\    /B+\
+                                   [3][4]  [5][6]
 
 Left & right operands moved under (like tree branches) [B+] operator (Add)
 Scope Level 0: [value][=]/B+\
 
 Parse tree of moved operator 
                          /B+\
-                      [1]    /*\
-                             [2]/*\
-                                /B+\   /B+\
-                                [3][4] [5][6]
+                      [1]   /*\
+                            [2] /*\
+                                /B+\    /B+\
+                                [3][4]  [5][6]
 
 Compiler's Parse Tree for Complete Expression
        /=\
 [value]   /B+\
-          [1]/*\
-             [2]/*\
-                /B+\   /B+\
-                [3][4] [5][6]
+       [1]   /*\
+             [2] /*\
+                 /B+\    /B+\
+                 [3][4]  [5][6]
 
 Parse tree flattened and written out to interpreted file
 [=][value][B+][1][*][2][*][B+][3][4][B+][5][6]

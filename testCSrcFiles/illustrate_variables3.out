@@ -21,7 +21,7 @@ Scope Level 2: /B+\
 
 Parse tree of moved operator 
                /B+\
-          [one]    [two]
+          [one]   [two]
 
 Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
 Scope Level 1: /B+\[B+][three]
@@ -31,7 +31,7 @@ Scope Level 1: /B+\
 
 Parse tree of moved operator 
                /B+\
-           /B+\    [three]
+           /B+\   [three]
      [one][two]
 
 Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
@@ -42,7 +42,7 @@ Scope Level 1: /B+\
 
 Parse tree of moved operator 
                /B+\
-         [four]    [six]
+         [four]   [six]
 
 Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
 Scope Level 1: [six][*][three]
@@ -62,26 +62,26 @@ Scope Level 0: [result][=]/*\[B+]/*\
 Parse tree of moved operator 
                           /*\
                       /B+\   /B+\
-            /B+\   [three]   [four][six]
-      [one][two]          
+              /B+\ [three]   [four][six]
+        [one][two]        
 
 Left & right operands moved under (like tree branches) [B+] operator (Add)
 Scope Level 0: [result][=]/B+\
 
 Parse tree of moved operator 
-                             /B+\
-                          /*\    /*\
-                  /B+\   /B+\    [six][three]
-[six]  /B+\[three][four]     
-  [one][two]                 
+                                /B+\
+                             /*\   /*\
+               /B+\         /B+\   [six][three]
+       /B+\ [three]  [four][six]
+ [one][two]                     
 
 Compiler's Parse Tree for Complete Expression
-        /=\
-[result]   /B+\
-           /*\   /*\
-           /B+\   /B+\   [six][three]
-           /B+\   [three] [four][six]
-           [one][two]
+                             /=\
+                     [result]   /B+\
+                             /*\   /*\
+               /B+\         /B+\   [six][three]
+       /B+\ [three]  [four][six]
+ [one][two]                     
 
 Parse tree flattened and written out to interpreted file
 [=][result][B+][*][B+][B+][one][two][three][B+][four][six][*][six][three]
