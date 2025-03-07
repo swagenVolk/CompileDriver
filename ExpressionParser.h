@@ -91,7 +91,6 @@ private:
   int makeTreeAndLinkParent (bool & isOpenParenFndYet);
   bool isTernaryOpen ();
   int get2ndTernaryCnt ();
-  std::wstring getMyParentSymbol ();
   int closeNestedScopes();
   int moveNeighborsIntoTree (Operator & opr8r, ExprTreeNodePtrVector & currScope
 	, int opr8rIdx, opr8rReadyState opr8rState, bool isMoveLeftNbr, bool isMoveRightNbr);

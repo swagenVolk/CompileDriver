@@ -778,8 +778,9 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 	if (((logLevel == ILLUSTRATIVE && !isExprVarDeclaration) || logLevel > ILLUSTRATIVE)
 		&& (exprScopeStack.size() > 1 || (exprScopeStack.size() == 1 && exprScopeStack[0]->scopedKids.size() > 1)))	{
 		std::wstring bannerMsg = L"Current highest precedence sub-expression closed; compiler has";
-		if (!isExprClosed) 
+		if (!isExprClosed) {
 			bannerMsg.append (L" NOT");
+    }
 	 	bannerMsg.append (L" read in all Tokens for this expression.");
 		printScopeStack (bannerMsg, false);
 	}
@@ -1151,7 +1152,8 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
 }
 
 /* ****************************************************************************
- *
+ * Called after an expression has been compiled.  Releases memory and gets back
+ * to an initial state.
  * ***************************************************************************/
 void ExpressionParser::cleanScopeStack()	{
 	std::vector<std::shared_ptr<NestedScopeExpr>>::reverse_iterator scopeR8r;
@@ -1399,6 +1401,7 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
  /* ****************************************************************************
  * Procedure used in displaying the compiler's parse tree for an expression
  * Get the longest "line" by grabbing the greatest displayEndPos
+ * Used to determine how much space is needed for the left side of the whole tree
  * ***************************************************************************/
  void ExpressionParser::getMaxLineLen (std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & arrayOfNodeLists
     , bool isLefty, int & maxLineLen)	{
@@ -1436,7 +1439,8 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
 
 /* ****************************************************************************
  * Procedure used in displaying the compiler's parse tree for an expression
- * 
+ * Put the left half of the completed parse tree into displayLines, which is 
+ * displayed for user consumption
  * ***************************************************************************/
  int ExpressionParser::fillDisplayLeft (std::vector<std::wstring> & displayLines, std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & arrayOfNodeLists
 	, int maxLineLen)	{
@@ -1493,7 +1497,8 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
 
 /* ****************************************************************************
  * Procedure used in displaying the compiler's parse tree for an expression
- * 
+ * Put the right half of the completed parse tree into displayLines, which is 
+ * displayed for user consumption
  * ***************************************************************************/
  int ExpressionParser::fillDisplayRight (std::vector<std::wstring> & displayLines, std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & arrayOfNodeLists
 	, int centerGapSpaces)	{
@@ -1597,36 +1602,18 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
  * Procedure used in displaying the compiler's parse tree for an expression
  * Serves as an ILLUSTRATIVE aid
  * After an expression tree has been built, this proc will create a 
- * graphical tree representation for display when operating in 
- * ILLUSTRATIVE mode
+ * graphical tree representation for display when operating in ILLUSTRATIVE mode
  * 
- * What I've got right now:
- *         /=\
- * [result]   /B+\
- *            /*\/?\
- *            /B+\/B+\/<\/:\
- *            /B+\[three][four][six]/<<\/*\[three][four]
- *            [one][two]/*\[five][eight][four]
- *            [six][one]
+ * User source: 
+ * result = (one + two) * three * four / six;
  *
- * Start from top level on L or R side
- * R side - figure out max width for _1stChild side recursively
- * Push _2ndChild over so there's no overlap
- * figure out max width for _2ndChild side recursively
- * 
- * Probably want it to look something like below:
- * 
- * /B+\
- * /*\                       /?\
- * /B+\         /B+\         /<\                     /:\
- * /B+\ [three] [four][six]  /<<\       /*\          [three][four]
- * [one][two]                /*\ [five] [eight][four]
- *                           [six][one]
- *
- * inside operand,outside operand - no space between
- * inside operand,outside opr8r   - 1 space between
- * inside opr8r, outside operand  - 1 space between
- * inside opr8r, outside opr8r    - resolve inside 1st to determine gap between the two
+ * Parse tree:
+ *                        /=\
+ *                [result]   //\
+ *                        /*\   [six]
+ *                 /*\ [four]
+ *        /B+\ [three]       
+ *  [one][two]               
  * ***************************************************************************/
  int ExpressionParser::displayParseTree (std::shared_ptr<ExprTreeNode> startBranch, int adjustToRight)	{
 	int ret_code = GENERAL_FAILURE;
@@ -1711,6 +1698,18 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
 
 /* ****************************************************************************
  * Procedure used in displaying the compiler's parse tree for an expression
+ *
+ *                              /=\
+ *                      [result]   /B+\
+ *                              /*\   /?\ #2: Go to my parent
+ *                /B+\         /B+\   /<\                         /:\ <-- #1: Where do I position this?
+ *        /B+\ [three]  [four][six]   /<<\         /*\            [three][four]
+ *  [one][two]                        /*\  [five]  [eight][four]          #3: Find the largest resolved 
+ *                                    [six][one]                              outer pos, base new start
+ *                                                                            pos from that
+ * How is the start position of /*\ determined? The recursion goes from the
+ * center to the outside, so we need to go back to what's already been resolved.
+ * See steps #1, #, #3 above
  * ***************************************************************************/
  int ExpressionParser::findMaxOuterNodeEndPos (bool isLeftTree, std::shared_ptr<ExprTreeNode> searchBranch, int & maxEndPos)  {
   int ret_code = GENERAL_FAILURE;
@@ -1820,57 +1819,12 @@ int ExpressionParser::setCtrStartByPrevBndry (bool isLeftTree, std::shared_ptr<E
 
 /* ****************************************************************************
  * Procedure used in displaying the compiler's parse tree for an expression
- * Set start and end display positions for a leaf node
+ * Set start and end display positions for an outer leaf node based off of
+ * our center sibling's previously set displayEndPos
  * ***************************************************************************/
 int ExpressionParser::setOuterLeafNodeDisplayPos (bool isLeftTree, int halfTreeLevel, std::shared_ptr<ExprTreeNode> currBranch) {
   int ret_code = GENERAL_FAILURE;
 
-/*
-  if (currBranch->nodePos == CENTER_NODE) {
-    // Check our ancestors. Go up-level until we find the last CENTER_NODE in our ancestry
-    if (currBranch->displayRow <= 1)  {
-      currBranch->displayStartPos = 0;
-      ret_code = OK;
-    
-    } else if (OK == setCtrStartByPrevBndry(isLeftTree, currBranch))  {
-      ret_code = OK;
-    }
-    
-     } else {
-      if (OK == getCentersPrevBoundary (currBranch, maxStartPos))  {
-        if (maxStartPos >= 0) {
-          currBranch->displayStartPos = maxStartPos;
-          ret_code = OK;
-  
-        } else if (isLeftTree && currBranch->treeParent != NULL && currBranch->treeParent->treeParent != NULL) {
-          //                     /*\                    
-          //         /B+\       /B+\   
-          // [two][three] [four][six]
-          // We need to figure out [three] - go up 2 levels and then down two levels to get to [four]
-          std::shared_ptr<ExprTreeNode> grandParent = currBranch->treeParent->treeParent;
-          if (grandParent->_2ndChild != NULL && grandParent->_2ndChild->_1stChild != NULL)  {
-            currBranch->displayStartPos = grandParent->_2ndChild->_1stChild->displayStartPos;
-            ret_code = OK;
-          }
-          
-        } else if (!isLeftTree && currBranch->treeParent != NULL && currBranch->treeParent->treeParent != NULL)  {
-            // /*\                    
-            // /B+\         /B+\   
-            // /B+\ [three] [four][six]
-            // We need to figure out [four] - go up 2 levels and then down 2 levels to get to [three]
-            std::shared_ptr<ExprTreeNode> grandParent = currBranch->treeParent->treeParent;
-            if (grandParent->_1stChild != NULL && grandParent->_1stChild->_2ndChild != NULL) {
-              currBranch->displayStartPos = grandParent->_1stChild->_2ndChild->displayStartPos;
-              ret_code = OK;
-            }
-        }
-      }
-    }
-    if (OK == ret_code)
-      currBranch->displayEndPos = currBranch->displayStartPos + makeTreeNodeStr(currBranch).length();
-
-  } else
-*/   
   if (currBranch->nodePos == OUTER_NODE) {
     // Sibling CENTER_NODE should already be resolved, so use that
     std::shared_ptr<ExprTreeNode> centerNode;
@@ -1897,6 +1851,7 @@ int ExpressionParser::setOuterLeafNodeDisplayPos (bool isLeftTree, int halfTreeL
 }
 
 /* ****************************************************************************
+ * Procedure used in displaying the compiler's parse tree for an expression
  * Set start and end display positions for a branch [OPR8R] node
  * ***************************************************************************/
  int ExpressionParser::setBranchNodeDisplayPos (bool isLeftTree, int halfTreeLevel, std::shared_ptr<ExprTreeNode> currBranch) {
@@ -1994,7 +1949,9 @@ int ExpressionParser::setOuterLeafNodeDisplayPos (bool isLeftTree, int halfTreeL
 
 /* ****************************************************************************
  * Procedure used in displaying the compiler's parse tree for an expression
- * 
+ * The CENTER_NODE has been set at the top of this sub-tree, so set all the
+ * other CENTER_NODEs directly below to the same displayStartPos so they line 
+ * up.
  * ***************************************************************************/
  int ExpressionParser::setDownstreamCenters (bool isLeftTree, std::shared_ptr<ExprTreeNode> currBranch)  {
   int ret_code = GENERAL_FAILURE;
