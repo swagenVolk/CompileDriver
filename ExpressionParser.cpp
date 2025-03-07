@@ -1995,7 +1995,7 @@ int ExpressionParser::setOuterLeafNodeDisplayPos (bool isLeftTree, int halfTreeL
 /* ****************************************************************************
  * Procedure used in displaying the compiler's parse tree for an expression
  * Recursive proc to determine node display positions within one left|right half
- * of a complete parse tree express
+ * of a complete parse tree expression
  * ***************************************************************************/
 int ExpressionParser::setHalfTreeDisplayPos (bool isLeftTree, int halfTreeLevel, std::shared_ptr<ExprTreeNode> currBranch
   , std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & halfDisplayLines)	{
