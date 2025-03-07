@@ -5,9 +5,6 @@
  *      Author: Mike Volk
  * 
  * Conceptually this is a NameSpace that holds variables in their respective scope levels
- * TODO: 
- * Should compiler and interpreter have different scope objects?
- * Need to check {} when closing a scope.  [}] probably closes every scope EXCEPT for ROOT
  */
 
 #include "StackOfScopes.h"
@@ -19,7 +16,6 @@
 #include <memory>
 
 StackOfScopes::StackOfScopes() {
-	// TODO Auto-generated constructor stub
 	Token rootScopeTkn (INTERNAL_USE_TKN, L"__ROOT_SCOPE");
 	std::shared_ptr<ScopeWindow> rootScope = std::make_shared<ScopeWindow> (INVALID_OPCODE, rootScopeTkn, 0, 0);
 	scopeStack.push_back(rootScope);
@@ -28,7 +24,6 @@ StackOfScopes::StackOfScopes() {
 }
 
 StackOfScopes::~StackOfScopes() {
-	// TODO Auto-generated destructor stub
 	thisSrcFile.clear();
 	reset();
 }

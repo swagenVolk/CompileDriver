@@ -10,11 +10,9 @@
 #include "Opr8rPrecedenceLvl.h"
 
 Opr8rPrecedenceLvl::Opr8rPrecedenceLvl() {
-	// TODO Auto-generated constructor stub
 
 }
 
 Opr8rPrecedenceLvl::~Opr8rPrecedenceLvl() {
-	// TODO Auto-generated destructor stub
 }
 

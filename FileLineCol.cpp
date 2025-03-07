@@ -11,7 +11,7 @@ FileLineCol::FileLineCol()	{
 	columnPos = 0;
 }
 FileLineCol::FileLineCol(std::wstring in_fileName, int in_lineNumber, int in_colPos) {
-	// TODO Auto-generated constructor stub
+	// Auto-generated constructor stub
 	fileName = in_fileName;
 	lineNumber = in_lineNumber;
 	columnPos = in_colPos;
@@ -19,7 +19,7 @@ FileLineCol::FileLineCol(std::wstring in_fileName, int in_lineNumber, int in_col
 }
 
 FileLineCol::~FileLineCol() {
-	// TODO Auto-generated destructor stub
+	// Auto-generated destructor stub
 	if (fileName.length() > 0)	{
 		fileName.erase(0, fileName.length());
 	}

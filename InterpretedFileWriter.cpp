@@ -5,8 +5,6 @@
  *      Author: Mike Volk
  *
  * Utility class used by the Compiler to write objects out to the Interpreted file.
- *	TODO:
- *	Make sure error messages are captured
  *
  */
 
@@ -25,7 +23,6 @@ InterpretedFileWriter::InterpretedFileWriter(std::string output_file_name, Compi
 		, std::shared_ptr<UserMessages> userMessages)
 	: outputStream (output_file_name, outputStream.binary | outputStream.out)
 {
-	// TODO Auto-generated constructor stub
 	execTerms = & inExecTerms;
 	this->userMessages = userMessages;
 
@@ -42,7 +39,6 @@ InterpretedFileWriter::InterpretedFileWriter(std::string output_file_name, Compi
 }
 
 InterpretedFileWriter::~InterpretedFileWriter() {
-	// TODO Auto-generated destructor stub
 	if (outputStream.is_open())
 		outputStream.close();
 }
@@ -62,7 +58,6 @@ int InterpretedFileWriter::writeFlatExprToFile (std::vector<Token> & flatExprTkn
 
 	} else	{
 		// Make sure we're at END of our output file
-		// TODO: Account for nested expressions (???)
 		outputStream.seekp(0, std::fstream::end);
 
 		uint32_t startFilePos = outputStream.tellp();
@@ -167,9 +162,6 @@ int InterpretedFileWriter::writeFlexLenOpCode (uint8_t op_code)	{
 int InterpretedFileWriter::write8BitOpCode (uint8_t op_code, uint8_t  payload)	{
 	int ret_code = GENERAL_FAILURE;
 
-	if (op_code == INT8_OPCODE)
-		std::wcout << L"TODO: STOP!" << std::endl;
-
 	if (op_code >= FIXED_OPCODE_RANGE_BEGIN && op_code <= FIXED_OPCODE_RANGE_END)	{
 		if (op_code == UINT8_OPCODE || op_code == INT8_OPCODE)	{
 			// Write op_code followed by payload out to file
@@ -247,7 +239,7 @@ int InterpretedFileWriter::writeRawUnsigned (uint64_t  payload, int payloadBitSi
 
 	assert (payloadBitSize == NUM_BITS_IN_BYTE || payloadBitSize == NUM_BITS_IN_WORD || payloadBitSize == NUM_BITS_IN_DWORD || payloadBitSize == NUM_BITS_IN_QWORD);
 
-	// TODO: Endian-ness is accounted for now Make this work in other Raw* fxns
+	// Account for endian-ness 
 	for (int idx = payloadBitSize/NUM_BITS_IN_BYTE; idx > 0; idx--)	{
 		maskedQword = (payload & shift_mask);
 		maskedQword >>= ((idx - 1) * NUM_BITS_IN_BYTE);
@@ -285,7 +277,6 @@ int InterpretedFileWriter::writeString (uint8_t op_code, std::wstring tokenStr)	
 
 /* ****************************************************************************
  * TODO: Any kind of check for success?
- * TODO: Endian-ness is buggered
  * ***************************************************************************/
 int InterpretedFileWriter::writeRawString (std::wstring tokenStr)	{
 	int ret_code = GENERAL_FAILURE;
@@ -324,7 +315,6 @@ int InterpretedFileWriter::writeToken (Token token)	{
 	uint8_t tkn8Val;
 
 	if (token.tkn_type == SRC_OPR8R_TKN && execTerms->get_statement_ender() == token._string)
-		// TODO: Skip writing [] out not needed
 		ret_code = OK;
 
 	else {
@@ -361,22 +351,18 @@ int InterpretedFileWriter::writeToken (Token token)	{
 				ret_code = writeRawUnsigned (token._unsigned, NUM_BITS_IN_QWORD);
 			break;
 		case INT8_TKN :
-			// TODO: Check
 			if (OK == writeRawUnsigned (INT8_OPCODE, NUM_BITS_IN_BYTE))
 				ret_code = writeRawUnsigned (token._signed, NUM_BITS_IN_BYTE);
 			break;
 		case INT16_TKN :
-			// TODO: Check
 			if (OK == writeRawUnsigned (INT16_OPCODE, NUM_BITS_IN_BYTE))
 				ret_code = writeRawUnsigned (token._signed, NUM_BITS_IN_WORD);
 			break;
 		case INT32_TKN :
-			// TODO: Check
 			if (OK == writeRawUnsigned (INT32_OPCODE, NUM_BITS_IN_BYTE))
 				ret_code = writeRawUnsigned (token._signed, NUM_BITS_IN_DWORD);
 			break;
 		case INT64_TKN :
-			// TODO: Check
 			if (OK == writeRawUnsigned (INT64_OPCODE, NUM_BITS_IN_BYTE))
 				ret_code = writeRawUnsigned (token._signed, NUM_BITS_IN_QWORD);
 			break;
@@ -415,7 +401,6 @@ int InterpretedFileWriter::addTokenToFlatList (std::shared_ptr<Token> token, std
 	bool isFailed = false;
 
 	if (token->tkn_type == SRC_OPR8R_TKN && execTerms->get_statement_ender() == token->_string)
-		// TODO: Skip writing [] out not needed
 		ret_code = OK;
 
 	else {
@@ -660,9 +645,6 @@ int InterpretedFileWriter::flattenExprTree (std::shared_ptr<ExprTreeNode> rootOf
   	userMessages->logMsg (INTERNAL_ERROR, L"rootOfExpr is NULL!", thisSrcFile, __LINE__, 0);
 	else	
 		ret_code = makeFlatExpr_OLR (rootOfExpr, flatExprTknList);
-
-	// TODO: Uncomment for a printed list of the flattened expression
-	// util.dumpTokenList(flatExprTknList, *execTerms, thisSrcFile, __LINE__);
 
 	return (ret_code);
 }

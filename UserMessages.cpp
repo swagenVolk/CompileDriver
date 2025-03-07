@@ -11,13 +11,11 @@
 #include <memory>
 
 UserMessages::UserMessages() {
-	// TODO Auto-generated constructor stub
 	absoluteInsertPos = 0;
 
 }
 
 UserMessages::~UserMessages() {
-	// TODO Auto-generated destructor stub
 	reset();
 }
 
@@ -238,7 +236,7 @@ void UserMessages::putHolderMsgsInOrder (std::map<std::wstring, std::shared_ptr<
 }
 
 /* ****************************************************************************
- * TODO: This proc needs to be debugged.
+ * 
  * ***************************************************************************/
 void UserMessages::showMessagesByInsertOrder (bool isOrderAscending)	{
 

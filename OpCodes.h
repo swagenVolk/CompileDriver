@@ -13,8 +13,6 @@
 #include "common.h"
 #include <cstdint>
 
-// TODO: This is the "compressed" approach.  Do I need to have _OPCODE on the end?
-// Will there be any confusion with other types of opcodes?
 // [0x1-0x2F] is reserved for self-contained, single 8-bit BYTE OPR8R op_codes
 #define OPCODE_NUM_BYTES                1
 #define INVALID_OPCODE                  0x0

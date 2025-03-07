@@ -12,7 +12,6 @@
 #include "Token.h"
 
 CompileExecTerms::CompileExecTerms() {
-	// TODO Auto-generated constructor stub
   // C operator precedence from https://en.cppreference.com/w/c/language/operator_precedence
 	std::wstring curr_opr8r;
 	int idx = 0;
@@ -161,5 +160,4 @@ CompileExecTerms::CompileExecTerms() {
 }
 
 CompileExecTerms::~CompileExecTerms() {
-	// TODO Auto-generated destructor stub
 }

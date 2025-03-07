@@ -17,12 +17,10 @@
 #include <vector>
 
 BaseLanguageTerms::BaseLanguageTerms() {
-	// TODO Auto-generated constructor stub
 
 }
 
 BaseLanguageTerms::~BaseLanguageTerms() {
-	// TODO Auto-generated destructor stub
 }
 
 /* ****************************************************************************

@@ -60,7 +60,7 @@ int FileParser::get_next_char(std::fstream & input_stream, wchar_t & next_char, 
       // double byte UTF-8 char 0x110xxxxx 0x10xxxxxx
       input_stream.read(reinterpret_cast<char*>(&byte_1), sizeof byte_1); // binary input
       if ((byte_1 & BIT_7) == BIT_7 && (byte_1 & BIT_6) == 0) {
-        // TODO: Twiddle some bits -> https://en.wikipedia.org/wiki/UTF-8
+        // Twiddle some bits -> https://en.wikipedia.org/wiki/UTF-8
         next_char = (byte_0 & 0x1F);
         next_char <<= 6;
         scratch_pad = byte_1 & ~(BIT_7);
@@ -75,7 +75,7 @@ int FileParser::get_next_char(std::fstream & input_stream, wchar_t & next_char, 
       byte_2 = remaining2[1];
 
       if ((byte_1 & BIT_7) == BIT_7 && (byte_1 & BIT_6) ==  0 && (byte_2 & BIT_7) == BIT_7 && (byte_2 & BIT_6) == 0) {
-        // TODO: Twiddle some bits -> https://en.wikipedia.org/wiki/UTF-8
+        // Twiddle some bits -> https://en.wikipedia.org/wiki/UTF-8
         next_char = (byte_0 & 0xF);
         next_char <<= 12;
         scratch_pad = (byte_1 & 0x1F);
@@ -93,7 +93,7 @@ int FileParser::get_next_char(std::fstream & input_stream, wchar_t & next_char, 
       byte_2 = remaining3[1];
       byte_2 = remaining3[1];
       if ((byte_1 & BIT_7) == BIT_7 && (byte_1 & BIT_6) == 0 && (byte_2 & BIT_7) == BIT_7 && (byte_2 & BIT_6) == 0) {
-        // TODO: Twiddle some bits -> https://en.wikipedia.org/wiki/UTF-8
+        // Twiddle some bits -> https://en.wikipedia.org/wiki/UTF-8
         next_char = (byte_0 & 0x3);
         next_char <<= 18;
         scratch_pad = (byte_1 & 0x1F);
@@ -131,7 +131,7 @@ int FileParser::peek_next_char (std::fstream & input_stream, wchar_t & peeked_ch
   int ret_code = GENERAL_FAILURE;
 
   long restore_pos = input_stream.tellg();
-  // TODO: Need to get and then reset file pos at end
+  // Need to get and then reset file pos at end
   int wrkng_ret_code = get_next_char (input_stream, peeked_char, true);
 
   if (wrkng_ret_code == OK) {
@@ -451,7 +451,6 @@ void FileParser::resolve_final_tkn_type (std::shared_ptr<Token>  tkn_of_ambiguit
       case UINT16_TKN:
       case UINT32_TKN:
       case UINT64_TKN:
-      	// TODO: Just support 64-bit #'s to simplify?
         // Check to make sure it's not junk
         if (tkn_of_ambiguity->_string.length() < 3 || tkn_of_ambiguity->_string.length() > 18)
           // 0x won't cut it & anything longer than -> 0x0123456789ABCDEF is too big
@@ -660,7 +659,7 @@ tkn_type_enum FileParser::start_new_tkn_get_type (std::fstream & input_stream, T
       tkn_type = SRC_OPR8R_TKN;
     }
   } else if (iswdigit(curr_char))  {
-  	// TODO: These 64-bit data types will be used as place holders. When the Token is finalized, we can
+  	// These 64-bit data types will be used as place holders. When the Token is finalized, we can
   	// drop the data type size of this literal down to the minimum size that can accommodate the data.
   	if (curr_char == '0' && OK == peek_next_char(input_stream, peeked) && (peeked == 'X' || peeked == 'x'))  {
       tkn_type = UINT64_TKN;
@@ -869,7 +868,6 @@ int FileParser::gnr8_token_stream(std::string file_name, TokenPtrVector & token_
               failed_on_src_line_num = __LINE__;
 
             } else if (is_end)  {
-              // std::wcout << "OLD SCHOOL COMMENT: " << curr_str << "| on line # " << curr_tkn_starts_on_line_num << "; col = " << curr_tkn_starts_on_col_pos << ";" << std::endl;
               // Comments are syntactic sugar that just melt away and do *NOT* get added to the Token stream
               curr_str.clear();
               curr_tkn_type = START_UNDEF_TKN;

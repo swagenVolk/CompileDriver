@@ -10,7 +10,6 @@
 #include <cstdint>
 
 ScopeWindow::ScopeWindow(uint8_t inOpCode, Token inOpeningTkn, uint32_t inStartFilePos, uint32_t inScopeLen) {
-	// TODO Auto-generated constructor stub
 	opener_opcode = inOpCode;
 	openerTkn = inOpeningTkn;
 	boundary_begin_pos = inStartFilePos;
@@ -31,6 +30,5 @@ int ScopeWindow::setBoundaryEndPos (uint32_t end_pos)	{
 }
 
 ScopeWindow::~ScopeWindow() {
-	// TODO Auto-generated destructor stub
 }
 

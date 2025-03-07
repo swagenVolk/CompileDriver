@@ -8,7 +8,6 @@
 #include "TokenCompareResult.h"
 
 TokenCompareResult::TokenCompareResult() {
-	// TODO Auto-generated constructor stub
 	gr8rThan = compareFailed;
 	gr8rEquals = compareFailed;
 	lessThan = compareFailed;
@@ -18,6 +17,5 @@ TokenCompareResult::TokenCompareResult() {
 }
 
 TokenCompareResult::~TokenCompareResult() {
-	// TODO Auto-generated destructor stub
 }
 

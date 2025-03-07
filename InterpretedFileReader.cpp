@@ -19,7 +19,6 @@
  *
  * ***************************************************************************/
 InterpretedFileReader::InterpretedFileReader() {
-	// TODO Auto-generated constructor stub
 	thisSrcFile = util.getLastSegment(util.stringToWstring(__FILE__), L"/");
 }
 
@@ -28,7 +27,6 @@ InterpretedFileReader::InterpretedFileReader() {
  * ***************************************************************************/
 InterpretedFileReader::InterpretedFileReader(std::string input_file_name, CompileExecTerms & inExecTerms)
 	: inputStream (input_file_name, inputStream.binary | inputStream.in) {
-	// TODO Auto-generated constructor stub
 	execTerms = & inExecTerms;
 	thisSrcFile = util.getLastSegment(util.stringToWstring(__FILE__), L"/");
 }
@@ -37,7 +35,6 @@ InterpretedFileReader::InterpretedFileReader(std::string input_file_name, Compil
  *
  * ***************************************************************************/
 InterpretedFileReader::~InterpretedFileReader() {
-	// TODO Auto-generated destructor stub
 	if (inputStream.is_open())
 		inputStream.close();
 }

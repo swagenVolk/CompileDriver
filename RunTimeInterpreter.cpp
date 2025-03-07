@@ -127,7 +127,6 @@
  *
  * ***************************************************************************/
 RunTimeInterpreter::RunTimeInterpreter() {
-	// TODO Auto-generated constructor stub
   oneTkn = std::make_shared<Token> (UINT64_TKN, L"1");
   // TODO: Token value not automatically filled in currently
   oneTkn->_unsigned = 1;
@@ -148,7 +147,6 @@ RunTimeInterpreter::RunTimeInterpreter() {
  * ***************************************************************************/
 RunTimeInterpreter::RunTimeInterpreter(CompileExecTerms & execTerms, std::shared_ptr<StackOfScopes> inVarScopeStack
 		, std::wstring userSrcFileName, std::shared_ptr<UserMessages> userMessages, logLvlEnum logLvl) {
-	// TODO Auto-generated constructor stub
   oneTkn = std::make_shared<Token> (UINT64_TKN, L"1");
   // TODO: Token value not automatically filled in currently
   oneTkn->_unsigned = 1;
@@ -175,7 +173,6 @@ RunTimeInterpreter::RunTimeInterpreter(std::string interpretedFileName, std::wst
 	, std::shared_ptr<StackOfScopes> inVarScope,  std::shared_ptr<UserMessages> userMessages, logLvlEnum logLvl)
 		: execTerms ()
 		, fileReader (interpretedFileName, execTerms)	{
-	// TODO Auto-generated constructor stub
   oneTkn = std::make_shared<Token> (UINT64_TKN, L"1");
   // TODO: Token value not automatically filled in currently
   oneTkn->_unsigned = 1;
@@ -199,7 +196,6 @@ RunTimeInterpreter::RunTimeInterpreter(std::string interpretedFileName, std::wst
  *
  * ***************************************************************************/
 RunTimeInterpreter::~RunTimeInterpreter() {
-	// TODO Auto-generated destructor stub
 	oneTkn.reset();
 	zeroTkn.reset();
 
@@ -382,7 +378,6 @@ int RunTimeInterpreter::execExpression (uint32_t objStartPos, Token & resultTkn)
 
 	if (OK != fileReader.setFilePos(objStartPos))	{
 		// Follow on fxn expects to start at beginning of expression
-		// TODO: Standardize on this?
 		failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 		userMessages->logMsg(INTERNAL_ERROR
 			, L"Failed to reset interpreter file position to " + objStartPosStr.str(), thisSrcFile, failOnSrcLine, 0);
@@ -1922,8 +1917,7 @@ int RunTimeInterpreter::execOperation (Operator opr8r, int opr8rIdx, std::vector
 				, thisSrcFile, __LINE__, 0);
 
 	} else if (opr8r.type_mask & TERNARY_2ND)	{
-		// TODO: Is this an error condition? Or should there be a state machine or something?
-		userMessages->logMsg (INTERNAL_ERROR, L"", thisSrcFile, __LINE__, 0);
+		userMessages->logMsg (INTERNAL_ERROR, L"Unexpected TERNARY_2ND", thisSrcFile, __LINE__, 0);
 
 	} else if ((opr8r.type_mask & BINARY) && opr8r.numReqExecOperands == 2)	{
 		ret_code = execBinaryOp (flatExprTkns, opr8rIdx);
@@ -2032,7 +2026,6 @@ int RunTimeInterpreter::execFlatExpr_OLR(std::vector<Token> & flatExprTkns, int 
 	bool isSubExprComplete = false;
 
 	if (startIdx >= prevTknCnt)	{
-		// TODO: Great opportunity to use InfoWarnError!
 		failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 		userMessages->logMsg (INTERNAL_ERROR, L"Parameter startIdx goes beyond Token stream", thisSrcFile, failOnSrcLine, 0);
 
@@ -2060,8 +2053,6 @@ int RunTimeInterpreter::execFlatExpr_OLR(std::vector<Token> & flatExprTkns, int 
 						failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 					
 					} else {
-						// TODO: Add short-circuiting in for [&&] and [||]
-						
 						if (opr8r.op_code == TERNARY_1ST_OPR8R_OPCODE)	{
 							// [?] is a special case, AND there is the potential for short-circuiting
 							isOneOpr8rDone = true;
@@ -2099,13 +2090,11 @@ int RunTimeInterpreter::execFlatExpr_OLR(std::vector<Token> & flatExprTkns, int 
 								// EXECUTE THE OPR8R!!!
 								isOneOpr8rDone = true;
 								illustrativeB4op (flatExprTkns, currIdx);
-								// TODO: Build a string that displays the Tokens and send it out if different from prev
 
 								// Make a string with a caret to point to the OPR8R that's going to get executed....search for N "[" for placement
 								if (OK == execOperation (opr8r, currIdx, flatExprTkns))	{
 									// Operation result stored in Token that previously held the OPR8R. We need to delete any associatd operands
 									flatExprTkns.erase(flatExprTkns.begin() + currIdx + 1, flatExprTkns.begin() + currIdx + numRandsReq + 1);
-									// TODO: Build a string to display remaining Tokens
 									illustrativeAfterOp (flatExprTkns);
 								} else	{
 									failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
@@ -2160,7 +2149,7 @@ int RunTimeInterpreter::execFlatExpr_OLR(std::vector<Token> & flatExprTkns, int 
 
 	if (ret_code != OK && !failOnSrcLine)	{
 		userMessages->logMsg (INTERNAL_ERROR, L"Unhandled error!", thisSrcFile, __LINE__, 0);
-		// TODO: See the final result
+		// See the final result
 		util.dumpTokenList (flatExprTkns, execTerms, thisSrcFile, __LINE__);
 	}
 
@@ -2229,7 +2218,6 @@ int RunTimeInterpreter::resolveTknOrVar (Token & originalTkn, Token & resolvedTk
  * [else] blocks at the same scope. We'll need to know where the scope that
  * encloses this [if] block ends.
  * [op_code][total_length][conditional EXPRESSION][code block]
- * TODO: Probably need to get the enclosing scope's end pos
  * ***************************************************************************/
 int RunTimeInterpreter::execIfBlock (uint32_t scopeStartPos, uint32_t if_scope_len
 	, uint32_t afterParentScopePos)	{
@@ -2256,7 +2244,6 @@ int RunTimeInterpreter::execIfBlock (uint32_t scopeStartPos, uint32_t if_scope_l
 
 
 	} else {
-		// TODO: check enclosing scope's end
 		// [if] condition is FALSE, so jump around the [if] block
 		fileReader.setFilePos(scopeStartPos + if_scope_len);
 	}

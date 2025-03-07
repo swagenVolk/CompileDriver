@@ -29,5 +29,4 @@ NestedScopeExpr::NestedScopeExpr(std::shared_ptr<ExprTreeNode> openParenPtr) {
 }
 
 NestedScopeExpr::~NestedScopeExpr() {
-	// TODO Auto-generated destructor stub
 }

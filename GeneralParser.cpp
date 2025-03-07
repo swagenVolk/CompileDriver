@@ -272,15 +272,14 @@ int GeneralParser::compileCurrScope () 	{
 					}
 
 				} else if (currTkn->tkn_type == RESERVED_WORD_TKN && currTkn->_string == L"for")	{
-					// TODO:
 			  	userMessages->logMsg (INTERNAL_ERROR, L"[for] RESERVED_WORD not supported yet!", thisSrcFile, __LINE__, 0);
 					isStopFail = true;
 
 				} else if (currTkn->tkn_type == RESERVED_WORD_TKN && currTkn->_string == L"while")	{
-					// TODO:
 			  	userMessages->logMsg (INTERNAL_ERROR, L"[while] RESERVED_WORD not supported yet!", thisSrcFile, __LINE__, 0);
 					isStopFail = true;
-				} else	{
+
+        } else	{
 					userMessages->logMsg (USER_ERROR, L"Unexpected Token: " + currTkn->descr_sans_line_num_col()
 						, userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
 			  	isStopFail = true;
@@ -455,7 +454,7 @@ int GeneralParser::parseVarDeclaration (std::wstring dataTypeStr, std::pair<Toke
 						} else if (OK == scopedNameSpace->findVar(currTkn->_string, 1, scratchTkn, READ_ONLY, lookUpMsg))	{
 								userMessages->logMsg (USER_ERROR, L"Variable " + currTkn->_string + L" already exists at current scope."
 										, thisSrcFile, currTkn->get_line_number(), currTkn->get_column_pos());
-								// TODO: This could be an opportunity to continue compiling
+								// This could be an opportunity to continue compiling
 								if (isProgressBlocked())	{
 									isStopFail = true;
 
@@ -555,7 +554,6 @@ int GeneralParser::parseVarDeclaration (std::wstring dataTypeStr, std::pair<Toke
 /* ****************************************************************************
  * All the logic to parse & compile an expression and write it out to the
  * interpreted file is in this proc.
- * TODO: Figure out if I can use this proc for variable declarations also.
  * ***************************************************************************/
 int GeneralParser::handleExpression (bool & isStopFail)	{
 	int ret_code = GENERAL_FAILURE;
@@ -569,8 +567,8 @@ int GeneralParser::handleExpression (bool & isStopFail)	{
 
 		std::shared_ptr<Token> emptyTkn = std::make_shared<Token>();
 		std::shared_ptr<ExprTreeNode> exprTree = std::make_shared<ExprTreeNode> (emptyTkn);
-		// TODO: indicate what closed the current expression
-		Token exprEnder;
+
+    Token exprEnder;
 		Token tmpTkn;
 		std::vector<Token> flatExprTkns;
 		bool isExprClosed;
@@ -584,7 +582,6 @@ int GeneralParser::handleExpression (bool & isStopFail)	{
 
 		} else if (OK != makeTreeRetCode && !isExprClosed)	{
 			// [;] should close out the expression.  Provide INFO msg to user, try to find the next [;] and proceed from there
-			// TODO: Check for some upper limit of user errors to see if we should bail.
 			// Search for a [;] and try compiling again from that point on
 			if (OK != chompUntil_infoMsgAfter (ender_list, tmpTkn))
 				isStopFail = true;
@@ -625,11 +622,10 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
 	bool isFailed = false;
 	bool isExprClosed = false;
 
-	// TODO: Add option to build Token List as we go and return it
-	std::shared_ptr<Token> emptyTkn = std::make_shared<Token>();
+  std::shared_ptr<Token> emptyTkn = std::make_shared<Token>();
 	std::shared_ptr<ExprTreeNode> exprTree = std::make_shared<ExprTreeNode> (emptyTkn);
-	// TODO: indicate what closed the current expression
-	Token exprEnder;
+
+  Token exprEnder;
 	std::vector<Token> flatExprTkns;
 	closerTkn.resetToken();
 

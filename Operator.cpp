@@ -1,7 +1,6 @@
 /*
  * Operator.cpp
  * Instance of a class holds the characters that make up the operator and some characteristics
- * TODO: How do I ensure each operator is unique? Must be done outside of this class, I assume
  *  Created on: Jun 14, 2024
  *      Author: Mike Volk
  */
@@ -23,7 +22,6 @@ Operator::Operator()	{
 
 Operator::Operator(std::wstring in_symbol, uint8_t in_type_mask, uint8_t inValidUsage, int in_num_src_operands, int in_num_exec_operands
 	, uint8_t in_op_code, std::wstring inDescr) {
-	// TODO Auto-generated constructor stub
 	symbol = in_symbol;
 
 	// UNARY doesn't play well with others
@@ -58,7 +56,6 @@ Operator::Operator(std::wstring in_symbol, uint8_t in_type_mask, uint8_t inValid
 }
 
 Operator::~Operator() {
-	// TODO Auto-generated destructor stub
 }
 
 Operator& Operator::operator= (const Operator& src_opr8r)
