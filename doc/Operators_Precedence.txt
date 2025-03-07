@@ -1,6 +1,8 @@
-Operators shown below in precedence order, each contained in []. 
+Operators are shown below in precedence order, each contained in []. 
 Operators on the same line have the same precedence level.
-Precedence is then decided on left-to-right order.
+Operators on lower lines have lower precedence than those on lines above. 
+For operators on the same precedence level in a sub-expression, the precedence
+between them is resolved in a left-to-right order.
 
 For operators with duplicate source symbols, a "=>" will show the unambiguous internal symbol
 Additional operator attribute info contained in ().
