@@ -24,7 +24,6 @@
 #include "InterpretedFileWriter.h"
 #include "StackOfScopes.h"
 #include "UserMessages.h"
-#include "BranchNodeInfo.h"
 
 // Values below used in a bit mask variable that indicates
 // allowable next states.
@@ -55,8 +54,6 @@ enum opr8r_ready_state_enum  {
 };
 
 typedef opr8r_ready_state_enum opr8rReadyState;
-
-typedef std::vector<std::shared_ptr<BranchNodeInfo>> BniList;
 
 class ExpressionParser {
 public:
