@@ -91,7 +91,9 @@ int InterpretedFileWriter::writeFlatExprToFile (std::vector<Token> & flatExprTkn
 }
 
 /* ****************************************************************************
- *
+ * Called after an entire object has been written out and the length now needs
+ * to be filled in.  This fxn assumes that the position for the output interpreted
+ * file is correct and at then end of the current object.
  * ***************************************************************************/
 int InterpretedFileWriter::writeObjectLen (uint32_t objStartPos)	{
 	int ret_code = GENERAL_FAILURE;
@@ -571,6 +573,11 @@ int InterpretedFileWriter::makeFlatExpr_LRO (std::shared_ptr<ExprTreeNode> currB
 }
 
 /* ****************************************************************************
+ * Take the parse tree supplied by the compiler and recursively turn it into a 
+ * flattened expression with a sequence of 
+ * [operator][left expression][right expression]
+ * NOTE that [left expression] and/or right expression could consist of a single
+ * operand, or could contain other nested expressions.
  * ***************************************************************************/
 int InterpretedFileWriter::makeFlatExpr_OLR (std::shared_ptr<ExprTreeNode> currBranch, std::vector<Token> & flatExprTknList)	{
 	int ret_code = GENERAL_FAILURE;

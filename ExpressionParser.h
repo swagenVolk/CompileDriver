@@ -124,7 +124,5 @@ private:
   int fillDisplayRight (std::vector<std::wstring> & displayLines, std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & arrayOfNodeLists
     , int centerGapSpaces);
 
-  int buildDisplayLines (std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & halfDisplayLines
-    , std::shared_ptr<ExprTreeNode> currBranch, bool isLeftTree, int halfTreeLevel);  
 };
 #endif /* EXPRESSIONPARSER_H_ */

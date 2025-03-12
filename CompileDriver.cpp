@@ -6,9 +6,10 @@
  * Clarity of error messages
  *
  * TODO:
- * Make ILLUSTRATIVE a flag option
- * Illustrative - display a tree; make the formatting look nice
- * Illustrative mode - verbose output for instructional purposes
+ * Put a compiler version string in the interpreted file
+ * Check SMRT pointer usage: .get(), =
+ *  Should I use unique_ptr? Can a shared_ptr be initialized by a unique_ptr?
+ * Illustrative mode
  * 	When reading in expression list from Interpreted file, could add file location to Tokens (maybe)
  *  Tie together expression start on both stages with interpreted file location
  * Generic ("Unique") scope objects?
@@ -30,6 +31,9 @@
  * file for the location. It can do a quick(er) lookup
  *
  * RECENTLY DONE:
+ * Make ILLUSTRATIVE a flag option
+ * Illustrative - display a tree; make the formatting look nice
+ * Illustrative mode - verbose output for instructional purposes
  * Illustrative - description of what each OPR8R does?  Allude to info early; show when OPR8R's neighbors get moved.  Add to Operator class
  * Illustrative mode - verbose output for instructional purposes
  *  Show that [(] and [?] open a new expression scope level

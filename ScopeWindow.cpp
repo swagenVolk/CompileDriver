@@ -3,6 +3,12 @@
  *
  *  Created on: Nov 11, 2024
  *      Author: Mike Volk
+ *
+ *  Class represents a scope instance and contains variables valid at this scope along with positional info
+ *  for where this scope starts in the interpreted file when used by the interpreter.
+ *  Another class will be used to hold multiple nested and currently open scopes, and close scopes when
+ *  appropriate e.g. the compiler goes past a '}' that closes a scope in source, or at exec time when the
+ *  interpreter goes past the file limit position of a scope and has to close it.
  */
 
 #include "ScopeWindow.h"
@@ -15,7 +21,10 @@ ScopeWindow::ScopeWindow(uint8_t inOpCode, Token inOpeningTkn, uint32_t inStartF
 	boundary_begin_pos = inStartFilePos;
 
 	// scopeLen will be 0 during compilation, because the object has just been encountered, but not compiled yet
-	inScopeLen > 0 ? boundary_end_pos = inStartFilePos + inScopeLen : boundary_end_pos = 0;
+	if (inScopeLen > 0)
+    boundary_end_pos = inStartFilePos + inScopeLen;
+  else
+    boundary_end_pos = 0;
 }
 
 int ScopeWindow::setBoundaryEndPos (uint32_t end_pos)	{

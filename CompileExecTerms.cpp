@@ -1,7 +1,7 @@
 /*
  * CompileExecTerms.cpp
- * Overrides BaseLanguageTerms class and additionally holds OPR8R definitions and their
- * precedence in relation to one another.
+ * Overrides BaseLanguageTerms class to define operators, separators, data types and reserved words.
+ * This class additionally holds OPR8R definitions and their precedence in relation to one another.
  *
  *  Created on: Jan 4, 2024
  *      Author: Mike Volk
@@ -16,7 +16,7 @@ CompileExecTerms::CompileExecTerms() {
 	std::wstring curr_opr8r;
 	int idx = 0;
 
-
+  // NOTE that there are operators that share the same precedence level with others, and grouped_opr8rs is used to reflect that
 	grouped_opr8rs.push_back(Opr8rPrecedenceLvl ());
 	grouped_opr8rs.back().opr8rs.push_back( Operator (L"++", POSTFIX, USR_SRC, 1, 0, INVALID_OPCODE, L""));   // NOTE: Pre-fix and post-fix precedence is different
 	grouped_opr8rs.back().opr8rs.push_back ( Operator (L"--", POSTFIX, USR_SRC, 1, 0, INVALID_OPCODE, L""));

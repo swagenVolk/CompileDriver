@@ -24,10 +24,9 @@ BaseLanguageTerms::~BaseLanguageTerms() {
 }
 
 /* ****************************************************************************
- *
+ * Function to ensure no overlap between: valid_data_types reserved_words OPR8Rs SPR8Rs
  * ***************************************************************************/
 void BaseLanguageTerms::validityCheck()	{
-	//	Make sure there's no overlap between: valid_data_types reserved_words OPR8Rs SPR8Rs
 	//	Check for duplicates in each
 
 	std::map<std::wstring, int> nameReferenceCnt;
@@ -474,7 +473,7 @@ TokenTypeEnum BaseLanguageTerms::getTokenTypeForOpCode (uint8_t op_code)	{
 }
 
 /* ****************************************************************************
- *
+ * Determine if the passed in string is a valid data type or not
  * ***************************************************************************/
 bool BaseLanguageTerms::isDataType (std::wstring inStr)	{
 	bool isValid = false;
@@ -487,7 +486,7 @@ bool BaseLanguageTerms::isDataType (std::wstring inStr)	{
 }
 
 /* ****************************************************************************
- *
+ * Determine if the passed in string is a valid reserved word or not
  * ***************************************************************************/
 bool BaseLanguageTerms::isReservedWord (std::wstring inStr)	{
 	bool isValid = false;
@@ -501,7 +500,8 @@ bool BaseLanguageTerms::isReservedWord (std::wstring inStr)	{
 }
 
 /* ****************************************************************************
- *
+ * Determine if the passed in string meets the requirements for a legit variable
+ * name
  * ***************************************************************************/
 bool BaseLanguageTerms::isViableVarName (std::wstring varName)	{
 	bool isViable = true;

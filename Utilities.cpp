@@ -137,7 +137,7 @@ void Utilities::splitString (std::wstring inStr, std::wstring spr8r, std::vector
 }
 
 /* ****************************************************************************
- *
+ * TODO: Should various dumpTokenList fxns get moved into Token class?
  * ***************************************************************************/
 void Utilities::dumpTokenList (std::vector<Token> & tokenStream, CompileExecTerms execTerms, std::wstring callersSrcFile, int lineNum)	{
 	std::wstring tknStrmStr = L"";

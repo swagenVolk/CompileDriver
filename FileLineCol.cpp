@@ -1,6 +1,8 @@
 /*
  * FileLineCol.cpp
  *
+ * Simple class to hold file, line and column info for reporting errors from both user source code
+ * and internal errors.
  *  Created on: Nov 21, 2024
  *      Author: Mike Volk
  */

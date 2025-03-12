@@ -71,28 +71,6 @@
  *  Internal vs. user error messaging
  *  Check for proper handling of memory - no danglers
  *
- * Breakdown of expressions
- * Single term:	[Variable|Literal]
- *
- * LEADING OPERATORS
- * Prefix op:		[++|--][Variable] -> result converts to R-value
- *	HOW IT ENDS: 	Variable
- *
- * UNARY:				[~|!|-][EXPR]			-> result converts to R-value
- *	HOW IT ENDS: 	[EXPR] will either be a single term or an expression contained in parentheses
- *
- * TRAILING OPERATORS
- * Postfix op:	[Variable][++|--]	-> result converts to R-value ???
- *	HOW IT ENDS: 	++ or -- OPR8R
- *
- * MEZZO OPERATORS
- * BINARY:			[EXPR][OPR8R][EXPR]
- *	HOW IT ENDS:
- *
- * TERTIARY:		[EXPR][?][EXPR][:][EXPR]
- *	HOW IT ENDS: 	1st expression is either a single term, encapsulated in (), or the ? operator ends it
- *								2nd expression ends with : operator
- *								3rd expression is either a single term, encapsulated in (), or we run out of tokens
  */
 
 #include "ExpressionParser.h"
@@ -144,7 +122,6 @@ ExpressionParser::~ExpressionParser() {
  * Parse through the current expression and if it's well formed, commit it to
  * the interpreted stream. If it's not well formed, generate a clear error
  * message to the user.
- * TODO: isEndedByComma -> isEnclosedByParens? isParenBound?
  * ***************************************************************************/
 int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree
 		, Token & enderTkn, bool isEndedByComma, bool & isCallerExprClosed, bool isInVarDec)  {
@@ -854,7 +831,7 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 								}
 							}
 						}
-						if (!opr8rState)	
+						if (OPR8R_NOT_READY == opr8rState)	
 							listIdx++;
 					}
 
@@ -1403,7 +1380,7 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
  * Get the longest "line" by grabbing the greatest displayEndPos
  * Used to determine how much space is needed for the left side of the whole tree
  * ***************************************************************************/
- void ExpressionParser::getMaxLineLen (std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & arrayOfNodeLists
+ void ExpressionParser::getMaxLineLen (std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & treeLvlNodeLists
     , bool isLefty, int & maxLineLen)	{
 
 	int odx;
@@ -1411,8 +1388,8 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
 	int outerChildPos;
 	maxLineLen = 0;
 
-	for (odx = 0; odx < arrayOfNodeLists.size(); odx++)	{
-		std::vector<std::shared_ptr<ExprTreeNode>> currLvlList = arrayOfNodeLists[odx];
+	for (odx = 0; odx < treeLvlNodeLists.size(); odx++)	{
+		std::vector<std::shared_ptr<ExprTreeNode>> currLvlList = treeLvlNodeLists[odx];
 		int currListSize = currLvlList.size();
 
 		for (idx = 0; idx < currListSize; idx++)	{
@@ -1442,7 +1419,7 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
  * Put the left half of the completed parse tree into displayLines, which is 
  * displayed for user consumption
  * ***************************************************************************/
- int ExpressionParser::fillDisplayLeft (std::vector<std::wstring> & displayLines, std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & arrayOfNodeLists
+ int ExpressionParser::fillDisplayLeft (std::vector<std::wstring> & displayLines, std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & treeLvlNodeLists
 	, int maxLineLen)	{
 	int ret_code = GENERAL_FAILURE;
 
@@ -1451,10 +1428,10 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
 	int idx = 0;
 	int numBlanks;
 
-	if (displayLines.size() >= arrayOfNodeLists.size() + 1)	{
+	if (displayLines.size() >= treeLvlNodeLists.size() + 1)	{
 
-		for (odx = 0; odx < arrayOfNodeLists.size(); odx++)	{
-			std::vector<std::shared_ptr<ExprTreeNode>> currLvlList = arrayOfNodeLists[odx];
+		for (odx = 0; odx < treeLvlNodeLists.size(); odx++)	{
+			std::vector<std::shared_ptr<ExprTreeNode>> currLvlList = treeLvlNodeLists[odx];
 			nextLine.clear();
 
 			for (idx = 0; idx < currLvlList.size(); idx++)	{
@@ -1465,8 +1442,6 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
 				if (numBlanks > 0)
 					nextLine.insert (nextLine.begin(), numBlanks, L' ');
 
-				// nextLine.insert(nextLine.begin(), currBni->tokenStr);
-				// nextLine.insert(0, currBni->tokenStr, currBni->tokenStr.size());
 				nextLine = makeTreeNodeStr(currBranch) + nextLine;
 			}
 
@@ -1477,8 +1452,6 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
 
 			// Commit the left half
 			displayLines[odx + 1] = nextLine;
-			// std::wcout << nextLine << std::endl;
-
 		}
 
 		for (int blankIdx = odx + 1; blankIdx < displayLines.size(); blankIdx++)	{
@@ -1500,7 +1473,7 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
  * Put the right half of the completed parse tree into displayLines, which is 
  * displayed for user consumption
  * ***************************************************************************/
- int ExpressionParser::fillDisplayRight (std::vector<std::wstring> & displayLines, std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & arrayOfNodeLists
+ int ExpressionParser::fillDisplayRight (std::vector<std::wstring> & displayLines, std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & treeLvlNodeLists
 	, int centerGapSpaces)	{
 
 	int ret_code = GENERAL_FAILURE;
@@ -1509,15 +1482,15 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
 	int idx = 0;
 	size_t numBlanks;
 
-	if (displayLines.size() >= arrayOfNodeLists.size() + 1)	{
+	if (displayLines.size() >= treeLvlNodeLists.size() + 1)	{
 
-		for (odx = 0; odx < arrayOfNodeLists.size(); odx++)	{
-			std::vector<std::shared_ptr<ExprTreeNode>> currLvlList = arrayOfNodeLists[odx];
+		for (odx = 0; odx < treeLvlNodeLists.size(); odx++)	{
+			std::vector<std::shared_ptr<ExprTreeNode>> currLvlList = treeLvlNodeLists[odx];
 			nextLine.clear();
 
 			for (idx = 0; idx < currLvlList.size(); idx++)	{
 				// Build line from current expression scope level
-				// from the center leftwards, or from R2L
+				// from the center rightwards, or from left-to-right
 				std::shared_ptr<ExprTreeNode> currBranch = currLvlList.at(idx);
 				if (currBranch->displayStartPos > 0 && currBranch->displayStartPos > nextLine.size())	{
 					numBlanks = currBranch->displayStartPos - nextLine.size();
@@ -1705,9 +1678,9 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
  *                /B+\         /B+\   /<\                         /:\ <-- #1: Where do I position this?
  *        /B+\ [three]  [four][six]   /<<\         /*\            [three][four]
  *  [one][two]                        /*\  [five]  [eight][four]          #3: Find the largest resolved 
- *                                    [six][one]                              outer pos, base new start
- *                                                                            pos from that
- * How is the start position of /*\ determined? The recursion goes from the
+ *                                    [six][one]                              outer pos at /*\ and base 
+ *                                                                            new start pos from that
+ * How is the start position of /:\ determined? The recursion goes from the
  * center to the outside, so we need to go back to what's already been resolved.
  * See steps #1, #, #3 above
  * ***************************************************************************/
@@ -1899,16 +1872,14 @@ int ExpressionParser::setOuterLeafNodeDisplayPos (bool isLeftTree, int halfTreeL
     }
 
   } else if (currBranch != NULL && currBranch->nodePos == OUTER_NODE) {
-    // OUTSIDE_NODE - We need to hop over to our sibling CENTER_NODE and find the oldest aligned CENTER_NODE ancestor
-    // TODO:
-    // OUTSIDE_NODE - We need to hop over to our sibling CENTER_NODE and use its info that was updated before us
+    // OUTSIDE_NODE - Hop over to our sibling CENTER_NODE and use its info that was updated before this OUTER_NODE
     std::shared_ptr<ExprTreeNode> centerNode;
     if (isLeftTree && currBranch->treeParent != NULL && currBranch->treeParent->_2ndChild != NULL)  
       centerNode = currBranch->treeParent->_2ndChild;
     else if (!isLeftTree && currBranch->treeParent != NULL && currBranch->treeParent->_1stChild != NULL)
       centerNode = currBranch->treeParent->_1stChild;
 
-    if (centerNode != NULL) { // && OK == getOldestCtrAncestorDisplayStartPos(centerNode, maxStartPos)) {
+    if (centerNode != NULL) { 
       int centerStrLen = makeTreeNodeStr(centerNode).length();
       int numSiblingOpr8rs = 0;
 
@@ -2083,42 +2054,6 @@ int ExpressionParser::setHalfTreeDisplayPos (bool isLeftTree, int halfTreeLevel,
   }
 
 	return (ret_code);
-
-}
-
-/* ****************************************************************************
- * Procedure used in displaying the compiler's parse tree for an expression
- * Recursive proc to put nodes from parse tree into respective line per 
- * halfTreeLevel to get ready for display
- * ***************************************************************************/
-int ExpressionParser::buildDisplayLines (std::vector<std::vector<std::shared_ptr<ExprTreeNode>>> & halfDisplayLines
-  , std::shared_ptr<ExprTreeNode> currBranch, bool isLeftTree, int halfTreeLevel)  {
-  int ret_code = GENERAL_FAILURE;
-
-  if (currBranch != NULL) {
-    while (halfDisplayLines.size() < (halfTreeLevel + 1))	{
-      // Create level for this list if it doesn't already exist
-      halfDisplayLines.push_back(std::vector<std::shared_ptr<ExprTreeNode>> ());
-    }
-
-    // Make an alias variable for code readability
-    std::vector<std::shared_ptr<ExprTreeNode>> & currLvlList = halfDisplayLines[halfTreeLevel];
-
-    if (currBranch->displayRow == halfTreeLevel)  {
-      currLvlList.push_back(currBranch);
-    
-      if (currBranch->_1stChild != NULL && OK != buildDisplayLines(halfDisplayLines, currBranch->_1stChild, isLeftTree, halfTreeLevel + 1))
-        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
-
-      if (!failOnSrcLine && currBranch->_2ndChild != NULL && OK != buildDisplayLines(halfDisplayLines, currBranch->_2ndChild, isLeftTree, halfTreeLevel + 1))
-        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
-    
-      if (!failOnSrcLine)
-        ret_code = OK;
-     }
-  }
-
-  return ret_code;
 
 }
 

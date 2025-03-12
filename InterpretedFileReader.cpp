@@ -360,7 +360,7 @@ int InterpretedFileReader::readString (uint8_t op_code, Token & nxtTkn)	{
 }
 
 /* ****************************************************************************
- *
+ * EXPRESSION_OPCODE  0x68  // [op_code][total_length][expression stream]
  * ***************************************************************************/
 int InterpretedFileReader::readExprIntoList (std::vector<Token> & exprTknStream)	{
 	int ret_code = GENERAL_FAILURE;

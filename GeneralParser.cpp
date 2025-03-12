@@ -1,6 +1,9 @@
 /*
  * GeneralParser.cpp
  *
+ * High level "executive" that parses through a user's source file and looks for reserved words, variable declarations
+ * and the start of expressions and then calls the appropriate procedure to handle the task.
+ *
  *  Created on: Nov 13, 2024
  *      Author: Mike Volk
  */

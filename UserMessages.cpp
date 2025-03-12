@@ -3,6 +3,9 @@
  *
  *  Created on: Nov 21, 2024
  *      Author: Mike Volk
+ *
+ *  Class to hold messages for user and to provide duplicate squashing and ordered presentation of 
+ *  info messages, warnings, user errors and internal errors.
  */
 
 #include "UserMessages.h"

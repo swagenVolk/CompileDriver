@@ -19,19 +19,14 @@ Token::Token()	{
 }
 
 /* ****************************************************************************
- *
+ * Common fxn for a "factory reset" of a Token
  * ***************************************************************************/
 void Token::resetToken ()	{
-  tkn_type = START_UNDEF_TKN;
-  _string.clear();
+  resetTokenExceptSrc();
+  
   src.fileName.clear();
   src.lineNumber = 0;
   src.columnPos = 0;
-  _unsigned = 0;
-  _signed = 0;
-  _double = 0.0;
-  is_Rvalue = false;
-  isInitialized = false;
 
 }
 

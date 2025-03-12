@@ -124,7 +124,7 @@
 #include "common.h"
 
 /* ****************************************************************************
- *
+ * This constructor should never get called
  * ***************************************************************************/
 RunTimeInterpreter::RunTimeInterpreter() {
   oneTkn = std::make_shared<Token> (UINT64_TKN, L"1");
@@ -143,7 +143,7 @@ RunTimeInterpreter::RunTimeInterpreter() {
 }
 
 /* ****************************************************************************
- *
+ * This is the COMPILE_TIME constructor call
  * ***************************************************************************/
 RunTimeInterpreter::RunTimeInterpreter(CompileExecTerms & execTerms, std::shared_ptr<StackOfScopes> inVarScopeStack
 		, std::wstring userSrcFileName, std::shared_ptr<UserMessages> userMessages, logLvlEnum logLvl) {
@@ -167,7 +167,7 @@ RunTimeInterpreter::RunTimeInterpreter(CompileExecTerms & execTerms, std::shared
 }
 
 /* ****************************************************************************
- *
+ * This is the INTERPRETER mode constructor call
  * ***************************************************************************/
 RunTimeInterpreter::RunTimeInterpreter(std::string interpretedFileName, std::wstring userSrcFileName
 	, std::shared_ptr<StackOfScopes> inVarScope,  std::shared_ptr<UserMessages> userMessages, logLvlEnum logLvl)
@@ -368,7 +368,13 @@ int RunTimeInterpreter::execCurrScope (uint32_t execStartPos, uint32_t afterScop
 }
 
 /* ****************************************************************************
- *
+ * General proc to perform the mechanics of evaluating an expression.
+ * NOTE that expressions are found in the [if] and [else if] conditionals.
+ * Loop control expressions are found in [while] loop conditionals, 
+ * and [for] loop init, conditional and end of loop statements.
+ * There are also possible expressions used to initialize variables in 
+ * variable declarations, and then there are stand alone expressions, typically
+ * assignment statements.
  * ***************************************************************************/
 int RunTimeInterpreter::execExpression (uint32_t objStartPos, Token & resultTkn)	{
 	int ret_code = GENERAL_FAILURE;
