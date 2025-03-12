@@ -316,7 +316,7 @@ uint8_t BaseLanguageTerms::getOpCodeFor (std::wstring opr8r)	{
 	}
 
 	if (op_code == INVALID_OPCODE)
-		std::wcout << L"TODO: DEBUG" << std::endl;
+		std::wcout << L"INVALID_OPCODE" << std::endl;
 
 	return (op_code);
 }

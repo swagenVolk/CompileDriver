@@ -2193,8 +2193,6 @@ int RunTimeInterpreter::resolveTknOrVar (Token & originalTkn, Token & resolvedTk
 
 		} else	{
 			if (isCheckInit && usageMode == COMPILE_TIME && !resolvedTkn.isInitialized)	{
-				if (varName == L"countHordes")
-					std::wcout << L"STOP" << std::endl;
 				userMessages->logMsg(WARNING, L"Uninitialized variable used - " + originalTkn.descr_sans_line_num_col()
 					, userSrcFileName, originalTkn.get_line_number(), originalTkn.get_column_pos());
 			}
