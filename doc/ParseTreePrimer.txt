@@ -42,7 +42,10 @@ resolved before lower precedence operations.  This means that the parse tree
 gets resolved in a depth first recursive manner.
 
 
-******************** EXAMPLES ********************
+******************************** EXAMPLES ********************************
+Examples shown below start off simple and increase in complexity. This is
+done by building off of previous examples, by adding operations or using 
+parentheses to change the precedence of operations.
 
 ***** Example expression ***** 
 1 + 2

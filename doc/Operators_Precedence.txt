@@ -37,16 +37,7 @@ Operator precedence example expression
 (3 * 4 + 12 / 6)
 
 ********************************************************************************
-What if we ignored precedence and just went left-to-right?
-3 * 4 -> [12]; 12 + 12 -> [24]; 24 / 6 -> [4]
-Evaluating to a final result of [4]
-
-********************************************************************************
-What if we ignored precedence and just went right-to-left?
-12/6 -> [2]; 2 + 4 -> [6]; 6 * 3 -> [18]
-Evaluating to a final result of [18]
-
-********************************************************************************
+CORRECT example using precedence rules
 Referencing the operator precedence above, [*] and [/] are at the same level.
 Their relative ordering is now decided on a left-to right basis
 The [+] operator has the lowest precedence in this example, and will be executed last
@@ -56,7 +47,20 @@ The [+] operator has the lowest precedence in this example, and will be executed
 12 + 2
 Evaluating to a final result [14]
 
+********************************************************************************
+INCORRECT example
+What if we ignored precedence and just went left-to-right?
+3 * 4 -> [12]; 12 + 12 -> [24]; 24 / 6 -> [4]
+Evaluating to a final result of [4]
+
+********************************************************************************
+INCORRECT example
+What if we ignored precedence and just went right-to-left?
+12/6 -> [2]; 2 + 4 -> [6]; 6 * 3 -> [18]
+Evaluating to a final result of [18]
+
+********************************************************************************
+NOTE:
 Use parentheses in source expressions when you want to force a preferred ordering.
 Parentheses can also be used to provide clarity when needed, especially when
 bit-wise and bit-shift operators are used.
-********************************************************************************
