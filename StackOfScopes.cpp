@@ -13,6 +13,7 @@
 #include "OpCodes.h"
 #include "common.h"
 #include <cstdint>
+#include <iostream>
 #include <memory>
 
 StackOfScopes::StackOfScopes() {
@@ -62,7 +63,8 @@ int StackOfScopes::findVar(std::wstring varName, int maxLevels, Token & updateVa
 			isFound = true;
 			if (COMMIT_WRITE == readOrWrite)	{
 				std::wstring errMsg;
-				if (OK == existingTkn->convertTo(updateValTkn, varName, errorMsg))	{
+
+        if (OK == existingTkn->convertTo(updateValTkn, varName, errorMsg))	{
 					// TODO: What info can I supply to user to resolve src line # etc?
 					existingTkn->isInitialized = true;
 					ret_code = OK;
@@ -114,15 +116,15 @@ int StackOfScopes::openNewScope (uint8_t openedByOpCode, Token scopenerTkn, uint
 /* ****************************************************************************
  * Close the current top level, non-ROOT level scope
  * ***************************************************************************/
-int StackOfScopes::closeTopScope (InterpretedFileWriter & interpretedFileWriter, uint8_t & closedScopeOpCode, closeScopeErr & closeErr)	{
-	return (closeTopScope(interpretedFileWriter, closedScopeOpCode, closeErr, false));
+int StackOfScopes::srcCloseTopScope (InterpretedFileWriter & interpretedFileWriter, uint8_t & closedScopeOpCode, closeScopeErr & closeErr)	{
+	return (srcCloseTopScope(interpretedFileWriter, closedScopeOpCode, closeErr, false));
 }
 
 /* ****************************************************************************
  * Close the current top level scope
  * TODO: I should probably call this in GeneralParser.cpp for root scope compile
  * ***************************************************************************/
-int  StackOfScopes::closeTopScope (InterpretedFileWriter & interpretedFileWriter, uint8_t & closedScopeOpCode
+int  StackOfScopes::srcCloseTopScope (InterpretedFileWriter & interpretedFileWriter, uint8_t & closedScopeOpCode
 	, closeScopeErr & closeErr, bool isRootScope)	{
 	int ret_code = GENERAL_FAILURE;
 	closeErr = SCOPE_CLOSE_UKNOWN_ERROR;
@@ -161,6 +163,61 @@ int  StackOfScopes::closeTopScope (InterpretedFileWriter & interpretedFileWriter
 	}
 
 	return (ret_code);
+}
+
+/* ****************************************************************************
+ * Close the current top level scope
+ * ***************************************************************************/
+ int StackOfScopes::closeTopScope (uint8_t closedScopeOpCode, closeScopeErr & closeErr, bool isRootScope)	{
+	int ret_code = GENERAL_FAILURE;
+	closeErr = SCOPE_CLOSE_UKNOWN_ERROR;
+	bool isDeleteReady = false;
+
+	if (scopeStack.size() == 0)	
+		closeErr = NO_SCOPES_OPEN;
+
+	else if (!isRootScope && scopeStack.size() == 1)	
+		closeErr = ONLY_ROOT_SCOPE_OPEN;
+
+	else if (isRootScope && scopeStack.size() > 1)	
+		closeErr = SCOPES_OPEN_ABOVE_ROOT;
+
+	else if (!isRootScope && scopeStack.size() > 1)	
+		isDeleteReady = true;
+
+	else if (isRootScope && scopeStack.size() == 1)	
+		isDeleteReady = true;
+
+	if (isDeleteReady)	{
+		std::shared_ptr<ScopeWindow> top = scopeStack[scopeStack.size() - 1];
+
+    if (top->opener_opcode != closedScopeOpCode)  {
+      closeErr = SCOPE_OPCODE_MISMATCH;
+
+    } else {
+      scopeStack.erase(scopeStack.end());
+      top.reset();
+      ret_code = OK;
+      closeErr = SCOPE_CLOSED_OK;
+    }
+
+	}
+
+	return (ret_code);
+}
+
+/* ****************************************************************************
+ * Are we currently nested inside a loop?
+ * ***************************************************************************/
+bool StackOfScopes::isInsideLoop ()  {
+  bool isInLoop = false;
+
+  for (int idx = scopeStack.size() - 1; idx >= 0 && !isInLoop; idx--)  {
+    if (scopeStack[idx]->opener_opcode == FOR_SCOPE_OPCODE)
+      isInLoop = true;
+  }
+
+  return isInLoop;
 }
 
 /* ****************************************************************************

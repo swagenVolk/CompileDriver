@@ -1,3 +1,3 @@
-int8 sum;
+int8 expect_5;
 
-sum = 1 * 2 + 3;
+expect_5 = 1 * 2 + 3;

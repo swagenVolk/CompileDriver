@@ -4,6 +4,9 @@
  *  Created on: Jan 4, 2024
  *      Author: Mike Volk
  *
+ * TODO:
+ * Scope opened for [if] block?
+ *
  * A parse tree was created from the expression in the user's source file, but we need
  * to flatten this tree before writing out to the interpreted file since the file is 
  * essentially 2D while a tree is 3D.  The flattened xpression has been written out in 
@@ -107,6 +110,7 @@
 
 #include "RunTimeInterpreter.h"
 #include "BaseLanguageTerms.h"
+#include "FileLineCol.h"
 #include "OpCodes.h"
 #include "Operator.h"
 #include "Token.h"
@@ -224,11 +228,23 @@ int RunTimeInterpreter::execRootScope()	{
 			userMessages->logMsg(INTERNAL_ERROR, L"Failure reading ROOT scope length", thisSrcFile, failOnSrcLine, 0);
 
 		else {
-			ret_code = execCurrScope (0, root_scope_len);
+			ret_code = execCurrScope (fileReader.getReadFilePos(), root_scope_len);
 		}
 	}
 
 	return (ret_code);
+}
+
+/* ****************************************************************************
+ * Check if we're in the right mode, and be sure we're not nested inside a loop
+ * ***************************************************************************/
+ bool RunTimeInterpreter::isOkToIllustrate ()  {
+  bool isOK = false;
+  
+  if (usageMode == INTERPRETER && logLevel >= ILLUSTRATIVE && !scopedNameSpace->isInsideLoop())
+    isOK = true;
+
+  return isOK;
 }
 
 /* ****************************************************************************
@@ -254,7 +270,11 @@ int RunTimeInterpreter::execCurrScope (uint32_t execStartPos, uint32_t afterScop
 	std::wstringstream objStartPosStr;
 
 	if (usageMode == INTERPRETER)	{
-		while (!isDone && !failOnSrcLine)	{
+
+    // Make sure we're starting off at right position
+    fileReader.setFilePos(execStartPos);
+
+    while (!isDone && !failOnSrcLine)	{
 			objStartPos = fileReader.getReadFilePos();
 
 			objStartPosStr.str(L"");
@@ -263,7 +283,7 @@ int RunTimeInterpreter::execCurrScope (uint32_t execStartPos, uint32_t afterScop
 			if (fileReader.isEOF())
 				isDone = true;
 
-			else if (/* execStartPos > 0 && */objStartPos == afterScopeBndry)
+			else if (objStartPos == afterScopeBndry)
 				// scopeEndPos > 0 means non-global scope and whole scope processed
 				isDone = true;
 
@@ -298,7 +318,7 @@ int RunTimeInterpreter::execCurrScope (uint32_t execStartPos, uint32_t afterScop
 
 					} else if (op_code == EXPRESSION_OPCODE)	{		
 						Token resultTkn;	
-						isIllustrative = (usageMode == INTERPRETER ? true : false);
+						isIllustrative = isOkToIllustrate();
 
 						if (isIllustrative)
 							std::wcout << L"// ILLUSTRATIVE MODE: Flattened expression resolved below" << std::endl << std::endl;
@@ -310,41 +330,42 @@ int RunTimeInterpreter::execCurrScope (uint32_t execStartPos, uint32_t afterScop
 						isIllustrative = false;
 					
 					} else if (op_code == IF_SCOPE_OPCODE)	{	
-						if (OK != execIfBlock (objStartPos, objectLen, afterScopeBndry))	{
+						if (OK != exec_if_block (objStartPos, objectLen, afterScopeBndry))	{
 							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 						}
 
 					} else if (op_code == ELSE_IF_SCOPE_OPCODE)	{						
-							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
-							userMessages->logMsg(INTERNAL_ERROR, L"Floating [else if] block encountered at " + objStartPosStr.str(), thisSrcFile, failOnSrcLine, 0);
+            failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+            userMessages->logMsg(INTERNAL_ERROR, L"Floating [else if] block encountered at " + objStartPosStr.str(), thisSrcFile, failOnSrcLine, 0);
 
 					} else if (op_code == ELSE_SCOPE_OPCODE)	{								
-							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
-							userMessages->logMsg(INTERNAL_ERROR, L"Floating [else] block encountered at " + objStartPosStr.str(), thisSrcFile, failOnSrcLine, 0);
+            failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+            userMessages->logMsg(INTERNAL_ERROR, L"Floating [else] block encountered at " + objStartPosStr.str(), thisSrcFile, failOnSrcLine, 0);
 
 					} else if (op_code == WHILE_SCOPE_OPCODE)	{								
-							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
-							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
+            failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+            userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
 
 					} else if (op_code == FOR_SCOPE_OPCODE)	{									
-							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
-							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
+            if (OK != exec_for_loop (objStartPos, objectLen, afterScopeBndry))  {
+              failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+            }
 
 					} else if (op_code == ANON_SCOPE_OPCODE)	{								
-							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
-							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
+            failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+            userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
 
 					} else if (op_code == FXN_DECLARATION_OPCODE)	{					
-							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
-							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
+            failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+            userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
 
 					} else if (op_code == FXN_CALL_OPCODE)	{									
-							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
-							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
+            failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+            userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
 
 					} else if (op_code == SYSTEM_CALL_OPCODE)	{							
-							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
-							userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
+            failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+            userMessages->logMsg(INTERNAL_ERROR, L"NOT SUPPORTED YET!", thisSrcFile, failOnSrcLine, 0);
 
 					} else {
 						failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
@@ -1424,7 +1445,7 @@ int RunTimeInterpreter::execUnaryOp (std::vector<Token> & exprTknStream, int opr
 
 /* ****************************************************************************
  * Handle these assignment OPR8Rs:
- * [=] [+=] [-=] [*=] [/=] [%=] [<<=] [>>=] [&==] [|==] [^==]
+ * [=] [+=] [-=] [*=] [/=] [%=] [<<=] [>>=] [&=] [|=] [^=]
  * ***************************************************************************/
 int RunTimeInterpreter::execAssignmentOp(std::vector<Token> & exprTknStream, int opr8rIdx)     {
 	int ret_code = GENERAL_FAILURE;
@@ -1642,7 +1663,7 @@ int RunTimeInterpreter::execBinaryOp(std::vector<Token> & exprTknStream, int opr
  * The [&&] OPR8R can be short-circuited if the 1st [operand|expression] can be 
  * resolved to FALSE - evaluating the 2nd [operand|expression] is redundant
  * ***************************************************************************/
-int RunTimeInterpreter::execLogicalAndOp (std::vector<Token> & exprTknStream, int opr8rIdx)	{
+int RunTimeInterpreter::exec_logical_and (std::vector<Token> & exprTknStream, int opr8rIdx)	{
 	int ret_code = GENERAL_FAILURE;
 	
 	if (OK != execFlatExpr_OLR(exprTknStream, opr8rIdx + 1))	{
@@ -1697,7 +1718,7 @@ int RunTimeInterpreter::execLogicalAndOp (std::vector<Token> & exprTknStream, in
  * The [||] OPR8R can be short-circuited if the 1st [operand|expression] can be 
  * resolved to TRUE - evaluating the 2nd [operand|expression] is redundant
  * ***************************************************************************/
-int RunTimeInterpreter::execLogicalOrOp (std::vector<Token> & exprTknStream, int opr8rIdx)	{
+int RunTimeInterpreter::exec_logical_or (std::vector<Token> & exprTknStream, int opr8rIdx)	{
 	int ret_code = GENERAL_FAILURE;
 		bool is1RandTrue = false;
 
@@ -1944,7 +1965,7 @@ int RunTimeInterpreter::execOperation (Operator opr8r, int opr8rIdx, std::vector
 	int caretPos = -1;
 	std::wstring tmpStr;
 
-	if (isIllustrative && usageMode == INTERPRETER && logLevel >= ILLUSTRATIVE)	{
+	if (isIllustrative)	{
 		if (tknsIllustrativeStr.empty())	{
 			tknsIllustrativeStr = util.getTokenListStr(flatExprTkns, opr8rIdx, caretPos);
 			std::wcout << tknsIllustrativeStr << std::endl;
@@ -2003,7 +2024,7 @@ int RunTimeInterpreter::execOperation (Operator opr8r, int opr8rIdx, std::vector
  * ***************************************************************************/
  void RunTimeInterpreter::illustrativeAfterOp (std::vector<Token> & flatExprTkns)	{
 
-	if (isIllustrative && usageMode == INTERPRETER && logLevel >= ILLUSTRATIVE)	{
+	if (isIllustrative)	{
 		int caretPos = 0;
 		std::wstring prevStr = tknsIllustrativeStr;
 		tknsIllustrativeStr = util.getTokenListStr(flatExprTkns, 0, caretPos);
@@ -2069,13 +2090,13 @@ int RunTimeInterpreter::execFlatExpr_OLR(std::vector<Token> & flatExprTkns, int 
 						} else if (opr8r.op_code == LOGICAL_AND_OPR8R_OPCODE)	{
 							// Special case this OPR8R in case there is short circuiting
 							isOneOpr8rDone = true;
-							if (OK != execLogicalAndOp(flatExprTkns, currIdx))
+							if (OK != exec_logical_and(flatExprTkns, currIdx))
 								failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 
 						} else if (opr8r.op_code == LOGICAL_OR_OPR8R_OPCODE)	{
 							// Special case this OPR8R in case there is short circuiting
 							isOneOpr8rDone = true;
-							if (OK != execLogicalOrOp(flatExprTkns, currIdx))
+							if (OK != exec_logical_or(flatExprTkns, currIdx))
 								failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 
 						} else {
@@ -2223,7 +2244,7 @@ int RunTimeInterpreter::resolveTknOrVar (Token & originalTkn, Token & resolvedTk
  * encloses this [if] block ends.
  * [op_code][total_length][conditional EXPRESSION][code block]
  * ***************************************************************************/
-int RunTimeInterpreter::execIfBlock (uint32_t scopeStartPos, uint32_t if_scope_len
+int RunTimeInterpreter::exec_if_block (uint32_t scopeStartPos, uint32_t if_scope_len
 	, uint32_t afterParentScopePos)	{
 	
 	int ret_code = GENERAL_FAILURE;
@@ -2327,4 +2348,185 @@ int RunTimeInterpreter::execIfBlock (uint32_t scopeStartPos, uint32_t if_scope_l
 	uint32_t finalFilePos = fileReader.getReadFilePos();
 
 	return (ret_code);
+}
+
+/* ****************************************************************************
+ * Extract expression from variable declaration
+ * VARIABLES_DECLARATION_OPCODE    0x6F  
+ * [op_code][total_length][datatype op_code][[string var_name][init_expression]]+
+ * ***************************************************************************/
+int RunTimeInterpreter::get_expr_from_var_declaration (uint32_t start_pos, std::vector<Token> & expr_tkn_list)  {
+  int ret_code = GENERAL_FAILURE;
+  uint32_t var_name_len = 0;
+
+  //                                        [op_code]          [total_length]       [datatype op_code][[string var_name][init_expression]]+
+  uint32_t var_name_start_pos = start_pos + OPCODE_NUM_BYTES + NUM_BYTES_IN_DWORD + OPCODE_NUM_BYTES;
+  if (OK != fileReader.setFilePos(var_name_start_pos + OPCODE_NUM_BYTES) || OK != fileReader.readNextDword(var_name_len)) {
+    failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+  
+  } else if (OK != fileReader.setFilePos(var_name_start_pos + var_name_len)) {
+    failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+  } else if (OK != fileReader.readExprIntoList(expr_tkn_list))  {
+    failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+  } else {
+    ret_code = OK;
+  }
+
+  return ret_code;
+}
+
+/* ****************************************************************************
+ * 
+ * ***************************************************************************/
+ int RunTimeInterpreter::exec_cached_expr (std::vector<Token> expr_tkn_list, bool & is_result_true) {
+  int ret_code = GENERAL_FAILURE;
+  Token result_tkn;
+
+  if (OK == resolveFlatExpr(expr_tkn_list) && expr_tkn_list.size() == 1) {
+    is_result_true = expr_tkn_list[0].evalResolvedTokenAsIf();
+    ret_code = OK;
+  }
+
+  return ret_code;
+
+}
+
+/* ****************************************************************************
+ * FOR_SCOPE_OPCODE 0x6D
+ * [op_code][total_length][init_expression][conditional_expression][last_expression][code_block]
+ * ***************************************************************************/
+ int RunTimeInterpreter::exec_for_loop (uint32_t for_scope_start, uint32_t for_scope_len, uint32_t afterParentScopePos)  {
+  int ret_code = GENERAL_FAILURE;
+  uint8_t op_code;
+  uint32_t init_expr_pos = for_scope_start + OPCODE_NUM_BYTES + NUM_BYTES_IN_DWORD;
+  uint32_t cond_expr_pos, cond_expr_len, last_expr_pos, last_expr_len;
+  Token conditional_result, empty_tkn;
+  uint32_t init_expr_len;
+  std::vector<Token> cond_expr_tkn_list;
+  std::vector<Token> last_expr_tkn_list;
+  bool is_for_scopened = false;
+  int num_for_loops_done = 0;
+
+  if (OK == fileReader.setFilePos(init_expr_pos) 
+    && OK == fileReader.readNextByte(op_code)) {
+    // Exec initialization expression OR variable declaration
+
+    if (OK == scopedNameSpace->openNewScope(FOR_SCOPE_OPCODE, empty_tkn, for_scope_start, for_scope_len))
+      is_for_scopened = true;
+    else
+      failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+    
+    if (!failOnSrcLine && op_code == VARIABLES_DECLARATION_OPCODE)  { 
+      // Need to put variables into for loop's scope
+      if (OK != fileReader.readNextDword(init_expr_len))
+        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+      else if (OK != execVarDeclaration (init_expr_pos, init_expr_len))
+        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+    } else if (!failOnSrcLine && op_code == EXPRESSION_OPCODE)  {
+      
+      if (OK != fileReader.readNextDword(init_expr_len)) 
+        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+      
+      else if (OK != execExpression (init_expr_pos, conditional_result))
+        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+    }
+  }
+
+  if (!failOnSrcLine) {
+    // Get conditional expression or single variable declaration with init expression and store it in a copy list
+    cond_expr_pos = init_expr_pos + init_expr_len;
+ 
+    if (OK != fileReader.setFilePos(cond_expr_pos) || OK != fileReader.readNextByte(op_code)) {
+      failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+    } else if (op_code == VARIABLES_DECLARATION_OPCODE)  { 
+        // Need to put what should be *SINGLE* variable into for loop's scope
+        if (OK != fileReader.readNextDword(cond_expr_len))  {
+          failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+        
+        }  else if (OK != execVarDeclaration (cond_expr_pos, cond_expr_len))  {
+          failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+        } else if (OK != get_expr_from_var_declaration (cond_expr_pos, cond_expr_tkn_list))  {
+          // Extracting conditional expression from VARIABLES_DECLARATION failed
+          failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+        }
+         
+        
+  
+    } else if (op_code == EXPRESSION_OPCODE)	{
+      if (OK != fileReader.setFilePos(cond_expr_pos + OPCODE_NUM_BYTES))
+        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+      else if (OK != fileReader.readNextDword(cond_expr_len))
+        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+      else if (OK != fileReader.setFilePos(cond_expr_pos))
+        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+      else if (OK != fileReader.readExprIntoList(cond_expr_tkn_list))
+        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+  
+    } else {
+      failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+    }
+  }
+
+  if (!failOnSrcLine) {
+    // Get iterative, end of loop expression into a copy list, cached for execution
+    last_expr_pos = cond_expr_pos + cond_expr_len;
+    if (OK != fileReader.setFilePos(last_expr_pos + OPCODE_NUM_BYTES))
+      failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+    else if (OK != fileReader.readNextDword(last_expr_len))
+      // Grab this object's length  
+      failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+    else if (OK != fileReader.setFilePos(last_expr_pos))
+      failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+  
+    else if (OK != fileReader.readExprIntoList(last_expr_tkn_list))
+      // Grab the last expression and cache it in our copy list
+      failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+  }
+
+  if (!failOnSrcLine) {
+    // Determine location of 1st expression AFTER the for loop control constructs
+    uint32_t code_block_start_pos = last_expr_pos + last_expr_len;
+    bool is_for_cond_true = true, tmp_bool;
+
+    while (is_for_cond_true && !failOnSrcLine) {
+      // Execute the conditional expression at top of loop
+      if (cond_expr_tkn_list.empty())  {
+        // An empty conditional expression is OK. Hopefully the compiler checked for a [break] statement inside the loop
+        is_for_cond_true = true;
+      
+      } else if (OK != exec_cached_expr (cond_expr_tkn_list, is_for_cond_true))  {
+        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+      } else if (is_for_cond_true) {
+        if (OK != execCurrScope(code_block_start_pos, for_scope_start + for_scope_len))
+          failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+        // Execute last/iteration expression at end of loop
+        if (!last_expr_tkn_list.empty() && OK != exec_cached_expr(last_expr_tkn_list, tmp_bool))
+          failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+        num_for_loops_done++;
+      }
+    }
+  }
+
+  // Close scope when done
+  closeScopeErr closeErr;
+  if (is_for_scopened && OK != scopedNameSpace->closeTopScope (FOR_SCOPE_OPCODE, closeErr, false)) 
+    failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+  if (!failOnSrcLine)
+    ret_code = OK;
+
+ 
+  return ret_code;
 }

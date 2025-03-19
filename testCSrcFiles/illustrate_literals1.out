@@ -1,6 +1,6 @@
-int8 sum;
+int8 expect_5;
 
-sum = 1 * 2 + 3;
+expect_5 = 1 * 2 + 3;
 
 
 ^^^^^^^^^^ Contents of illustrate_literals1.c included above for reference ^^^^^^^^^^
@@ -9,30 +9,30 @@ sum = 1 * 2 + 3;
 // ILLUSTRATIVE MODE: Starting compilation of expression that begins on illustrate_literals1.c:3:1
 
 Current highest precedence sub-expression closed; compiler has read in all Tokens for this expression.
-Scope Level 0: [sum][=][1][*][2][B+][3]
+Scope Level 0: [expect_5][=][1][*][2][B+][3]
 Left & right operands moved under (like tree branches) [*] operator (Multiply)
-Scope Level 0: [sum][=]/*\[B+][3]
+Scope Level 0: [expect_5][=]/*\[B+][3]
 
 Parse tree of moved operator 
-                       /*\
-                    [1]   [2]
+                            /*\
+                         [1]   [2]
 
 Left & right operands moved under (like tree branches) [B+] operator (Add)
-Scope Level 0: [sum][=]/B+\
+Scope Level 0: [expect_5][=]/B+\
 
 Parse tree of moved operator 
-                       /B+\
-                    /*\   [3]
-                 [1][2]
+                            /B+\
+                         /*\   [3]
+                      [1][2]
 
 Compiler's Parse Tree for Complete Expression
-     /=\
-[sum]   /B+\
-     /*\   [3]
-  [1][2]
+          /=\
+[expect_5]   /B+\
+          /*\   [3]
+       [1][2]
 
 Parse tree flattened and written out to interpreted file
-[=][sum][B+][*][1][2][3]
+[=][expect_5][B+][*][1][2][3]
 
 Compiler ret_code = 0
 
@@ -41,11 +41,11 @@ Compiler ret_code = 0
 /* *************** <INTERPRETER STAGE> **************** */
 // ILLUSTRATIVE MODE: Flattened expression resolved below
 
-[=][sum][B+][*][1][2][3]
-             ^ Multiply next 2 sequential operand(s); replace w/ result
-[=][sum][B+][2][3]
-         ^ Add next 2 sequential operand(s); replace w/ result
-[=][sum][5]
+[=][expect_5][B+][*][1][2][3]
+                  ^ Multiply next 2 sequential operand(s); replace w/ result
+[=][expect_5][B+][2][3]
+              ^ Add next 2 sequential operand(s); replace w/ result
+[=][expect_5][5]
  ^ Assign next 2 sequential operand(s); replace w/ result
 [5] expression resolved
 Interpreter ret_code = 0
@@ -61,7 +61,7 @@ USER INFO MESSAGES: Unique messages = 0; Total messages = 0;
 /* ********** <SHOW VARIABLES & VALUES> ********** */
 // ********** <SCOPE LEVEL 0> ********** 
 // Scope opened by: INTERNAL_USE_TKN(U)->[__ROOT_SCOPE] on line 0 column 0
-sum = 5;
+expect_5 = 5;
 // ********** </SCOPE LEVEL 0> ********** 
 /* ********** </SHOW VARIABLES & VALUES> ********** */
 /* *************** </INTERPRETER STAGE> *************** */

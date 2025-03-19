@@ -50,6 +50,7 @@ expect64                = 64;
 fifty                   = 0x32;
 fiftySix                = 0x38;
 fiftyTwo                = 0x34;
+first                   = 21;
 five                    = 0x5;
 fortyTwo                = 0x2a;
 four                    = 0x4;
@@ -63,6 +64,7 @@ isShortCircuitOrTrue1   = true;
 isTrue1                 = true;
 isTrue2                 = true;
 isTrue3                 = true;
+last                    = 34;
 mathBitAnd0xDooDFa8e    = 0xd00dfa8e;
 mathBitOr0xDEADFBDE     = 0xdeadfbde;
 mathDiv512              = 512;
@@ -75,6 +77,8 @@ mathX111                = 111;
 mathXorFFs              = 0xffffffff;
 one                     = 0x1;
 rzlt_12345              = 12345;
+seq_sum_plan            = 385;
+seq_sum_real            = 385;
 seven                   = 0x7;
 shortCircuitAnd987      = 987;
 shortCircuitOr456       = 456;
@@ -83,8 +87,8 @@ three                   = 0x3;
 twenty                  = 0x14;
 twentySix               = 0x1a;
 two                     = 0x2;
-whichIfBlock            = 1;
-witchBlock              = 1;
+whichIfBlock1           = 1;
+witchBlock3             = 3;
 // ********** </SCOPE LEVEL 0> ********** 
 /* ********** </SHOW VARIABLES & VALUES> ********** */
 /* *************** </INTERPRETER STAGE> *************** */

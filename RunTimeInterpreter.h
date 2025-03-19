@@ -62,17 +62,23 @@ private:
 	int execBinaryOp (std::vector<Token> & exprTknStream, int opr8rIdx);
 	int getEndOfSubExprIdx (std::vector<Token> & exprTknStream, int startIdx, int & lastIdxOfExpr);
 	int execTernary1stOp (std::vector<Token> & exprTknStream, int opr8rIdx);
-	int execLogicalAndOp (std::vector<Token> & exprTknStream, int opr8rIdx);
-	int execLogicalOrOp (std::vector<Token> & exprTknStream, int opr8rIdx);
+	int exec_logical_and (std::vector<Token> & exprTknStream, int opr8rIdx);
+	int exec_logical_or (std::vector<Token> & exprTknStream, int opr8rIdx);
 	int execEquivalenceOp (std::vector<Token> & exprTknStream, int opr8rIdx);
 	int execShift (std::vector<Token> & exprTknStream, int opr8rIdx);
 	int execBitWiseOp (std::vector<Token> & exprTknStream, int opr8rIdx);
 	int execStandardMath (std::vector<Token> & exprTknStream, int opr8rIdx);
 	int resolveTknOrVar (Token & originalTkn, Token & resolvedTkn, std::wstring & varName, bool isCheckInit);
 	int resolveTknOrVar (Token & originalTkn, Token & resolvedTkn, std::wstring & varName);
-	int execIfBlock (uint32_t scopeStartPos, uint32_t if_scope_len, uint32_t afterIfParentScopePos);
-	void illustrativeB4op (std::vector<Token> & flatExprTkns, int currIdx);	
+	int exec_if_block (uint32_t scopeStartPos, uint32_t if_scope_len, uint32_t afterIfParentScopePos);
+  int exec_cached_expr (std::vector<Token> expr_tkn_list, bool & is_result_true);
+  int get_expr_from_var_declaration (uint32_t start_pos, std::vector<Token> & expr_tkn_list);
+  int exec_for_loop (uint32_t scopeStartPos, uint32_t for_scope_len, uint32_t afterParentScopePos);
+  
+  bool isOkToIllustrate ();
+  void illustrativeB4op (std::vector<Token> & flatExprTkns, int currIdx);	
 	void illustrativeAfterOp (std::vector<Token> & flatExprTkns);
+
 };
 
 #endif /* RUNTIMEINTERPRETER_H_ */

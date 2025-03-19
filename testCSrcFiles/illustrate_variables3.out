@@ -1,10 +1,10 @@
 // To keep the level of illustrative output reasonable, expressions inside variable declarations (ie on line below) are not logged
 int16 one = 1, two = one + one, three = two + one, four = three + one, five = three + two, six = three * two, seven = four + three, eight = four * two, nine = three * three;
 
-int32 result;
+int32 expect_78;
 
 // The expression below will have illustrative logging.
-result = ((one + two) + three) * (four + six) + (six * three);
+expect_78 = ((one + two) + three) * (four + six) + (six * three);
 
 
 ^^^^^^^^^^ Contents of illustrate_variables3.c included above for reference ^^^^^^^^^^
@@ -14,8 +14,8 @@ result = ((one + two) + three) * (four + six) + (six * three);
 
 Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
 Scope Level 2: [one][B+][two]
-Scope Level 1: [(]
-Scope Level 0: [result][=][(]
+Scope Level 1: ['(']
+Scope Level 0: [expect_78][=]['(']
 Left & right operands moved under (like tree branches) [B+] operator (Add)
 Scope Level 2: /B+\
 
@@ -25,7 +25,7 @@ Parse tree of moved operator
 
 Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
 Scope Level 1: /B+\[B+][three]
-Scope Level 0: [result][=][(]
+Scope Level 0: [expect_78][=]['(']
 Left & right operands moved under (like tree branches) [B+] operator (Add)
 Scope Level 1: /B+\
 
@@ -36,7 +36,7 @@ Parse tree of moved operator
 
 Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
 Scope Level 1: [four][B+][six]
-Scope Level 0: [result][=]/B+\[*][(]
+Scope Level 0: [expect_78][=]/B+\[*]['(']
 Left & right operands moved under (like tree branches) [B+] operator (Add)
 Scope Level 1: /B+\
 
@@ -46,7 +46,7 @@ Parse tree of moved operator
 
 Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
 Scope Level 1: [six][*][three]
-Scope Level 0: [result][=]/B+\[*]/B+\[B+][(]
+Scope Level 0: [expect_78][=]/B+\[*]/B+\[B+]['(']
 Left & right operands moved under (like tree branches) [*] operator (Multiply)
 Scope Level 1: /*\
 
@@ -55,18 +55,18 @@ Parse tree of moved operator
           [six]   [three]
 
 Current highest precedence sub-expression closed; compiler has read in all Tokens for this expression.
-Scope Level 0: [result][=]/B+\[*]/B+\[B+]/*\
+Scope Level 0: [expect_78][=]/B+\[*]/B+\[B+]/*\
 Left & right operands moved under (like tree branches) [*] operator (Multiply)
-Scope Level 0: [result][=]/*\[B+]/*\
+Scope Level 0: [expect_78][=]/*\[B+]/*\
 
 Parse tree of moved operator 
-                          /*\
-                      /B+\   /B+\
-              /B+\ [three]   [four][six]
-        [one][two]        
+                             /*\
+                         /B+\   /B+\
+                 /B+\ [three]   [four][six]
+           [one][two]        
 
 Left & right operands moved under (like tree branches) [B+] operator (Add)
-Scope Level 0: [result][=]/B+\
+Scope Level 0: [expect_78][=]/B+\
 
 Parse tree of moved operator 
                                 /B+\
@@ -77,14 +77,14 @@ Parse tree of moved operator
 
 Compiler's Parse Tree for Complete Expression
                              /=\
-                     [result]   /B+\
+                  [expect_78]   /B+\
                              /*\   /*\
                /B+\         /B+\   [six][three]
        /B+\ [three]  [four][six]
  [one][two]                     
 
 Parse tree flattened and written out to interpreted file
-[=][result][B+][*][B+][B+][one][two][three][B+][four][six][*][six][three]
+[=][expect_78][B+][*][B+][B+][one][two][three][B+][four][six][*][six][three]
 
 Compiler ret_code = 0
 
@@ -93,19 +93,19 @@ Compiler ret_code = 0
 /* *************** <INTERPRETER STAGE> **************** */
 // ILLUSTRATIVE MODE: Flattened expression resolved below
 
-[=][result][B+][*][B+][B+][one][two][three][B+][four][six][*][six][three]
-                       ^ Add next 2 sequential operand(s); replace w/ result
-[=][result][B+][*][B+][3][three][B+][four][six][*][six][three]
-                   ^ Add next 2 sequential operand(s); replace w/ result
-[=][result][B+][*][6][B+][four][six][*][six][three]
+[=][expect_78][B+][*][B+][B+][one][two][three][B+][four][six][*][six][three]
+                          ^ Add next 2 sequential operand(s); replace w/ result
+[=][expect_78][B+][*][B+][3][three][B+][four][six][*][six][three]
                       ^ Add next 2 sequential operand(s); replace w/ result
-[=][result][B+][*][6][10][*][six][three]
-                ^ Multiply next 2 sequential operand(s); replace w/ result
-[=][result][B+][60][*][six][three]
-                    ^ Multiply next 2 sequential operand(s); replace w/ result
-[=][result][B+][60][18]
-            ^ Add next 2 sequential operand(s); replace w/ result
-[=][result][78]
+[=][expect_78][B+][*][6][B+][four][six][*][six][three]
+                         ^ Add next 2 sequential operand(s); replace w/ result
+[=][expect_78][B+][*][6][10][*][six][three]
+                   ^ Multiply next 2 sequential operand(s); replace w/ result
+[=][expect_78][B+][60][*][six][three]
+                       ^ Multiply next 2 sequential operand(s); replace w/ result
+[=][expect_78][B+][60][18]
+               ^ Add next 2 sequential operand(s); replace w/ result
+[=][expect_78][78]
  ^ Assign next 2 sequential operand(s); replace w/ result
 [78] expression resolved
 Interpreter ret_code = 0
@@ -121,16 +121,16 @@ USER INFO MESSAGES: Unique messages = 0; Total messages = 0;
 /* ********** <SHOW VARIABLES & VALUES> ********** */
 // ********** <SCOPE LEVEL 0> ********** 
 // Scope opened by: INTERNAL_USE_TKN(U)->[__ROOT_SCOPE] on line 0 column 0
-eight  = 8;
-five   = 5;
-four   = 4;
-nine   = 9;
-one    = 1;
-result = 78;
-seven  = 7;
-six    = 6;
-three  = 3;
-two    = 2;
+eight     = 8;
+expect_78 = 78;
+five      = 5;
+four      = 4;
+nine      = 9;
+one       = 1;
+seven     = 7;
+six       = 6;
+three     = 3;
+two       = 2;
 // ********** </SCOPE LEVEL 0> ********** 
 /* ********** </SHOW VARIABLES & VALUES> ********** */
 /* *************** </INTERPRETER STAGE> *************** */

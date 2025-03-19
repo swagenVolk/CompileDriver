@@ -92,8 +92,11 @@ private:
   bool isTernaryOpen ();
   int get2ndTernaryCnt ();
   int closeNestedScopes();
-  int moveNeighborsIntoTree (Operator & opr8r, ExprTreeNodePtrVector & currScope
-	, int opr8rIdx, opr8rReadyState opr8rState, bool isMoveLeftNbr, bool isMoveRightNbr);
+  int moveNeighborsIntoTree (ExprTreeNodePtrVector & currScope, int opr8rIdx, opr8rReadyState opr8rState, bool isMoveLeftNbr, bool isMoveRightNbr);
+  int exec_delayed_ternary_2nd (ExprTreeNodePtrVector & currScope);
+  bool is_delay_tern2nd (ExprTreeNodePtrVector & currScope);
+  int exec_prec_lvl_opr8rs (ExprTreeNodePtrVector & currScope,  Opr8rPrecedenceLvl & precedenceLvl, bool & is_skip_tern2nd);
+    
   int turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope);
   int turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope, bool isOpenedByTernary);
   int getExpectedEndToken (std::shared_ptr<Token> startTkn, uint32_t & _1stTknTypMsk, Token & expectedEndTkn, bool isEndedByComma);

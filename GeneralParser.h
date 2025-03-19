@@ -31,6 +31,10 @@
 
 #define RESUME_COMPILATION  L"Continuing compilation after "
 
+#define FOR_INIT_IDX          0
+#define FOR_CONDITIONAL_IDX   1
+#define FOR_ITER_IDX          2
+
 enum var_declaration_states_enum {
   GET_VAR_NAME
   ,CHECK_FOR_INIT_EXPR
@@ -68,15 +72,19 @@ private:
   std::vector<std::wstring> ender_list;
   std::vector<std::wstring> ender_comma_list;
   logLvlEnum logLevel;
+  int failOnSrcLine;
 
-  int parseVarDeclaration (std::wstring dataTypeStr, std::pair<TokenTypeEnum, uint8_t> tknType_opCode, bool & isDeclarationEnded);
+
+  int parseVarDeclaration (std::wstring dataTypeStr, std::pair<TokenTypeEnum, uint8_t> tknType_opCode, bool & isDeclarationEnded
+    , int & numVarsAdded, int & numInitExpressions);
   int resolveVarInitExpr (Token & varTkn, Token currTkn, Token & exprCloser, bool & isDeclarationEnded);
   bool isProgressBlocked ();
   int chompUntil_infoMsgAfter (std::vector<std::wstring> searchStrings, Token & closerTkn);
   int compile_if_type_block (uint8_t op_code, Token & openingTkn, bool & isClosedByCurly);
   int handleExpression (bool & isStopFail);
-  int openFloatyScope(Token openScopeTkn);
-
+  int openFloatyScope (Token openScopeTkn);
+  int compile_for_loop_control (Token & openingTkn);
+  int compile_for_loop_ctrl_expr (int exprIdx);
 };
 
 #endif /* GENERALPARSER_H_ */

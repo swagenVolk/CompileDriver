@@ -16,6 +16,7 @@
 #include "common.h"
 #include <cstdint>
 #include <iostream>
+#include <memory>
 
 using namespace std;
 
@@ -40,6 +41,9 @@ GeneralParser::GeneralParser(TokenPtrVector & inTknStream, std::wstring userSrcF
 	ender_comma_list.push_back (L",");
 
 	ender_list.push_back (usrSrcTerms.get_statement_ender());
+
+  failOnSrcLine = 0;
+
 }
 
 GeneralParser::~GeneralParser() {
@@ -47,6 +51,11 @@ GeneralParser::~GeneralParser() {
 	scopedNameSpace.reset();
 	ender_comma_list.clear();
 	ender_list.clear();
+
+  if (failOnSrcLine > 0 && !userMessages->isExistsInternalError(thisSrcFile, failOnSrcLine))	{
+		// Dump out a debugging hint
+		std::wcout << L"FAILURE on " << thisSrcFile << L":" << failOnSrcLine << std::endl;
+	}
 
 }
 
@@ -185,7 +194,7 @@ int GeneralParser::compileCurrScope () 	{
 					// Indicates we should close the current scope
 					closeScopeErr closeErr;
 
- 					if (OK != scopedNameSpace->closeTopScope(interpretedFileWriter, prevScopeObject, closeErr))	{
+ 					if (OK != scopedNameSpace->srcCloseTopScope(interpretedFileWriter, prevScopeObject, closeErr))	{
 						isStopFail = true;
 
 						if (closeErr == ONLY_ROOT_SCOPE_OPEN)
@@ -203,7 +212,8 @@ int GeneralParser::compileCurrScope () 	{
 
 				} else if (enum_opCode.second != INVALID_OPCODE)	{
 					// This Token is a known data type; handle variable or fxn declaration
-					if (OK != parseVarDeclaration (currTkn->_string, enum_opCode, isVarDecClosed))	{
+          int numVars, numInitExpr;
+					if (OK != parseVarDeclaration (currTkn->_string, enum_opCode, isVarDecClosed, numVars, numInitExpr))	{
 						if (isProgressBlocked())	{
 							isStopFail = true;
 
@@ -275,8 +285,8 @@ int GeneralParser::compileCurrScope () 	{
 					}
 
 				} else if (currTkn->tkn_type == RESERVED_WORD_TKN && currTkn->_string == L"for")	{
-			  	userMessages->logMsg (INTERNAL_ERROR, L"[for] RESERVED_WORD not supported yet!", thisSrcFile, __LINE__, 0);
-					isStopFail = true;
+			  	if (OK != compile_for_loop_control(*currTkn))
+					  isStopFail = true;
 
 				} else if (currTkn->tkn_type == RESERVED_WORD_TKN && currTkn->_string == L"while")	{
 			  	userMessages->logMsg (INTERNAL_ERROR, L"[while] RESERVED_WORD not supported yet!", thisSrcFile, __LINE__, 0);
@@ -394,11 +404,16 @@ int GeneralParser::compile_if_type_block (uint8_t op_code, Token & openingTkn, b
  * Found a data type USER_WORD that indicates the beginning of a possibly plural
  * variable declaration.
  * ***************************************************************************/
-int GeneralParser::parseVarDeclaration (std::wstring dataTypeStr, std::pair<TokenTypeEnum, uint8_t> tknType_opCode, bool & isDeclarationEnded)	{
+int GeneralParser::parseVarDeclaration (std::wstring dataTypeStr, std::pair<TokenTypeEnum, uint8_t> tknType_opCode, bool & isDeclarationEnded
+  , int & numVarsAdded, int & numInitExpressions)	{
+
 	int ret_code = GENERAL_FAILURE;
 	bool isStopFail = false;
 	isDeclarationEnded = false;
 	Token exprCloserTkn;
+
+  numVarsAdded = 0;
+  numInitExpressions = 0;
 
 	std::wstring assignOpr8r = usrSrcTerms.getSrcOpr8rStrFor(ASSIGNMENT_OPR8R_OPCODE);
 
@@ -478,6 +493,7 @@ int GeneralParser::parseVarDeclaration (std::wstring dataTypeStr, std::pair<Toke
 							} else	{
 								currVarNameTkn = *currTkn;
 								parserState = CHECK_FOR_INIT_EXPR;
+                numVarsAdded++;
 							}
 						}
 
@@ -510,7 +526,9 @@ int GeneralParser::parseVarDeclaration (std::wstring dataTypeStr, std::pair<Toke
 								if (OK != chompUntil_infoMsgAfter (ender_comma_list, exprCloserTkn))
 									isStopFail = true;
 							}
-						}
+						} else {
+              numInitExpressions++;
+            }
 
 						if (!isStopFail)	{
 							if (exprCloserTkn.tkn_type == SPR8R_TKN && exprCloserTkn._string == L",")
@@ -666,8 +684,7 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
 		} else if (OK != scopedNameSpace->findVar(varTkn._string, 0, flatExprTkns[0], COMMIT_WRITE, lookUpMsg))	{
 			// Don't limit search to current scope
 			userMessages->logMsg (INTERNAL_ERROR
-					, L"Could not find " + varTkn._string + L" after parsing initialization expression in " + userSrcFileName
-					+ L" on|near " + currTkn.descr_line_num_col(), thisSrcFile, __LINE__, 0);
+					, lookUpMsg + L" in " + userSrcFileName + L" on|near " + currTkn.descr_line_num_col(), thisSrcFile, __LINE__, 0);
 			isFailed = true;
 		}
 	}
@@ -677,4 +694,197 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
 	}
 
 	return (ret_code);
+}
+
+/* ****************************************************************************
+ * Encounted [for] reserved word.  Need to handle the for loop control structure
+ * inside the parentheses.  
+ * for (optional init statement; continue if true condition; optional expression)
+ * TODO: 
+ * Should I include some kind of limit to for loop iterations? 100000? 1000000? More?
+ * After compilation has been completed, check for problems?
+ * Check if that var in FOR_INIT_IDX is referenced in FOR_ITER_IDX and otherwise warn?
+ * Look for same var across ALL of the 3 defined statements and if not found, warn?
+ * If there is no conditional, error if ScopeWindow's loop_break_cnt == 0
+ * ***************************************************************************/
+ int GeneralParser::compile_for_loop_control (Token & openingTkn) {
+  int ret_code = GENERAL_FAILURE;
+  bool isFailed = false;
+	uint32_t startFilePos;
+	uint32_t length_pos;
+
+  if (!tknStream.empty())	{
+    std::shared_ptr <Token> currTkn = tknStream.front();
+    tknStream.erase(tknStream.begin());
+
+    if (currTkn->tkn_type != SPR8R_TKN || currTkn->_string != L"(") {
+      isFailed = true;
+      userMessages->logMsg (USER_ERROR
+        , L"After [for] reserved word, expected [(] but got " + currTkn->descr_sans_line_num_col()
+        , userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
+
+    } else {
+    
+      startFilePos = interpretedFileWriter.getWriteFilePos();
+      length_pos = interpretedFileWriter.writeFlexLenOpCode (FOR_SCOPE_OPCODE);
+    
+      if (0 == length_pos)  {
+        isFailed = true;
+      
+      } else if (OK != scopedNameSpace->openNewScope(FOR_SCOPE_OPCODE, openingTkn, startFilePos, 0)) {
+        // Open up the scope 1st because we could have some variables to insert when compiling the control block
+        isFailed = true;
+      
+      } else if (OK != compile_for_loop_ctrl_expr(0)) {
+        // Init expression can be empty, but closes with ;
+        isFailed = true;
+      
+      } else if (OK != compile_for_loop_ctrl_expr(1))  {
+        // Can conditional expression can be empty? Closes with ;
+        isFailed = true;
+
+      } else if (OK != compile_for_loop_ctrl_expr(2))  {
+        // Can be empty; closes with [)]
+        isFailed = true;
+
+      } else {
+        if (!tknStream.empty())	{
+          std::shared_ptr <Token> currTkn = tknStream.front();
+
+          if (currTkn->tkn_type == SPR8R_TKN && currTkn->_string == L"{")  {
+            // Hit an opening curly, so expect there to be multiple statements
+            // within for loop scope to be handled by compileCurrScope
+            tknStream.erase(tknStream.begin());
+            ret_code = OK;
+          
+          } else {
+            // Single expression contained in this for loop
+            closeScopeErr closeErr;
+            uint8_t scopeOpCode = FOR_SCOPE_OPCODE;
+            bool isStopFail;
+
+            if (OK != handleExpression(isStopFail))
+              failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;  
+
+            else if (OK != scopedNameSpace->srcCloseTopScope(interpretedFileWriter, scopeOpCode, closeErr))	{
+              failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;  
+ 
+              if (closeErr == ONLY_ROOT_SCOPE_OPEN)
+                userMessages->logMsg(USER_ERROR, L"Failure closing scope; possibly unmatched " + currTkn->descr_sans_line_num_col(), userSrcFileName
+                , currTkn->get_line_number(), currTkn->get_column_pos());
+ 
+              else if (closeErr == SCOPE_CLOSE_UKNOWN_ERROR || NO_SCOPES_OPEN)
+                userMessages->logMsg (INTERNAL_ERROR, L"Failure closing scope with: " + currTkn->descr_line_num_col(), thisSrcFile, __LINE__, 0);
+           
+            } else  {
+              ret_code = OK;
+            }
+          }
+        } else {
+          failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;  
+        }
+      }
+    }
+  }
+  
+  return ret_code;
+}
+
+/* ****************************************************************************
+ * Working on control logic of [for] loop. There are up to 3 statements (?) to
+ * deal with.
+ * for (optional init statement; continue if true condition; optional expression)
+ *      ^ exprIdx == 0           ^ exprIdx == 1              ^ exprIdx == 2
+ * TODO:
+ * Are variable declarations allowed on exprIdx == 2? Or only a single expression?
+ * Is it OK to allow multiple statements inside a variable declaration vs. only
+ * 1 if there's a "normal" expression instead?
+ * FOR_INIT_IDX: Should I check the # of vars that have been initialized? Min of 1?  
+ * ***************************************************************************/
+ int GeneralParser::compile_for_loop_ctrl_expr (int exprIdx) {
+  int ret_code = GENERAL_FAILURE;
+
+ 	uint32_t startFilePos;
+	uint32_t length_pos;
+  std::wstring lookUpMsg;
+  std::vector<Token> emptyFlatExpr;
+
+  if (tknStream.empty())	{
+    failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+  } else {
+    std::shared_ptr <Token> currTkn = tknStream.front();
+    tknStream.erase(tknStream.begin());
+    std::pair<TokenTypeEnum, uint8_t> enum_opCode = usrSrcTerms.getDataType_tknEnum_opCode (currTkn->_string);
+
+    if (exprIdx == FOR_ITER_IDX && currTkn->tkn_type == SPR8R_TKN && currTkn->_string == L")") {
+      // It's an empty expression; we're done
+      ret_code = interpretedFileWriter.writeFlatExprToFile(emptyFlatExpr, false);
+    
+    } else if (currTkn->tkn_type == SRC_OPR8R_TKN && currTkn->_string == usrSrcTerms.get_statement_ender())  {
+      // It's an empty expression; we're done
+      if (exprIdx < FOR_ITER_IDX)  {
+        ret_code = interpretedFileWriter.writeFlatExprToFile(emptyFlatExpr, false);
+      
+      } else if (tknStream.empty())	{
+        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+      
+      } else {
+        // if exprIdx == FOR_ITER_IDX, then we need to consume the [)]
+        std::shared_ptr <Token> currTkn = tknStream.front();
+        tknStream.erase(tknStream.begin());
+
+        if (currTkn->tkn_type == SPR8R_TKN && currTkn->_string == L")")
+          ret_code = OK;
+        else
+          failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+      }
+      
+    } else if (enum_opCode.second != INVALID_OPCODE && exprIdx < FOR_ITER_IDX)  {
+      // Data type indicates variable declaration encountered
+      // e.g. int16 idx = 0;
+
+      bool isVarDecClosed = false;
+      int numVars, numInitExpr;
+      if (OK != parseVarDeclaration (currTkn->_string, enum_opCode, isVarDecClosed, numVars, numInitExpr))  {
+        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+      } else if (!isVarDecClosed) {
+        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+      } else if (exprIdx == FOR_INIT_IDX) {
+        // Multiple variable declaration is allowed for init expression
+        ret_code = OK;
+      
+      } else if (exprIdx == FOR_CONDITIONAL_IDX)  {
+        // Legal to declare variable and set to something, but only 1 is allowed because a conditional must resolve down to 1 TRUE|FALSE
+        if (numVars == 1 && numInitExpr == 1) {
+          ret_code = OK;
+        
+        } else {
+          failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+        }
+      }
+
+    } else if ((currTkn->tkn_type == USER_WORD_TKN && OK == scopedNameSpace->findVar(currTkn->_string, 0, scratchTkn, READ_ONLY, lookUpMsg))
+      || currTkn->tkn_type == SRC_OPR8R_TKN && (currTkn->_string == usrSrcTerms.getSrcOpr8rStrFor (PRE_INCR_OPR8R_OPCODE)
+      || currTkn->_string == usrSrcTerms.getSrcOpr8rStrFor (PRE_DECR_OPR8R_OPCODE)))	{
+  
+      // Put the current Token back; exprParser will need it!
+      tknStream.insert(tknStream.begin(), currTkn);
+      bool isStopFail = false;
+      if (exprIdx == FOR_ITER_IDX) {
+        // Push an opening [(] up front to match expected closing [)]
+        std::shared_ptr<Token> openParenTkn = std::make_shared<Token> (SPR8R_TKN, L"(", L"", 0, 0);
+        tknStream.insert(tknStream.begin(), openParenTkn);
+      }
+      ret_code = handleExpression(isStopFail);
+      
+    } else {
+      failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+    }
+  }
+
+  return ret_code;
+
 }

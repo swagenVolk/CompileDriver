@@ -27,6 +27,7 @@ enum closeEnum	{
 	,NO_SCOPES_OPEN
 	,ONLY_ROOT_SCOPE_OPEN
 	,SCOPES_OPEN_ABOVE_ROOT
+  ,SCOPE_OPCODE_MISMATCH
 };
 
 typedef closeEnum closeScopeErr;
@@ -41,14 +42,17 @@ public:
 	int insertNewVarAtCurrScope (std::wstring varName, Token varValue);
 	void displayVariables();
 	int openNewScope (uint8_t openedByOpCode, Token scopenerTkn, uint32_t startScopeFilePos, uint32_t scopeLen);
-	int closeTopScope (InterpretedFileWriter & interpretedFileWriter, uint8_t & closedScopeOpCode, closeScopeErr & closeErr, bool isRootScope);
-	int closeTopScope (InterpretedFileWriter & interpretedFileWriter, uint8_t & closedScopeOpCode, closeScopeErr & closeErr);
+  int closeTopScope (uint8_t closedScopeOpCode, closeScopeErr & closeErr, bool isRootScope);
+	int srcCloseTopScope (InterpretedFileWriter & interpretedFileWriter, uint8_t & closedScopeOpCode, closeScopeErr & closeErr, bool isRootScope);
+	int srcCloseTopScope (InterpretedFileWriter & interpretedFileWriter, uint8_t & closedScopeOpCode, closeScopeErr & closeErr);
+  bool isInsideLoop ();
 
 
 private:
   std::vector<std::shared_ptr<ScopeWindow>> scopeStack;
   Utilities util;
   std::wstring thisSrcFile;
+
 
 };
 

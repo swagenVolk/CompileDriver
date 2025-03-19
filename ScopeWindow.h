@@ -26,6 +26,7 @@ public:
 	uint32_t boundary_begin_pos;																	// Where does this scope object begin in the interpreted file?
 	uint32_t boundary_end_pos;
 	std::map <std::wstring, std::shared_ptr<Token>> variables;		// List of variables defined at this scope
+  int loop_break_cnt;                                           // Incremented when a [break] statement is found inside a loop                            
 
 };
 

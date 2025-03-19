@@ -1,10 +1,10 @@
 // To keep the level of illustrative output reasonable, expressions inside variable declarations (ie on line below) are not logged
 int16 one = 1, two = one + one, three = two + one, four = three + one, five = three + two, six = three * two;
 
-int32 result;
+int32 expect_5;
 
 // The expression below will have illustrative logging.
-result = one + two * three * four / six;
+expect_5 = one + two * three * four / six;
 
 
 ^^^^^^^^^^ Contents of illustrate_variables1.c included above for reference ^^^^^^^^^^
@@ -13,51 +13,51 @@ result = one + two * three * four / six;
 // ILLUSTRATIVE MODE: Starting compilation of expression that begins on illustrate_variables1.c:7:1
 
 Current highest precedence sub-expression closed; compiler has read in all Tokens for this expression.
-Scope Level 0: [result][=][one][B+][two][*][three][*][four][/][six]
+Scope Level 0: [expect_5][=][one][B+][two][*][three][*][four][/][six]
 Left & right operands moved under (like tree branches) [*] operator (Multiply)
-Scope Level 0: [result][=][one][B+]/*\[*][four][/][six]
+Scope Level 0: [expect_5][=][one][B+]/*\[*][four][/][six]
 
 Parse tree of moved operator 
-                                   /*\
-                              [two]   [three]
+                                     /*\
+                                [two]   [three]
 
 Left & right operands moved under (like tree branches) [*] operator (Multiply)
-Scope Level 0: [result][=][one][B+]/*\[/][six]
+Scope Level 0: [expect_5][=][one][B+]/*\[/][six]
 
 Parse tree of moved operator 
-                                   /*\
-                                /*\   [four]
-                       [two][three]
+                                     /*\
+                                  /*\   [four]
+                         [two][three]
 
 Left & right operands moved under (like tree branches) [/] operator (Divide)
-Scope Level 0: [result][=][one][B+]//\
+Scope Level 0: [expect_5][=][one][B+]//\
 
 Parse tree of moved operator 
-                                   //\
-                                /*\   [six]
-                         /*\ [four]
-                [two][three]       
+                                     //\
+                                  /*\   [six]
+                           /*\ [four]
+                  [two][three]       
 
 Left & right operands moved under (like tree branches) [B+] operator (Add)
-Scope Level 0: [result][=]/B+\
+Scope Level 0: [expect_5][=]/B+\
 
 Parse tree of moved operator 
-                          /B+\
-                     [one]   //\
-                             /*\          [six]
-                             /*\  [four]
-                             [two][three]
+                            /B+\
+                       [one]   //\
+                               /*\          [six]
+                               /*\  [four]
+                               [two][three]
 
 Compiler's Parse Tree for Complete Expression
-        /=\
-[result]   /B+\
-      [one]   //\
-              /*\          [six]
-              /*\  [four]
-              [two][three]
+          /=\
+[expect_5]   /B+\
+        [one]   //\
+                /*\          [six]
+                /*\  [four]
+                [two][three]
 
 Parse tree flattened and written out to interpreted file
-[=][result][B+][one][/][*][*][two][three][four][six]
+[=][expect_5][B+][one][/][*][*][two][three][four][six]
 
 Compiler ret_code = 0
 
@@ -66,15 +66,15 @@ Compiler ret_code = 0
 /* *************** <INTERPRETER STAGE> **************** */
 // ILLUSTRATIVE MODE: Flattened expression resolved below
 
-[=][result][B+][one][/][*][*][two][three][four][six]
-                           ^ Multiply next 2 sequential operand(s); replace w/ result
-[=][result][B+][one][/][*][6][four][six]
-                        ^ Multiply next 2 sequential operand(s); replace w/ result
-[=][result][B+][one][/][24][six]
-                     ^ Divide next 2 sequential operand(s); replace w/ result
-[=][result][B+][one][4]
-            ^ Add next 2 sequential operand(s); replace w/ result
-[=][result][5]
+[=][expect_5][B+][one][/][*][*][two][three][four][six]
+                             ^ Multiply next 2 sequential operand(s); replace w/ result
+[=][expect_5][B+][one][/][*][6][four][six]
+                          ^ Multiply next 2 sequential operand(s); replace w/ result
+[=][expect_5][B+][one][/][24][six]
+                       ^ Divide next 2 sequential operand(s); replace w/ result
+[=][expect_5][B+][one][4]
+              ^ Add next 2 sequential operand(s); replace w/ result
+[=][expect_5][5]
  ^ Assign next 2 sequential operand(s); replace w/ result
 [5] expression resolved
 Interpreter ret_code = 0
@@ -90,13 +90,13 @@ USER INFO MESSAGES: Unique messages = 0; Total messages = 0;
 /* ********** <SHOW VARIABLES & VALUES> ********** */
 // ********** <SCOPE LEVEL 0> ********** 
 // Scope opened by: INTERNAL_USE_TKN(U)->[__ROOT_SCOPE] on line 0 column 0
-five   = 5;
-four   = 4;
-one    = 1;
-result = 5;
-six    = 6;
-three  = 3;
-two    = 2;
+expect_5 = 5;
+five     = 5;
+four     = 4;
+one      = 1;
+six      = 6;
+three    = 3;
+two      = 2;
 // ********** </SCOPE LEVEL 0> ********** 
 /* ********** </SHOW VARIABLES & VALUES> ********** */
 /* *************** </INTERPRETER STAGE> *************** */

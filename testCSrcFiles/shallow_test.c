@@ -136,26 +136,37 @@ bool isShortCircuitAndFalse1 = (one * two >= three || two * three > six || three
 
 // [?] short circuit
 
-int8 whichIfBlock = 0;
+int8 whichIfBlock1 = 0;
 
 if (shortCircuitAnd987 == 987)	{
-  whichIfBlock = 1;
+  whichIfBlock1 = 1;
 	
 } else if (shortCircuitAnd987 == 654)	{
-	whichIfBlock = 2;
+	whichIfBlock1 = 2;
 	
 } else {
-	whichIfBlock = 3;
+	whichIfBlock1 = 3;
 }
 
-int8 witchBlock = 0;
+int8 witchBlock3 = 0;
 
-if (shortCircuitAnd987 == 987)	{
-  witchBlock = 1;
+if (shortCircuitAnd987 == 989)	{
+  witchBlock3 = 1;
 	
-} else if (shortCircuitAnd987 == 654)	{
-	witchBlock = 2;
+} else if (shortCircuitAnd987 == 990)	{
+	witchBlock3 = 2;
 	
 } else {
-	witchBlock = 3;
+	witchBlock3 = 3;
+}
+
+
+
+// for loop
+int16 first = 21, last = 34, seq_sum_plan = (last - first + 1)/2 * (first + last);
+
+int32 seq_sum_real = 0;
+
+for (int16 next_num = first; next_num <= last; next_num++) {
+  seq_sum_real += next_num;
 }

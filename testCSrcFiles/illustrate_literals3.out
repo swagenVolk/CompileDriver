@@ -1,8 +1,8 @@
-int8 value;
+int8 expect_155;
 
 // This expression uses parentheses to force the precedence & ordering
 // of operations to use 4 distinct scope levels
-value = 1 + 2 * ((3 + 4) * (5 + 6));
+expect_155 = 1 + 2 * ((3 + 4) * (5 + 6));
 
 
 ^^^^^^^^^^ Contents of illustrate_literals3.c included above for reference ^^^^^^^^^^
@@ -12,8 +12,8 @@ value = 1 + 2 * ((3 + 4) * (5 + 6));
 
 Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
 Scope Level 2: [3][B+][4]
-Scope Level 1: [(]
-Scope Level 0: [value][=][1][B+][2][*][(]
+Scope Level 1: ['(']
+Scope Level 0: [expect_155][=][1][B+][2][*]['(']
 Left & right operands moved under (like tree branches) [B+] operator (Add)
 Scope Level 2: /B+\
 
@@ -23,8 +23,8 @@ Parse tree of moved operator
 
 Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
 Scope Level 2: [5][B+][6]
-Scope Level 1: /B+\[*][(]
-Scope Level 0: [value][=][1][B+][2][*][(]
+Scope Level 1: /B+\[*]['(']
+Scope Level 0: [expect_155][=][1][B+][2][*]['(']
 Left & right operands moved under (like tree branches) [B+] operator (Add)
 Scope Level 2: /B+\
 
@@ -34,7 +34,7 @@ Parse tree of moved operator
 
 Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
 Scope Level 1: /B+\[*]/B+\
-Scope Level 0: [value][=][1][B+][2][*][(]
+Scope Level 0: [expect_155][=][1][B+][2][*]['(']
 Left & right operands moved under (like tree branches) [*] operator (Multiply)
 Scope Level 1: /*\
 
@@ -44,36 +44,36 @@ Parse tree of moved operator
          [3][4]   [5][6]
 
 Current highest precedence sub-expression closed; compiler has read in all Tokens for this expression.
-Scope Level 0: [value][=][1][B+][2][*]/*\
+Scope Level 0: [expect_155][=][1][B+][2][*]/*\
 Left & right operands moved under (like tree branches) [*] operator (Multiply)
-Scope Level 0: [value][=][1][B+]/*\
+Scope Level 0: [expect_155][=][1][B+]/*\
 
 Parse tree of moved operator 
-                                /*\
-                             [2]   /*\
-                                   /B+\    /B+\
-                                   [3][4]  [5][6]
+                                     /*\
+                                  [2]   /*\
+                                        /B+\    /B+\
+                                        [3][4]  [5][6]
 
 Left & right operands moved under (like tree branches) [B+] operator (Add)
-Scope Level 0: [value][=]/B+\
+Scope Level 0: [expect_155][=]/B+\
 
 Parse tree of moved operator 
-                         /B+\
-                      [1]   /*\
-                            [2] /*\
-                                /B+\    /B+\
-                                [3][4]  [5][6]
+                              /B+\
+                           [1]   /*\
+                                 [2] /*\
+                                     /B+\    /B+\
+                                     [3][4]  [5][6]
 
 Compiler's Parse Tree for Complete Expression
-       /=\
-[value]   /B+\
-       [1]   /*\
-             [2] /*\
-                 /B+\    /B+\
-                 [3][4]  [5][6]
+            /=\
+[expect_155]   /B+\
+            [1]   /*\
+                  [2] /*\
+                      /B+\    /B+\
+                      [3][4]  [5][6]
 
 Parse tree flattened and written out to interpreted file
-[=][value][B+][1][*][2][*][B+][3][4][B+][5][6]
+[=][expect_155][B+][1][*][2][*][B+][3][4][B+][5][6]
 
 Compiler ret_code = 0
 
@@ -82,17 +82,17 @@ Compiler ret_code = 0
 /* *************** <INTERPRETER STAGE> **************** */
 // ILLUSTRATIVE MODE: Flattened expression resolved below
 
-[=][value][B+][1][*][2][*][B+][3][4][B+][5][6]
-                           ^ Add next 2 sequential operand(s); replace w/ result
-[=][value][B+][1][*][2][*][7][B+][5][6]
-                              ^ Add next 2 sequential operand(s); replace w/ result
-[=][value][B+][1][*][2][*][7][11]
-                        ^ Multiply next 2 sequential operand(s); replace w/ result
-[=][value][B+][1][*][2][77]
-                  ^ Multiply next 2 sequential operand(s); replace w/ result
-[=][value][B+][1][154]
-           ^ Add next 2 sequential operand(s); replace w/ result
-[=][value][155]
+[=][expect_155][B+][1][*][2][*][B+][3][4][B+][5][6]
+                                ^ Add next 2 sequential operand(s); replace w/ result
+[=][expect_155][B+][1][*][2][*][7][B+][5][6]
+                                   ^ Add next 2 sequential operand(s); replace w/ result
+[=][expect_155][B+][1][*][2][*][7][11]
+                             ^ Multiply next 2 sequential operand(s); replace w/ result
+[=][expect_155][B+][1][*][2][77]
+                       ^ Multiply next 2 sequential operand(s); replace w/ result
+[=][expect_155][B+][1][154]
+                ^ Add next 2 sequential operand(s); replace w/ result
+[=][expect_155][155]
  ^ Assign next 2 sequential operand(s); replace w/ result
 [155] expression resolved
 Interpreter ret_code = 0
@@ -108,7 +108,7 @@ USER INFO MESSAGES: Unique messages = 0; Total messages = 0;
 /* ********** <SHOW VARIABLES & VALUES> ********** */
 // ********** <SCOPE LEVEL 0> ********** 
 // Scope opened by: INTERNAL_USE_TKN(U)->[__ROOT_SCOPE] on line 0 column 0
-value = 155;
+expect_155 = 155;
 // ********** </SCOPE LEVEL 0> ********** 
 /* ********** </SHOW VARIABLES & VALUES> ********** */
 /* *************** </INTERPRETER STAGE> *************** */
