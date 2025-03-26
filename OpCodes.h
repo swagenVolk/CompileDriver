@@ -61,7 +61,8 @@
 #define BITWISE_XOR_ASSIGN_OPR8R_OPCODE 0x26    // "^="
 #define BITWISE_OR_ASSIGN_OPR8R_OPCODE  0x27    // "|="
 #define STATEMENT_ENDER_OPR8R_OPCODE    0x28    // ";", STATEMENT_ENDER
-#define LAST_VALID_OPR8R_OPCODE         0x28    // Change this value if new op_codes in this range are created
+#define BREAK_OPR8R_OPCODE              0x29
+#define LAST_VALID_OPR8R_OPCODE         0x29    // Change this value if new op_codes in this range are created
 
 // [0x30-0x3F] is reserved for self-contained, single 8-bit BYTE data type op_codes
 #define FIRST_VALID_DATA_TYPE_OPCODE    0x30

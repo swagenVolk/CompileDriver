@@ -51,7 +51,7 @@ private:
 	bool isIllustrative;
 	std::wstring tknsIllustrativeStr;
 
-	int execCurrScope (uint32_t execStartPos, uint32_t afterBoundaryPos);
+	int execCurrScope (uint32_t execStartPos, uint32_t afterBoundaryPos, uint32_t & break_scope_end_pos);
   int execFlatExpr_OLR (std::vector<Token> & exprTknStream, int startIdx);
 	int execOperation (Operator opr8r, int opr8rIdx, std::vector<Token> & flatExprTkns);
 	int execExpression (uint32_t objStartPos, Token & resultTkn);
@@ -70,10 +70,11 @@ private:
 	int execStandardMath (std::vector<Token> & exprTknStream, int opr8rIdx);
 	int resolveTknOrVar (Token & originalTkn, Token & resolvedTkn, std::wstring & varName, bool isCheckInit);
 	int resolveTknOrVar (Token & originalTkn, Token & resolvedTkn, std::wstring & varName);
-	int exec_if_block (uint32_t scopeStartPos, uint32_t if_scope_len, uint32_t afterIfParentScopePos);
+	int exec_if_block (uint32_t scopeStartPos, uint32_t if_scope_len, uint32_t afterIfParentScopePos, uint32_t & break_scope_end_pos);
   int exec_cached_expr (std::vector<Token> expr_tkn_list, bool & is_result_true);
   int get_expr_from_var_declaration (uint32_t start_pos, std::vector<Token> & expr_tkn_list);
-  int exec_for_loop (uint32_t scopeStartPos, uint32_t for_scope_len, uint32_t afterParentScopePos);
+  int exec_for_loop (uint32_t scopeStartPos, uint32_t for_scope_len, uint32_t afterParentScopePos, uint32_t & break_scope_end_pos);
+  int exec_while_loop (uint32_t scopeStartPos, uint32_t for_scope_len, uint32_t afterParentScopePos, uint32_t & break_scope_end_pos);
   
   bool isOkToIllustrate ();
   void illustrativeB4op (std::vector<Token> & flatExprTkns, int currIdx);	

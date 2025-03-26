@@ -162,23 +162,24 @@ int GeneralParser::compileRootScope () 	{
  * ***************************************************************************/
 int GeneralParser::compileCurrScope () 	{
 	int ret_code = GENERAL_FAILURE;
-	bool isStopFail = false;
 	bool isEOF = false;
 	bool isExprClosed = false;
 	bool isVarDecClosed = false;
 	Token tmpTkn;
 	uint8_t prevScopeObject = INVALID_OPCODE;
+  bool is_expr_static;
 
   if (tknStream.empty())	{
   	userMessages->logMsg (INTERNAL_ERROR, L"Token stream is unexpectedly empty!", thisSrcFile, __LINE__, 0);
-  	isStopFail = true;
+  	failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+    
 
   } else	{
   	std::pair<TokenTypeEnum, uint8_t> tknTypeEnum_opCode;
 		std::wstring lookUpMsg;
 		bool isNewScopened;
 
-		while (!isStopFail && !isEOF)	{
+		while (!failOnSrcLine && !isEOF)	{
 
 			if (!tknStream.empty())	{
 				std::shared_ptr <Token> currTkn = tknStream.front();
@@ -194,8 +195,11 @@ int GeneralParser::compileCurrScope () 	{
 					// Indicates we should close the current scope
 					closeScopeErr closeErr;
 
- 					if (OK != scopedNameSpace->srcCloseTopScope(interpretedFileWriter, prevScopeObject, closeErr))	{
-						isStopFail = true;
+          if (OK != validate_closed_for_loop())  {
+            failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+          
+          } else if (OK != scopedNameSpace->srcCloseTopScope(interpretedFileWriter, prevScopeObject, closeErr))	{
+						failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 
 						if (closeErr == ONLY_ROOT_SCOPE_OPEN)
 							userMessages->logMsg(USER_ERROR, L"Failure closing scope; possibly unmatched " + currTkn->descr_sans_line_num_col(), userSrcFileName
@@ -208,19 +212,19 @@ int GeneralParser::compileCurrScope () 	{
 				} else if (currTkn->tkn_type == SPR8R_TKN && currTkn->_string == L"{")	{
 					// Indicates we should OPEN a new but untethered scope.  Kind of unusual, but legal
 					if (OK != openFloatyScope(*currTkn))
-						isStopFail = true;
+						failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 
 				} else if (enum_opCode.second != INVALID_OPCODE)	{
 					// This Token is a known data type; handle variable or fxn declaration
           int numVars, numInitExpr;
 					if (OK != parseVarDeclaration (currTkn->_string, enum_opCode, isVarDecClosed, numVars, numInitExpr))	{
 						if (isProgressBlocked())	{
-							isStopFail = true;
+							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 
 						} else if (!isVarDecClosed)	{
 							// Search for a [;] and try compiling again from that point on
 							if (OK != chompUntil_infoMsgAfter (ender_list, tmpTkn))
-								isStopFail = true;
+								failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 						}
 					} else {
 						prevScopeObject = VARIABLES_DECLARATION_OPCODE;
@@ -231,7 +235,7 @@ int GeneralParser::compileCurrScope () 	{
 							, userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
 
 						if (isProgressBlocked ())
-							isStopFail = true;
+							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 						else
 						 	prevScopeObject = VAR_NAME_OPCODE;
 
@@ -240,13 +244,17 @@ int GeneralParser::compileCurrScope () 	{
 					|| currTkn->_string == usrSrcTerms.getSrcOpr8rStrFor (PRE_DECR_OPR8R_OPCODE)))	{
 					// Put the current Token back; exprParser will need it!
 					tknStream.insert(tknStream.begin(), currTkn);
-					handleExpression(isStopFail);
-					prevScopeObject = EXPRESSION_OPCODE;
+          bool isStopFail;
+					
+          if (OK != handleExpression(isStopFail, is_expr_static))
+            failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+          else
+					  prevScopeObject = EXPRESSION_OPCODE;
 
 				} else if (currTkn->tkn_type == RESERVED_WORD_TKN && currTkn->_string == L"if")	{
 					// Handle [if] block
 					if (OK != compile_if_type_block(IF_SCOPE_OPCODE, *currTkn, isNewScopened))
-			  		isStopFail = true;
+			  		failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 					else
 						prevScopeObject = IF_SCOPE_OPCODE;
 
@@ -260,10 +268,10 @@ int GeneralParser::compileCurrScope () 	{
 							if (prevScopeObject != IF_SCOPE_OPCODE && prevScopeObject != ELSE_IF_SCOPE_OPCODE)	{
 								userMessages->logMsg (USER_ERROR, L"Expected [if] or [else if] block before " + currTkn->descr_sans_line_num_col()
 									, userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
-								isStopFail = true;
+								failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							
 							} else if (OK != compile_if_type_block(ELSE_IF_SCOPE_OPCODE, *checkForIf, isNewScopened))	{
-								isStopFail = true;
+								failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							
 							} else	{
 								prevScopeObject = ELSE_IF_SCOPE_OPCODE;
@@ -273,9 +281,9 @@ int GeneralParser::compileCurrScope () 	{
 							if (prevScopeObject != IF_SCOPE_OPCODE && prevScopeObject != ELSE_IF_SCOPE_OPCODE)	{
 								userMessages->logMsg (USER_ERROR, L"Expected [if] or [else if] block before " + currTkn->descr_sans_line_num_col()
 									, userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
-								isStopFail = true;
+								failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							} else if (OK != compile_if_type_block(ELSE_SCOPE_OPCODE, *currTkn, isNewScopened ))	{
-								isStopFail = true;
+								failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 							
 							} else	{
 								// Invalidate whether new scope opened or else block contains a single statement
@@ -286,16 +294,20 @@ int GeneralParser::compileCurrScope () 	{
 
 				} else if (currTkn->tkn_type == RESERVED_WORD_TKN && currTkn->_string == L"for")	{
 			  	if (OK != compile_for_loop_control(*currTkn))
-					  isStopFail = true;
+					  failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 
 				} else if (currTkn->tkn_type == RESERVED_WORD_TKN && currTkn->_string == L"while")	{
-			  	userMessages->logMsg (INTERNAL_ERROR, L"[while] RESERVED_WORD not supported yet!", thisSrcFile, __LINE__, 0);
-					isStopFail = true;
+			  	if (OK != compile_while_loop_control(*currTkn))
+					  failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+				} else if (currTkn->tkn_type == RESERVED_WORD_TKN && currTkn->_string == L"break")	{
+          if (OK != compile_break (*currTkn) && isProgressBlocked ())
+            failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 
         } else	{
 					userMessages->logMsg (USER_ERROR, L"Unexpected Token: " + currTkn->descr_sans_line_num_col()
 						, userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
-			  	isStopFail = true;
+			  	failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 				}
 			} else	{
 				isEOF = true;
@@ -303,13 +315,47 @@ int GeneralParser::compileCurrScope () 	{
 		}
   }
 
-  if (!isStopFail && isEOF)
+  if (!failOnSrcLine && isEOF)
   	ret_code = OK;
 
 	return (ret_code);
 
 }
 
+/* ****************************************************************************
+ * Encountered a [break] statement. Check that it's completed by a [;] and 
+ * contained within a [for] loop, or a while loop if supported.
+ * ***************************************************************************/
+ int GeneralParser::compile_break (Token break_tkn) {
+  int ret_code = GENERAL_FAILURE;
+
+  if (tknStream.empty())	{
+  	userMessages->logMsg (USER_ERROR, L"Expected Token after [break] but stream is empty!", thisSrcFile, __LINE__, 0);
+
+  } else {
+    std::shared_ptr <Token> currTkn = tknStream.front();
+
+    if (currTkn->tkn_type != SRC_OPR8R_TKN || currTkn->_string != usrSrcTerms.get_statement_ender())  {
+      userMessages->logMsg (USER_ERROR, L"Expected " + usrSrcTerms.get_statement_ender() + L" but instead got " + currTkn->descr_sans_line_num_col()
+        , userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
+
+    } else {
+      tknStream.erase(tknStream.begin());
+      uint32_t loop_boundary_end_pos;
+
+      if (!scopedNameSpace->isInsideLoop(loop_boundary_end_pos, true))  {
+        userMessages->logMsg (USER_ERROR, L"break statement only valid when encapsulated in a loop: " + break_tkn.descr_sans_line_num_col()
+          , userSrcFileName, break_tkn.get_line_number(), break_tkn.get_column_pos());
+
+      } else {
+        ret_code = interpretedFileWriter.writeRawUnsigned(BREAK_OPR8R_OPCODE, NUM_BITS_IN_BYTE);
+
+      }
+    }
+  }
+
+  return ret_code;
+}
 /* ****************************************************************************
  * Encountered a floating [{] that opens up a scope.  Weird, but legal!
  * Use INVALID_OPCODE to indicate what opened the scope up.  
@@ -354,6 +400,7 @@ int GeneralParser::compile_if_type_block (uint8_t op_code, Token & openingTkn, b
 	std::shared_ptr <Token> currTkn = tknStream.front();
 
 	isClosedByCurly = false;
+  bool is_expr_static;
 
 	if ((op_code == IF_SCOPE_OPCODE || op_code == ELSE_IF_SCOPE_OPCODE) && currTkn->tkn_type != SPR8R_TKN && currTkn->_string != L"(")	{
 		isFailed = true;
@@ -373,7 +420,7 @@ int GeneralParser::compile_if_type_block (uint8_t op_code, Token & openingTkn, b
 	if (!isFailed && (op_code == IF_SCOPE_OPCODE || op_code == ELSE_IF_SCOPE_OPCODE))	{
 		// Resolve the conditional expression and write it out
 		bool isStopFail;
-		if (OK != handleExpression(isStopFail))
+		if (OK != handleExpression(isStopFail, is_expr_static))
 			// TODO: How to determine if we should go on if return from handleExpression != OK?
 			isFailed = true;
 	}
@@ -391,9 +438,24 @@ int GeneralParser::compile_if_type_block (uint8_t op_code, Token & openingTkn, b
 			// No opening [{]. Handle single expression
  			// TODO: Can a single expression start with an [(]? If it can, must the expression end with a [;]?
 			bool isStopFail;
-			if (OK == handleExpression(isStopFail))	{
-				ret_code = interpretedFileWriter.writeObjectLen (startFilePos);
-			}
+
+      if (tknStream.empty())  {
+        userMessages->logMsg(USER_ERROR, L"Expected more Tokens after " + openingTkn.descr_sans_line_num_col(), userSrcFileName
+          , openingTkn.get_line_number(), openingTkn.get_column_pos());
+      
+      } else {
+        std::shared_ptr<Token> check_for_break_tkn = tknStream.front();
+        if (check_for_break_tkn->tkn_type == RESERVED_WORD_TKN && check_for_break_tkn->_string == L"break") {
+          tknStream.erase(tknStream.begin());
+          if (OK == compile_break(*check_for_break_tkn))
+            ret_code = interpretedFileWriter.writeObjectLen (startFilePos);
+        }
+
+        // TODO: We can have a [break] here.  Should it be handled here outside of handleExpression, or in?
+        else if (OK == handleExpression(isStopFail, is_expr_static))	{
+          ret_code = interpretedFileWriter.writeObjectLen (startFilePos);
+        }
+      }
 		}
 	}
 
@@ -576,7 +638,7 @@ int GeneralParser::parseVarDeclaration (std::wstring dataTypeStr, std::pair<Toke
  * All the logic to parse & compile an expression and write it out to the
  * interpreted file is in this proc.
  * ***************************************************************************/
-int GeneralParser::handleExpression (bool & isStopFail)	{
+int GeneralParser::handleExpression (bool & isStopFail, bool & is_expr_static)	{
 	int ret_code = GENERAL_FAILURE;
 
 	if (tknStream.empty())	{
@@ -593,7 +655,7 @@ int GeneralParser::handleExpression (bool & isStopFail)	{
 		Token tmpTkn;
 		std::vector<Token> flatExprTkns;
 		bool isExprClosed;
-		int makeTreeRetCode = exprParser.makeExprTree (tknStream, exprTree, exprEnder, END_COMMA_NOT_EXPECTED, isExprClosed, false);
+		int makeTreeRetCode = exprParser.makeExprTree (tknStream, exprTree, exprEnder, END_COMMA_NOT_EXPECTED, isExprClosed, false, is_expr_static);
 
 		if (OK != makeTreeRetCode && isProgressBlocked())	{
 			isStopFail = true;
@@ -649,8 +711,9 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
   Token exprEnder;
 	std::vector<Token> flatExprTkns;
 	closerTkn.resetToken();
+  bool is_expr_static;
 
-	int makeTreeRetCode = exprParser.makeExprTree (tknStream, exprTree, exprEnder, END_COMMA_IS_EXPECTED, isExprClosed, true);
+	int makeTreeRetCode = exprParser.makeExprTree (tknStream, exprTree, exprEnder, END_COMMA_IS_EXPECTED, isExprClosed, true, is_expr_static);
 	closerTkn = exprEnder;
 	std::wstring lookUpMsg;
 
@@ -712,6 +775,9 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
   bool isFailed = false;
 	uint32_t startFilePos;
 	uint32_t length_pos;
+  bool is_init_expr_filled = false, is_cond_expr_filled = false, is_last_expr_filled = false;
+  bool is_init_expr_static, is_cond_expr_static, is_last_expr_static;
+  bool is_expr_static;
 
   if (!tknStream.empty())	{
     std::shared_ptr <Token> currTkn = tknStream.front();
@@ -735,19 +801,36 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
         // Open up the scope 1st because we could have some variables to insert when compiling the control block
         isFailed = true;
       
-      } else if (OK != compile_for_loop_ctrl_expr(0)) {
+      } else if (OK != compile_for_loop_ctrl_expr(0, is_init_expr_filled, is_init_expr_static)) {
         // Init expression can be empty, but closes with ;
         isFailed = true;
       
-      } else if (OK != compile_for_loop_ctrl_expr(1))  {
+      } else if (OK != compile_for_loop_ctrl_expr(1, is_cond_expr_filled, is_cond_expr_static))  {
         // Can conditional expression can be empty? Closes with ;
         isFailed = true;
 
-      } else if (OK != compile_for_loop_ctrl_expr(2))  {
+      } else if (OK != compile_for_loop_ctrl_expr(2, is_last_expr_filled, is_last_expr_static))  {
         // Can be empty; closes with [)]
         isFailed = true;
 
       } else {
+        // Setting referred in check AFTER entire loop compiled 
+        scopedNameSpace->set_top_is_exists_for_loop_cond(is_cond_expr_filled);
+
+        if (is_cond_expr_filled && is_cond_expr_static) {
+          // TODO: May need to revisit isProgressBlocked() usage because I'm doing it differently here.  Might be OK though
+          // USER_ERROR or WARNING?
+          userMessages->logMsg(WARNING, L"[for] loop control conditional expression is static and may lead to infinite looping: " + openingTkn.descr_sans_line_num_col()
+          , userSrcFileName, openingTkn.get_line_number(), openingTkn.get_column_pos());
+        }
+
+        if (is_last_expr_filled && is_last_expr_static) {
+          // TODO: May need to revisit isProgressBlocked() usage because I'm doing it differently here.  Might be OK though
+          // USER_ERROR or WARNING?
+          userMessages->logMsg(WARNING, L"[for] loop control last expression is static and may lead to infinite looping: " + openingTkn.descr_sans_line_num_col()
+          , userSrcFileName, openingTkn.get_line_number(), openingTkn.get_column_pos());
+        }
+
         if (!tknStream.empty())	{
           std::shared_ptr <Token> currTkn = tknStream.front();
 
@@ -759,11 +842,12 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
           
           } else {
             // Single expression contained in this for loop
+            // TODO: It wouldn't make sense, but is it legal to have a [break] as the single statement in a [for] loop?
             closeScopeErr closeErr;
             uint8_t scopeOpCode = FOR_SCOPE_OPCODE;
             bool isStopFail;
 
-            if (OK != handleExpression(isStopFail))
+            if (OK != handleExpression(isStopFail, is_expr_static))
               failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;  
 
             else if (OK != scopedNameSpace->srcCloseTopScope(interpretedFileWriter, scopeOpCode, closeErr))	{
@@ -801,8 +885,10 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
  * 1 if there's a "normal" expression instead?
  * FOR_INIT_IDX: Should I check the # of vars that have been initialized? Min of 1?  
  * ***************************************************************************/
- int GeneralParser::compile_for_loop_ctrl_expr (int exprIdx) {
+ int GeneralParser::compile_for_loop_ctrl_expr (int exprIdx, bool & is_expr_full, bool & is_expr_static) {
   int ret_code = GENERAL_FAILURE;
+
+  is_expr_full = false;
 
  	uint32_t startFilePos;
 	uint32_t length_pos;
@@ -843,7 +929,6 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
     } else if (enum_opCode.second != INVALID_OPCODE && exprIdx < FOR_ITER_IDX)  {
       // Data type indicates variable declaration encountered
       // e.g. int16 idx = 0;
-
       bool isVarDecClosed = false;
       int numVars, numInitExpr;
       if (OK != parseVarDeclaration (currTkn->_string, enum_opCode, isVarDecClosed, numVars, numInitExpr))  {
@@ -854,11 +939,13 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
 
       } else if (exprIdx == FOR_INIT_IDX) {
         // Multiple variable declaration is allowed for init expression
+        is_expr_full = true;
         ret_code = OK;
       
       } else if (exprIdx == FOR_CONDITIONAL_IDX)  {
         // Legal to declare variable and set to something, but only 1 is allowed because a conditional must resolve down to 1 TRUE|FALSE
         if (numVars == 1 && numInitExpr == 1) {
+          is_expr_full = true;
           ret_code = OK;
         
         } else {
@@ -872,13 +959,15 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
   
       // Put the current Token back; exprParser will need it!
       tknStream.insert(tknStream.begin(), currTkn);
+
       bool isStopFail = false;
       if (exprIdx == FOR_ITER_IDX) {
         // Push an opening [(] up front to match expected closing [)]
         std::shared_ptr<Token> openParenTkn = std::make_shared<Token> (SPR8R_TKN, L"(", L"", 0, 0);
         tknStream.insert(tknStream.begin(), openParenTkn);
       }
-      ret_code = handleExpression(isStopFail);
+      is_expr_full = true;
+      ret_code = handleExpression(isStopFail, is_expr_static);
       
     } else {
       failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
@@ -888,3 +977,138 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
   return ret_code;
 
 }
+
+/* ****************************************************************************
+ * About to close up a [for] loop. Do some "reasonableness" checks
+ * ***************************************************************************/
+ int GeneralParser::validate_closed_for_loop() {
+  int ret_code = GENERAL_FAILURE;
+
+  uint8_t scopener_op_code;
+  bool is_conditional_exists = false;
+  Token for_scopener_tkn;
+
+  if (OK == scopedNameSpace->get_top_opener_opcode(scopener_op_code)) {
+    if (scopener_op_code != FOR_SCOPE_OPCODE) {
+      ret_code = OK;
+
+    } else {
+      // We're closing a for loop, so let's do some checking
+      int break_cnt;
+
+      if (OK == scopedNameSpace->get_top_loop_break_cnt(break_cnt)) {
+        if (break_cnt > 0)  {
+          ret_code = OK;
+
+        } else if (OK != scopedNameSpace->get_top_opener_tkn(for_scopener_tkn)) {
+          failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+        
+        } else if (OK != scopedNameSpace->get_top_is_exists_for_loop_cond(is_conditional_exists)) {
+          failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+        } else if (!is_conditional_exists)  {
+          userMessages->logMsg(USER_ERROR, L"[for] loop with empty conditional must have a [break] statement to avoid an infinite loop: " 
+            + for_scopener_tkn.descr_sans_line_num_col(), userSrcFileName, for_scopener_tkn.get_line_number(), for_scopener_tkn.get_column_pos());
+        } else {
+          ret_code = OK;
+        }
+      }
+    }
+  }
+
+  return ret_code;
+}
+
+/* ****************************************************************************
+ * Encounted [while] reserved word.  Need to handle the for loop control structure
+ * inside the parentheses.  
+ * while (continue if true condition)
+ * TODO: 
+ * Should I include some kind of limit to while loop iterations? 100000? 1000000? More?
+ * ***************************************************************************/
+ int GeneralParser::compile_while_loop_control (Token & openingTkn) {
+  int ret_code = GENERAL_FAILURE;
+  bool isFailed = false;
+	uint32_t startFilePos;
+	uint32_t length_pos;
+  bool is_expr_static;
+
+  if (!tknStream.empty())	{
+    std::shared_ptr <Token> currTkn = tknStream.front();
+
+    if (currTkn->tkn_type != SPR8R_TKN || currTkn->_string != L"(") {
+      tknStream.erase(tknStream.begin());
+      isFailed = true;
+      userMessages->logMsg (USER_ERROR
+        , L"After [while] reserved word, expected [(] but got " + currTkn->descr_sans_line_num_col()
+        , userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
+
+    } else {
+    
+      startFilePos = interpretedFileWriter.getWriteFilePos();
+      length_pos = interpretedFileWriter.writeFlexLenOpCode (WHILE_SCOPE_OPCODE);
+    
+      if (0 == length_pos)  {
+        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+      
+      } else if (OK != handleExpression(isFailed, is_expr_static))  {
+        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+      } else if (OK != scopedNameSpace->openNewScope(WHILE_SCOPE_OPCODE, openingTkn, startFilePos, 0)) {
+        // Open up the scope 1st because we could have some variables to insert when compiling the control block
+        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+
+      } else {
+
+        if (is_expr_static) {
+          // TODO: May need to revisit isProgressBlocked() usage because I'm doing it differently here.  Might be OK though
+          // USER_ERROR or WARNING?
+          userMessages->logMsg(USER_ERROR, L"[while] loop control conditional expression is static, which leads to infinite looping: " + openingTkn.descr_sans_line_num_col()
+          , userSrcFileName, openingTkn.get_line_number(), openingTkn.get_column_pos());
+        }
+
+
+        if (!tknStream.empty())	{
+          std::shared_ptr <Token> currTkn = tknStream.front();
+
+          if (currTkn->tkn_type == SPR8R_TKN && currTkn->_string == L"{")  {
+            // Hit an opening curly, so expect there to be multiple statements
+            // within for loop scope to be handled by compileCurrScope
+            tknStream.erase(tknStream.begin());
+            ret_code = OK;
+          
+          } else {
+            // Single expression contained in this for loop
+            // TODO: It wouldn't make sense, but is it legal to have a [break] as the single statement in a [for] loop?
+            closeScopeErr closeErr;
+            uint8_t scopeOpCode = WHILE_SCOPE_OPCODE;
+            bool isStopFail;
+            bool is_body_expr_static;
+
+            if (OK != handleExpression(isStopFail, is_body_expr_static))
+              failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;  
+
+            else if (OK != scopedNameSpace->srcCloseTopScope(interpretedFileWriter, scopeOpCode, closeErr))	{
+              failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;  
+ 
+              if (closeErr == ONLY_ROOT_SCOPE_OPEN)
+                userMessages->logMsg(USER_ERROR, L"Failure closing scope; possibly unmatched " + currTkn->descr_sans_line_num_col(), userSrcFileName
+                , currTkn->get_line_number(), currTkn->get_column_pos());
+ 
+              else if (closeErr == SCOPE_CLOSE_UKNOWN_ERROR || NO_SCOPES_OPEN)
+                userMessages->logMsg (INTERNAL_ERROR, L"Failure closing scope with: " + currTkn->descr_line_num_col(), thisSrcFile, __LINE__, 0);
+           
+            } else  {
+              ret_code = OK;
+            }
+          }
+        } else {
+          failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;  
+        }
+      }
+    }
+  }
+  
+  return ret_code;
+}
+

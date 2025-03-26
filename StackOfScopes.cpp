@@ -150,6 +150,7 @@ int  StackOfScopes::srcCloseTopScope (InterpretedFileWriter & interpretedFileWri
 
 		uint32_t scopeObjFilePos = top->boundary_begin_pos;
 		closedScopeOpCode = top->opener_opcode;
+
 		scopeStack.erase(scopeStack.end());
 		top.reset();
 
@@ -209,12 +210,17 @@ int  StackOfScopes::srcCloseTopScope (InterpretedFileWriter & interpretedFileWri
 /* ****************************************************************************
  * Are we currently nested inside a loop?
  * ***************************************************************************/
-bool StackOfScopes::isInsideLoop ()  {
+bool StackOfScopes::isInsideLoop (uint32_t & loop_boundary_end_pos, bool is_inc_break_cnt)  {
   bool isInLoop = false;
-
+  loop_boundary_end_pos = 0;
+  
   for (int idx = scopeStack.size() - 1; idx >= 0 && !isInLoop; idx--)  {
-    if (scopeStack[idx]->opener_opcode == FOR_SCOPE_OPCODE)
+    if (scopeStack[idx]->opener_opcode == FOR_SCOPE_OPCODE || scopeStack[idx]->opener_opcode == WHILE_SCOPE_OPCODE) {
+      loop_boundary_end_pos = scopeStack[idx]->boundary_end_pos;
       isInLoop = true;
+      if (is_inc_break_cnt)
+        scopeStack[idx]->loop_break_cnt++;
+    }
   }
 
   return isInLoop;
@@ -260,4 +266,109 @@ void StackOfScopes::displayVariables()	{
 	}
 
 	std::wcout << L"/* ********** </SHOW VARIABLES & VALUES> ********** */" << std::endl;
+}
+
+
+/* ****************************************************************************
+ * 
+ * ***************************************************************************/
+ int StackOfScopes::get_top_opener_tkn (Token & opener_tkn)  {
+  int ret_code = GENERAL_FAILURE;
+
+  int top_idx = scopeStack.size() - 1;
+
+  if (top_idx >= 0) {
+    opener_tkn = scopeStack[top_idx]->openerTkn;
+    ret_code = OK;
+  }
+
+  return ret_code;
+}
+
+/* ****************************************************************************
+ * 
+ * ***************************************************************************/
+ int StackOfScopes::get_top_opener_opcode (uint8_t & op_code)  {
+  int ret_code = GENERAL_FAILURE;
+  op_code = INVALID_OPCODE;
+
+  int top_idx = scopeStack.size() - 1;
+
+  if (top_idx >= 0) {
+    op_code = scopeStack[top_idx]->opener_opcode;    
+    ret_code = OK;
+  }
+
+  return ret_code;
+
+}
+
+/* ****************************************************************************
+ * 
+ * ***************************************************************************/
+ int StackOfScopes::get_top_boundary_begin_pos (uint32_t & begin_pos)  {
+  int ret_code = GENERAL_FAILURE;
+  begin_pos = 0;
+
+  int top_idx = scopeStack.size() - 1;
+
+  if (top_idx >= 0) {
+    begin_pos = scopeStack[top_idx]->boundary_begin_pos;
+    ret_code = OK;
+  }
+
+  return ret_code;
+
+}
+
+/* ****************************************************************************
+ * 
+ * ***************************************************************************/
+ int StackOfScopes::get_top_loop_break_cnt (int & break_cnt) {
+  int ret_code = GENERAL_FAILURE;
+
+  break_cnt = 0;
+  int top_idx = scopeStack.size() - 1;
+
+  if (top_idx >= 0) {
+    break_cnt = scopeStack[top_idx]->loop_break_cnt;
+    ret_code = OK;
+  }
+
+  return ret_code;
+
+}
+
+/* ****************************************************************************
+ * 
+ * ***************************************************************************/
+ int StackOfScopes::get_top_is_exists_for_loop_cond (bool & is_exists) {
+  int ret_code = GENERAL_FAILURE;
+
+  int top_idx = scopeStack.size() - 1;
+
+  if (top_idx >= 0) {
+    is_exists = scopeStack[top_idx]->is_exists_for_loop_cond;
+    ret_code = OK;
+  }
+
+  return ret_code;
+
+}
+
+/* ****************************************************************************
+ * 
+ * ***************************************************************************/
+ int StackOfScopes::set_top_is_exists_for_loop_cond (bool & is_exists) {
+  int ret_code = GENERAL_FAILURE;
+
+  int top_idx = scopeStack.size() - 1;
+
+  if (top_idx >= 0) {
+    scopeStack[top_idx]->is_exists_for_loop_cond = is_exists;
+    ret_code = OK;
+  }
+
+  return ret_code;
+
 }

@@ -196,21 +196,25 @@ void UserMessages::showMessagesByGroup ()	{
 
 	std::pair <int, int> uniq_total_pair;
 
-	uniq_total_pair = getUniqueTotalMsgCnt (internalErrorMessages);
-	std::wcout << L"INTERNAL ERROR MESSAGES: Unique messages = " << uniq_total_pair.first << L"; Total messages = " << uniq_total_pair.second << ";" << std::endl;
-	displayMessagesInHolder (internalErrorMessages);
+  if (absoluteInsertPos > 0)	{
+    // Show if there's something *TO* show
+    uniq_total_pair = getUniqueTotalMsgCnt (internalErrorMessages);
+    std::wcout << L"INTERNAL ERROR MESSAGES: Unique messages = " << uniq_total_pair.first << L"; Total messages = " << uniq_total_pair.second << ";" << std::endl;
+    displayMessagesInHolder (internalErrorMessages);
 
-	uniq_total_pair = getUniqueTotalMsgCnt (userErrorMessages);
-	std::wcout << L"USER ERROR MESSAGES: Unique messages = " << uniq_total_pair.first << L"; Total messages = " << uniq_total_pair.second << ";" << std::endl;
-	displayMessagesInHolder (userErrorMessages);
+    uniq_total_pair = getUniqueTotalMsgCnt (userErrorMessages);
+    std::wcout << L"USER ERROR MESSAGES: Unique messages = " << uniq_total_pair.first << L"; Total messages = " << uniq_total_pair.second << ";" << std::endl;
+    displayMessagesInHolder (userErrorMessages);
 
-	uniq_total_pair = getUniqueTotalMsgCnt (warningMessages);
-	std::wcout << L"USER WARNING MESSAGES: Unique messages = " << uniq_total_pair.first << L"; Total messages = " << uniq_total_pair.second << ";" << std::endl;
-	displayMessagesInHolder (warningMessages);
+    uniq_total_pair = getUniqueTotalMsgCnt (warningMessages);
+    std::wcout << L"USER WARNING MESSAGES: Unique messages = " << uniq_total_pair.first << L"; Total messages = " << uniq_total_pair.second << ";" << std::endl;
+    displayMessagesInHolder (warningMessages);
 
-	uniq_total_pair = getUniqueTotalMsgCnt (infoMessages);
-	std::wcout << L"USER INFO MESSAGES: Unique messages = " << uniq_total_pair.first << L"; Total messages = " << uniq_total_pair.second << ";" << std::endl;
-	displayMessagesInHolder (infoMessages);
+    uniq_total_pair = getUniqueTotalMsgCnt (infoMessages);
+    std::wcout << L"USER INFO MESSAGES: Unique messages = " << uniq_total_pair.first << L"; Total messages = " << uniq_total_pair.second << ";" << std::endl;
+    displayMessagesInHolder (infoMessages);
+
+  }
 
 }
 

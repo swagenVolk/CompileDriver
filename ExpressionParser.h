@@ -61,7 +61,7 @@ public:
     , std::shared_ptr<UserMessages> userMessages, logLvlEnum logLvl);
 	virtual ~ExpressionParser();
 	int makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree, Token & enderTkn
-			, bool isEndedByComma, bool & isCallerExprClosed, bool isInVarDec);
+			, bool isEndedByComma, bool & isCallerExprClosed, bool isInVarDec, bool & is_expr_static);
 
   int displayParseTree (std::shared_ptr<ExprTreeNode> startBranch, int adjustToRight);
   int displayParseTree (std::shared_ptr<ExprTreeNode> startBranch, std::wstring callersSrcFile, int srcLineNum);
@@ -80,6 +80,7 @@ private:
   bool isExprVarDeclaration;
   bool isExprClosed;
 	int failOnSrcLine;
+  int num_var_leaf_nodes;
 
   std::vector<int> leftTreeMaxCol;
   std::vector<int> rightTreeMaxCol;

@@ -107,6 +107,7 @@ ExpressionParser::ExpressionParser(CompileExecTerms & inUsrSrcTerms, std::shared
 	isExprVarDeclaration = false;
 	isExprClosed = false;
   failOnSrcLine = 0;
+  num_var_leaf_nodes = 0;
 }
 
 
@@ -125,11 +126,14 @@ ExpressionParser::~ExpressionParser() {
  * message to the user.
  * ***************************************************************************/
 int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree
-		, Token & enderTkn, bool isEndedByComma, bool & isCallerExprClosed, bool isInVarDec)  {
+		, Token & enderTkn, bool isEndedByComma, bool & isCallerExprClosed, bool isInVarDec, bool & is_expr_static)  {
   int ret_code = GENERAL_FAILURE;
 	isExprClosed = false;
 	int exprCloseLine = 0;
 	isExprVarDeclaration = isInVarDec;
+  num_var_leaf_nodes = 0;
+  // Start off pessimistic
+  is_expr_static = true;
 	
   if (expressionTree == NULL)	{
   	userMessages->logMsg (INTERNAL_ERROR, L"Passed parameter expressionTree is NULL!", thisSrcFile, __LINE__, 0);
@@ -281,6 +285,8 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 				if (exprScopeStack.size() == 1 && 1 == numTknsLeftInExpr)	{
 					ret_code = OK;
 					expressionTree = exprScopeStack[0]->scopedKids[0];
+
+          is_expr_static = (num_var_leaf_nodes == 0);
 
 					if ((logLevel == ILLUSTRATIVE && !isExprVarDeclaration) || logLevel > ILLUSTRATIVE)	{
             std::wcout << L"Compiler's Parse Tree for Complete Expression" << std::endl;
@@ -604,7 +610,11 @@ int ExpressionParser::moveNeighborsIntoTree (ExprTreeNodePtrVector & currScope
 					failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 				
 				} else {
-					if ((opr8r.type_mask & PREFIX) && (rightNbr->originalTkn->tkn_type != USER_WORD_TKN 
+          if (usrSrcTerms.isViableVarName(rightNbr->originalTkn->_string))
+            // > 0 variable leaf nodes means that this expression isn't fixed|static
+            num_var_leaf_nodes++;
+
+          if ((opr8r.type_mask & PREFIX) && (rightNbr->originalTkn->tkn_type != USER_WORD_TKN 
 							|| !usrSrcTerms.isViableVarName(rightNbr->originalTkn->_string)
 							|| OK != scopedNameSpace->findVar(rightNbr->originalTkn->_string, 0, tmpTkn, READ_ONLY, lookUpMsg)))	{
 						// Make sure our right neighbor is a variable name before moving
@@ -642,7 +652,11 @@ int ExpressionParser::moveNeighborsIntoTree (ExprTreeNodePtrVector & currScope
 					failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
 				
 				} else {
-					if ((opr8r.type_mask & POSTFIX) && (leftNbr->originalTkn->tkn_type != USER_WORD_TKN 
+          if (usrSrcTerms.isViableVarName(leftNbr->originalTkn->_string))
+            // > 0 variable leaf nodes means that this expression isn't fixed|static
+            num_var_leaf_nodes++;
+
+          if ((opr8r.type_mask & POSTFIX) && (leftNbr->originalTkn->tkn_type != USER_WORD_TKN 
 							|| !usrSrcTerms.isViableVarName(leftNbr->originalTkn->_string)
 							|| OK != scopedNameSpace->findVar(leftNbr->originalTkn->_string, 0, tmpTkn, READ_ONLY, lookUpMsg)))	{
 						// Make sure our left neighbor is a variable name before moving
@@ -654,7 +668,7 @@ int ExpressionParser::moveNeighborsIntoTree (ExprTreeNodePtrVector & currScope
 							if ((opr8rState == ATTACH_1ST || opr8rState == ATTACH_BOTH) && opr8rNode->_1stChild == NULL)	{
 								opr8rNode->_1stChild = leftNbr;
 								leftNbr->treeParent = opr8rNode;
-							
+						
 							} else if (opr8rState == ATTACH_2ND && opr8rNode->_2ndChild == NULL)	{
 								opr8rNode->_2ndChild = leftNbr;
 								leftNbr->treeParent = opr8rNode;
