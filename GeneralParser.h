@@ -81,7 +81,7 @@ private:
   bool isProgressBlocked ();
   int chompUntil_infoMsgAfter (std::vector<std::wstring> searchStrings, Token & closerTkn);
   int compile_if_type_block (uint8_t op_code, Token & openingTkn, bool & isClosedByCurly);
-  int handleExpression (bool & isStopFail, bool & is_expr_static);
+  int handleExpression (bool & isStopFail, bool & is_expr_static, expr_ender_type expr_ended_by);
   int compile_break (Token break_tkn);
   int openFloatyScope (Token openScopeTkn);
   int compile_for_loop_control (Token & openingTkn);

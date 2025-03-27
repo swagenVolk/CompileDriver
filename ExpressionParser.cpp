@@ -126,7 +126,7 @@ ExpressionParser::~ExpressionParser() {
  * message to the user.
  * ***************************************************************************/
 int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree
-		, Token & enderTkn, bool isEndedByComma, bool & isCallerExprClosed, bool isInVarDec, bool & is_expr_static)  {
+		, Token & enderTkn, expr_ender_type ended_by, bool & isCallerExprClosed, bool isInVarDec, bool & is_expr_static)  {
   int ret_code = GENERAL_FAILURE;
 	isExprClosed = false;
 	int exprCloseLine = 0;
@@ -164,7 +164,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 
 					if (is1stTkn)	{
 						// Token that starts expression will determine how we end the expression
-						if (OK != getExpectedEndToken(currTkn, curr_legal_tkn_types, expectedEndTkn, isEndedByComma))	{
+						if (OK != getExpectedEndToken(currTkn, curr_legal_tkn_types, expectedEndTkn, ended_by))	{
 							isStopFail = true;
 							break;
 						
@@ -176,7 +176,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 						is1stTkn = false;
 					}
 
-					if ((currTkn->tkn_type != SRC_OPR8R_TKN && expectedEndTkn.tkn_type == currTkn->tkn_type && currTkn->_string == expectedEndTkn._string)
+					if ((currTkn->tkn_type == expectedEndTkn.tkn_type && currTkn->_string == expectedEndTkn._string)
 							|| (currTkn->tkn_type == SRC_OPR8R_TKN && currTkn->_string == usrSrcTerms.get_statement_ender()))	{
 						// Expression ended by a SPR8R - e.g. [,] or ;
 						tknStream.erase(tknStream.begin());
@@ -1267,7 +1267,7 @@ void ExpressionParser::cleanScopeStack()	{
  * 	TODO: Handle this via a different fxn to make life easier.
  *
  * ***************************************************************************/
-int ExpressionParser::getExpectedEndToken (std::shared_ptr<Token> startTkn, uint32_t & _1stTknType, Token & expectedEndTkn, bool isEndedByComma)	{
+int ExpressionParser::getExpectedEndToken (std::shared_ptr<Token> startTkn, uint32_t & _1stTknType, Token & expectedEndTkn, expr_ender_type ended_by)	{
 	int ret_code = GENERAL_FAILURE;
 	bool isStopFail = false;
 
@@ -1311,13 +1311,24 @@ int ExpressionParser::getExpectedEndToken (std::shared_ptr<Token> startTkn, uint
   		userMessages->logMsg (INTERNAL_ERROR, L"Could not determine _1stTknType for " + startTkn->descr_sans_line_num_col(), thisSrcFile, __LINE__, 0);
 		}
 
-		if (isEndedByComma)	{
+		if (ended_by == ENDS_IN_PARENTHESES)  {
+      if (_1stTknType != OPEN_PAREN_NXT_OK)  {
+        isStopFail = true;
+        userMessages->logMsg(USER_ERROR, L"Expected opening \"(\" but got " + startTkn->descr_sans_line_num_col(), userSrcFileName, startTkn->get_line_number()
+        , startTkn->get_column_pos());
+      
+      } else {
+        expectedEndTkn.resetToken();
+        expectedEndTkn.tkn_type = SPR8R_TKN;
+        expectedEndTkn._string = L")";
+      }
+    
+    } else  if (ended_by == ENDS_IN_COMMA)	{
 			expectedEndTkn.resetToken();
 			expectedEndTkn.tkn_type = SPR8R_TKN;
 			expectedEndTkn._string = L",";
-		}
-
-		if (!isStopFail && expectedEndTkn.tkn_type == START_UNDEF_TKN)	{
+		
+    } else if (ended_by == ENDS_IN_STATEMENT_ENDER) {
 			std::wstring statementEnder = usrSrcTerms.get_statement_ender();
 			if (statementEnder.length() > 0)	{
 				expectedEndTkn.tkn_type = SRC_OPR8R_TKN;

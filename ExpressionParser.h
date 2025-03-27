@@ -55,13 +55,21 @@ enum opr8r_ready_state_enum  {
 
 typedef opr8r_ready_state_enum opr8rReadyState;
 
+enum expr_ender_enum  {
+  ENDS_IN_PARENTHESES
+  ,ENDS_IN_COMMA
+  ,ENDS_IN_STATEMENT_ENDER
+};
+
+typedef expr_ender_enum expr_ender_type;
+
 class ExpressionParser {
 public:
 	ExpressionParser(CompileExecTerms & inUsrSrcTerms, std::shared_ptr<StackOfScopes> inVarScopeStack, std::wstring userSrcFileName
     , std::shared_ptr<UserMessages> userMessages, logLvlEnum logLvl);
 	virtual ~ExpressionParser();
 	int makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree, Token & enderTkn
-			, bool isEndedByComma, bool & isCallerExprClosed, bool isInVarDec, bool & is_expr_static);
+			, expr_ender_type ended_by, bool & isCallerExprClosed, bool isInVarDec, bool & is_expr_static);
 
   int displayParseTree (std::shared_ptr<ExprTreeNode> startBranch, int adjustToRight);
   int displayParseTree (std::shared_ptr<ExprTreeNode> startBranch, std::wstring callersSrcFile, int srcLineNum);
@@ -100,7 +108,7 @@ private:
     
   int turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope);
   int turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope, bool isOpenedByTernary);
-  int getExpectedEndToken (std::shared_ptr<Token> startTkn, uint32_t & _1stTknTypMsk, Token & expectedEndTkn, bool isEndedByComma);
+  int getExpectedEndToken (std::shared_ptr<Token> startTkn, uint32_t & _1stTknTypMsk, Token & expectedEndTkn, expr_ender_type ended_by);
   
   void printSingleScope (std::wstring headerMsg, int scopeLvl);
   void printSingleScope (std::wstring headerMsg, int scopeLvl, int tgtIdx, int & tgtStartPos);
