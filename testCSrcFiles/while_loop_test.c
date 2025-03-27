@@ -37,4 +37,12 @@ while (nextNum <= last) {
   seq_sum_real += nextNum;
   nextNum++;
 }
+/*
+while (1 + 2 + 3 == 3 + 2 + 1)  {
+  nextNum++;
+}
+
+Compiler ret_code = 0
+USER ERROR: [while] loop control conditional expression is static, which leads to infinite looping: RESERVED_WORD_TKN(U)->[while] while_loop_test.c:41:1
+*/
 
