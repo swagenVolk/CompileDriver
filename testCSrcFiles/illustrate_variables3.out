@@ -110,14 +110,6 @@ Compiler ret_code = 0
 [78] expression resolved
 Interpreter ret_code = 0
 
-INTERNAL ERROR MESSAGES: Unique messages = 0; Total messages = 0;
-
-USER ERROR MESSAGES: Unique messages = 0; Total messages = 0;
-
-USER WARNING MESSAGES: Unique messages = 0; Total messages = 0;
-
-USER INFO MESSAGES: Unique messages = 0; Total messages = 0;
-
 /* ********** <SHOW VARIABLES & VALUES> ********** */
 // ********** <SCOPE LEVEL 0> ********** 
 // Scope opened by: INTERNAL_USE_TKN(U)->[__ROOT_SCOPE] on line 0 column 0

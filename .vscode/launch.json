@@ -11,7 +11,7 @@
             "request": "launch",
             "program": "/home/mike/eclipse-workspace/CompileDriver/build/CompileDriver",
             // "args": ["./testCSrcFiles/tern_test.c", "-l", "ILLUSTRATIVE"],
-            "args": ["./testCSrcFiles/shallow_test.c"],
+            "args": ["./testCSrcFiles/for_loop_test.c"],
             "stopAtEntry": true,
             "cwd": "/home/mike/eclipse-workspace/CompileDriver",
             "environment": [],
