@@ -107,11 +107,13 @@
 #define FLEX_OP_LEN_FLD_NUM_BYTES       4
 #define FIRST_VALID_FLEX_LEN_OPCODE     0x60
 #define STRING_OPCODE                   0x60  // [op_code][total_length][string]
-#define VAR_NAME_OPCODE                 0x61  // [op_code][total_length][var name string]
-// TODO: ARRAY_VARIABLE_OPCODE?  Or is that more of a parsing problem @ run time?
-// TODO: Should I store doubles as something other than a literal string?
+#define USER_VAR_OPCODE                 0x61  // [op_code][total_length][STRING_OPCODE string] for scalar variable
+                                              // [op_code][total_length][STRING_OPCODE string] [string|integer]+ for array variable
+
 #define DATETIME_OPCODE                 0x62  // [op_code][total_length][datetime string]
 #define DOUBLE_OPCODE                   0x63  // [op_code][total_length][double string]
+#define SYSTEM_CALL_OPCODE              0x64  // [op_code][total_length][system_call name string]
+#define USER_FXN_CALL_OPCODE            0x65  // [op_code][total_length][user_fxn_call name string]
 
 // TODO: Should code_blocks also have their own total_length field?
 // TODO: Could these code_blocks be considered unnamed scopes instead?
@@ -125,10 +127,8 @@
 #define FOR_SCOPE_OPCODE                0x6D  // [op_code][total_length][init_expression][conditional_expression][last_expression][code_block]
 #define ANON_SCOPE_OPCODE               0x6E  // [op_code][total_length][code block]
 #define VARIABLES_DECLARATION_OPCODE    0x6F  // [op_code][total_length][datatype op_code][[string var_name][init_expression]]+
-#define FXN_DECLARATION_OPCODE          0x70  // [op_code][total_length][string fxn_name][parameter type list][parameter name list]
-#define FXN_CALL_OPCODE                 0x71  // [op_code][total_length][string fxn_name][expression list]
-#define SYSTEM_CALL_OPCODE              0x72  // [op_code][total_length][string fxn_name][expression list]
-#define LAST_VALID_FLEX_LEN_OPCODE      0x72  // Change this value if new flexible length op_codes in this range are created
+#define USER_FXN_DECLARATION_OPCODE     0x70  // [op_code][total_length][string fxn_name][parameter type list][parameter name list]
+#define LAST_VALID_FLEX_LEN_OPCODE      0x70  // Change this value if new flexible length op_codes in this range are created
 
 // TODO: What about SPR8Rs?
 // this->_1char_spr8rs = L"()[]{}"; [ASCII - 0x28,0x29,0x5B,0x5D,0x7B,0x7D]

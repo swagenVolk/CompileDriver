@@ -39,6 +39,7 @@ public:
 	int resolveOpr8r (uint8_t op_code, Token & nxtTkn);
 	int readFixedRange (uint8_t op_code, Token & nxtTkn);
 	int readString (uint8_t op_code, Token & nxtTkn);
+  int read_user_var (Token & nxtTkn);
 
 
 protected:

@@ -8,6 +8,7 @@
 #ifndef BASELANGUAGETERMS_H_
 #define BASELANGUAGETERMS_H_
 
+#include <cstdint>
 #include <string>
 #include <list>
 #include <iostream>
@@ -19,6 +20,7 @@
 #include "Operator.h"
 #include "Opr8rPrecedenceLvl.h"
 #include "OpCodes.h"
+#include "ExprTreeNode.h"
 
 enum interpreter_modes_enum {
 	COMPILE_TIME
@@ -42,9 +44,10 @@ public:
   std::wstring get_ternary_1st ();
   std::wstring get_ternary_2nd ();
   std::wstring get_statement_ender();
-  bool isViableVarName (std::wstring varName);
-  bool isDataType (std::wstring inStr);
-  bool isReservedWord (std::wstring inStr);
+  bool is_viable_var_name (std::wstring varName);
+  bool is_valid_user_data_type (std::wstring inStr);
+  bool is_reserved_word (std::wstring inStr);
+  bool is_system_call (std::wstring inStr);
 
 	
   // Outer list indicates precedence level.  Multiple OPR8Rs can reside at same precedence level
@@ -57,18 +60,36 @@ public:
   TokenTypeEnum getTokenTypeForOpCode (uint8_t op_code);
   std::pair<TokenTypeEnum, uint8_t> getDataType_tknEnum_opCode (std::wstring keyword);
   std::wstring getOpr8rsInPrecedenceList();
+  int get_system_call_details (std::wstring sys_call, std::vector<uint8_t> & param_list, TokenTypeEnum & data_type);
+  int get_num_sys_call_parameters (std::wstring sys_call, int & num_params);
+  int tkn_type_converts_to_opcode (uint8_t op_code, Token & check_token, std::wstring variable_name, std::wstring & error_msg);
+
+  // TODO: Is this the right place for these to live?
+  int append_to_flat_tkn_list (std::shared_ptr<ExprTreeNode> tree_node, std::vector<Token> & flatExprTknList);
+  int flattenExprTree (std::shared_ptr<ExprTreeNode> rootOfExpr, std::vector<Token> & flatExprTknList);
+  int flatten_system_call (std::shared_ptr<ExprTreeNode> sys_call_node, std::vector<Token> & flat_tkn_list);
+  int append_flattened_system_call (std::shared_ptr<ExprTreeNode> tree_node, std::vector<Token> & flatExprTknList);
 
 protected:
-  void validityCheck();
+  int failed_on_src_line;  
+  
   std::wstring atomic_1char_opr8rs;
   std::wstring _1char_spr8rs;
   std::map<std::wstring, std::pair<TokenTypeEnum, uint8_t>> valid_data_types;
   std::vector<std::wstring> reserved_words;
+  // system call name, {parameter list, return data_type}
+  std::map <std::wstring, std::pair <std::vector<uint8_t>, TokenTypeEnum>> system_calls;
   std::wstring ternary_1st;
   std::wstring ternary_2nd;
   std::wstring statement_ender;
   std::map <std::wstring, Operator> execTimeOpr8rMap;
   std::map <std::wstring, std::wstring> execToSrcOpr8rMap;
+
+  void validityCheck();
+
+private:
+  int makeFlatExpr_OLR (std::shared_ptr<ExprTreeNode> currBranch, std::vector<Token> & flatExprTknList);
+
 };
 
 #endif /* BASELANGUAGETERMS_H_ */

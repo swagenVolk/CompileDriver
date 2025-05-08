@@ -331,9 +331,6 @@ int InterpretedFileReader::readString (uint8_t op_code, Token & nxtTkn)	{
 					case STRING_OPCODE:
 						nxtTkn.tkn_type = STRING_TKN;
 						break;
-					case VAR_NAME_OPCODE:
-						nxtTkn.tkn_type = USER_WORD_TKN;
-						break;
 					case DATETIME_OPCODE:
 						nxtTkn.tkn_type = DATETIME_TKN;
 						break;
@@ -341,6 +338,9 @@ int InterpretedFileReader::readString (uint8_t op_code, Token & nxtTkn)	{
 						// TODO: Probably need to do something here
 						nxtTkn.tkn_type = DOUBLE_TKN;
 						break;
+          case SYSTEM_CALL_OPCODE:
+            nxtTkn.tkn_type = SYSTEM_CALL_TKN;
+            break;
 					default:
 						isFailed = true;
 						break;
@@ -354,6 +354,58 @@ int InterpretedFileReader::readString (uint8_t op_code, Token & nxtTkn)	{
 				}
 			}
 		}
+	}
+
+	return (ret_code);
+}
+
+
+/* ****************************************************************************
+ * TODO: Check for EOF!
+ * USER_VAR_OPCODE  0x61  [op_code][total_length][STRING_OPCODE string] for scalar variable
+ *                        [op_code][total_length][STRING_OPCODE string][string|integer]+ for array variable
+ * ***************************************************************************/
+ int InterpretedFileReader::read_user_var (Token & nxtTkn)	{
+	int ret_code = GENERAL_FAILURE;
+	uint32_t user_var_obj_len;
+	bool isFailed = false;
+	std::wstring tknStr;
+	uint16_t nxtWideChar;
+  Token var_name_tkn;
+  uint8_t op_code;
+
+	tknStr.clear();
+	nxtTkn.resetToken();
+
+	if (inputStream.is_open())	{
+		uint32_t initPos = inputStream.tellg();
+
+		if (OK != readNextDword (user_var_obj_len))	{
+			isFailed = true;
+
+    } else if (OK != readNextByte(op_code)) {
+      isFailed = true;
+
+    } else if (STRING_OPCODE != op_code)  {
+      isFailed = true;
+      
+    } else if (OK != readString (STRING_OPCODE, var_name_tkn))	{
+      isFailed = true;
+    
+    } else  {
+      uint32_t curr_pos = inputStream.tellg();
+      if (curr_pos == initPos - OPCODE_NUM_BYTES + user_var_obj_len)  {
+        // Scalar variable; not an array -> [op_code][total_length][STRING_OPCODE string]
+        nxtTkn._string = var_name_tkn._string;
+        nxtTkn.tkn_type = USER_WORD_TKN;
+      } else {
+        // Handle the array case -> [op_code][total_length][STRING_OPCODE string][string|integer]+
+        isFailed = true; 
+      }
+
+      if (!isFailed)
+        ret_code = OK;
+    }
 	}
 
 	return (ret_code);
@@ -423,13 +475,19 @@ int InterpretedFileReader::readExprIntoList (std::vector<Token> & exprTknStream)
 						else
 						 	exprTknStream.push_back(nxtTkn);
 
-					} else if (op_code == STRING_OPCODE || op_code == VAR_NAME_OPCODE || op_code == DATETIME_OPCODE || op_code == DOUBLE_OPCODE)	{
+					} else if (op_code == USER_VAR_OPCODE) {
+            if (OK != read_user_var (nxtTkn))
+              isFailed = true;
+            else
+              exprTknStream.push_back(nxtTkn);
+          
+          } else if (op_code == STRING_OPCODE || op_code == DATETIME_OPCODE || op_code == DOUBLE_OPCODE || op_code == SYSTEM_CALL_OPCODE)	{
 						if (OK != readString (op_code, nxtTkn))
 							isFailed = true;
 						else
 						 	exprTknStream.push_back(nxtTkn);
-
-					} else {
+          
+          } else {
 						isFailed = true;
 						std::wcout << L"exprStartPos = 0x" << std::hex << exprStartPos << L"; exprLen = 0x" << exprLen << L"; currFilePos = 0x" << currFilePos << L"; exprStartPos = 0x" << exprStartPos << L"; nxtObjStartPos = 0x" << nxtObjStartPos << L"; op_code = 0x" << op_code << std::dec << std::endl;
 					}

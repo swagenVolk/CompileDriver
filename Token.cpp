@@ -236,6 +236,10 @@ std::wstring Token::getValueStr ()	{
 		|| tkn_type == INTERNAL_USE_TKN)	{
 		value.append (_string);
 
+  } else if (tkn_type == SYSTEM_CALL_TKN) {
+    value.append (L"sys_call::");
+    value.append (_string);
+
 	} else if (tkn_type == BOOL_TKN)	{
 		if (_unsigned > 0)
 			value.append (TRUE_RESERVED_WORD);
@@ -463,6 +467,20 @@ bool Token::isDirectOperand (TokenTypeEnum tokenType)	{
 
 	return isRand;
 }
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+ bool Token::is_valid_call_ret_type (TokenTypeEnum token_type) {
+  bool is_valid = false;
+
+  if (token_type == VOID_TKN || isDirectOperand(token_type))
+    is_valid = true;
+
+  return is_valid;
+
+}
+
 /* ****************************************************************************
  *
  * ***************************************************************************/

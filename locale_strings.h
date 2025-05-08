@@ -31,5 +31,6 @@
 #define DATA_TYPE_DATETIME            L"datetime"
 #define DATA_TYPE_DOUBLE              L"double"
 #define DATA_TYPE_BOOL                L"bool"
+#define DATA_TYPE_ANY                 L"__any"      // __ @ start indicates this is reserved for internal use
 
 #endif

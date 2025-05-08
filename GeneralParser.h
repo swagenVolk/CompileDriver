@@ -56,7 +56,7 @@ public:
 protected:
 
 private:
-  TokenPtrVector tknStream;
+  TokenPtrVector tkn_stream;
   std::wstring userSrcFileName;
   std::wstring thisSrcFile;
   CompileExecTerms usrSrcTerms;
@@ -70,9 +70,9 @@ private:
   std::shared_ptr<UserMessages> userMessages;
   int userErrorLimit;
   std::vector<std::wstring> ender_list;
-  std::vector<std::wstring> ender_comma_list;
+  std::vector<std::wstring> ender_and_comma_list;
   logLvlEnum logLevel;
-  int failOnSrcLine;
+  int failed_on_src_line;
 
 
   int parseVarDeclaration (std::wstring dataTypeStr, std::pair<TokenTypeEnum, uint8_t> tknType_opCode, bool & isDeclarationEnded
@@ -88,6 +88,8 @@ private:
   int compile_for_loop_ctrl_expr (int exprIdx, bool & is_expr_full, bool & is_expr_static);
   int validate_closed_for_loop();
   int compile_while_loop_control (Token & openingTkn);
+  int compile_lone_system_call (Token & sys_call_tkn);
+
 };
 
 #endif /* GENERALPARSER_H_ */

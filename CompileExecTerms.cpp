@@ -10,6 +10,9 @@
 #include "CompileExecTerms.h"
 #include "OpCodes.h"
 #include "Token.h"
+#include "common.h"
+#include "locale_strings.h"
+#include <cstdint>
 
 CompileExecTerms::CompileExecTerms() {
   // C operator precedence from https://en.cppreference.com/w/c/language/operator_precedence
@@ -145,15 +148,21 @@ CompileExecTerms::CompileExecTerms() {
   valid_data_types.insert (std::pair {DATA_TYPE_DOUBLE, std::pair {DOUBLE_TKN, DATA_TYPE_DOUBLE_OPCODE}});
   valid_data_types.insert (std::pair {DATA_TYPE_BOOL, std::pair {BOOL_TKN, DATA_TYPE_BOOL_OPCODE}});
 
+  // Special usage case DATA_TYPE for using the internal str() fxn, since it can take ANY valid data type
+  valid_data_types.insert (std::pair {DATA_TYPE_ANY, std::pair {INTERNAL_USE_TKN, INVALID_OPCODE}});
+
   reserved_words.push_back (FALSE_RESERVED_WORD);
   reserved_words.push_back (TRUE_RESERVED_WORD);
   reserved_words.push_back (IF_RESERVED_WORD);
-  reserved_words.push_back (ELSE_RESERVED_WORD);
+  reserved_words.push_back (ELSE_RESERVED_WORD);  
   reserved_words.push_back (WHILE_RESERVED_WORD);
   reserved_words.push_back (FOR_RESERVED_WORD);
   reserved_words.push_back (BREAK_RESERVED_WORD);
   reserved_words.push_back (RETURN_RESERVED_WORD);
   reserved_words.push_back (VOID_RESERVED_WORD);
+
+  std::vector <uint8_t> param_list {INVALID_OPCODE};
+  system_calls.insert (std::pair {STR_SYS_CALL, std::pair {param_list, STRING_TKN}});
 
   // TODO: What is the right way to do this?
   validityCheck();
@@ -161,3 +170,5 @@ CompileExecTerms::CompileExecTerms() {
 
 CompileExecTerms::~CompileExecTerms() {
 }
+
+

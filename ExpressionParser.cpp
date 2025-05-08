@@ -88,9 +88,11 @@
 #include "CompileExecTerms.h"
 #include "ExprTreeNode.h"
 #include "InfoWarnError.h"
+#include "InterpretedFileWriter.h"
 #include "OpCodes.h"
 #include "Operator.h"
 #include "Opr8rPrecedenceLvl.h"
+#include "RunTimeInterpreter.h"
 #include "Token.h"
 #include "UserMessages.h"
 #include "StackOfScopes.h"
@@ -98,6 +100,7 @@
 
 ExpressionParser::ExpressionParser(CompileExecTerms & inUsrSrcTerms, std::shared_ptr<StackOfScopes> inVarScopeStack
 		, std::wstring userSrcFileName, std::shared_ptr<UserMessages> userMessages, logLvlEnum logLvl) {
+
 	thisSrcFile = util.getLastSegment(util.stringToWstring(__FILE__), L"/");
 	usrSrcTerms = inUsrSrcTerms;
 	scopedNameSpace = inVarScopeStack;
@@ -105,17 +108,15 @@ ExpressionParser::ExpressionParser(CompileExecTerms & inUsrSrcTerms, std::shared
 	this->userMessages = userMessages;
 	logLevel = logLvl;
 	isExprVarDeclaration = false;
-	isExprClosed = false;
-  failOnSrcLine = 0;
+  failed_on_src_line = 0;
   num_var_leaf_nodes = 0;
 }
 
 
 ExpressionParser::~ExpressionParser() {
-	cleanScopeStack();
-	if (failOnSrcLine > 0 && !userMessages->isExistsInternalError(thisSrcFile, failOnSrcLine))	{
+	if (failed_on_src_line > 0 && !userMessages->isExistsInternalError(thisSrcFile, failed_on_src_line))	{
 		// Dump out a debugging hint
-		std::wcout << L"FAILURE on " << thisSrcFile << L":" << failOnSrcLine << std::endl;
+		std::wcout << L"FAILURE on " << thisSrcFile << L":" << failed_on_src_line << std::endl;
 	}
 
 }
@@ -128,12 +129,15 @@ ExpressionParser::~ExpressionParser() {
 int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree
 		, Token & enderTkn, expr_ender_type ended_by, bool & isCallerExprClosed, bool isInVarDec, bool & is_expr_static)  {
   int ret_code = GENERAL_FAILURE;
-	isExprClosed = false;
 	int exprCloseLine = 0;
 	isExprVarDeclaration = isInVarDec;
   num_var_leaf_nodes = 0;
   // Start off pessimistic
   is_expr_static = true;
+
+  std::vector<std::shared_ptr<NestedScopeExpr>> exprScopeStack;
+  bool isExprClosed = false;
+
 	
   if (expressionTree == NULL)	{
   	userMessages->logMsg (INTERNAL_ERROR, L"Passed parameter expressionTree is NULL!", thisSrcFile, __LINE__, 0);
@@ -144,7 +148,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 		exprScopeStack.push_back (rootScope);
 
 		bool isStopFail = false;
-		bool is1stTkn = true;
+		int num_tkns_done = 0;
 		int top;
 		uint32_t curr_legal_tkn_types;
 		uint32_t next_legal_tkn_types;
@@ -162,7 +166,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 				if (!tknStream.empty())	{
 					std::shared_ptr<Token> currTkn = tknStream.front();
 
-					if (is1stTkn)	{
+					if (0 == num_tkns_done)	{
 						// Token that starts expression will determine how we end the expression
 						if (OK != getExpectedEndToken(currTkn, curr_legal_tkn_types, expectedEndTkn, ended_by))	{
 							isStopFail = true;
@@ -173,15 +177,28 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 							std::wcout << L":" << std::to_wstring(currTkn->get_line_number()) << L":" << std::to_wstring(currTkn->get_column_pos());
 							std::wcout << std::endl << std::endl;
 						}
-						is1stTkn = false;
 					}
 
-					if ((currTkn->tkn_type == expectedEndTkn.tkn_type && currTkn->_string == expectedEndTkn._string)
+/*          
+          if (0 == num_tkns_done && exprScopeStack.size() == 1 && exprScopeStack[0]->scopedKids.size() == 0 
+            && currTkn->tkn_type == SPR8R_TKN && currTkn->_string == L"(") {
+            // Very 1st Token is "("; don't open a new scope now because it would leave an empty parent scope with no
+            // children when the expression has been completely closed
+            tknStream.erase (tknStream.begin());
+            std::shared_ptr<ExprTreeNode> branchNode = std::make_shared<ExprTreeNode> (currTkn);
+            exprScopeStack[0]->scopedKids.push_back (branchNode);
+            // TODO: This is repeat code from isExpectedTknType
+            next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|SYSTEM_CALL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
+
+
+          } else 
+*/          
+          if ((currTkn->tkn_type == expectedEndTkn.tkn_type && currTkn->_string == expectedEndTkn._string)
 							|| (currTkn->tkn_type == SRC_OPR8R_TKN && currTkn->_string == usrSrcTerms.get_statement_ender()))	{
 						// Expression ended by a SPR8R - e.g. [,] or ;
 						tknStream.erase(tknStream.begin());
 
-						if (0 == (curr_legal_tkn_types & (VAR_NAME_NXT_OK|LITERAL_NXT_OK|OPEN_PAREN_NXT_OK)))	{
+						if (0 == (curr_legal_tkn_types & (VAR_NAME_NXT_OK|LITERAL_NXT_OK|SYSTEM_CALL_NXT_OK|OPEN_PAREN_NXT_OK)))	{
 							// Check if expression is in a closeable state
 							isExprClosed = true;
 							exprCloseLine = __LINE__;
@@ -189,11 +206,11 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 
 							top = exprScopeStack.size() - 1;
 							if (exprScopeStack[top]->scopedKids.size() == 0)	{
-								userMessages->logMsg (INTERNAL_ERROR, L"Expression ender " + currTkn->descr_sans_line_num_col() + L" closed an empty express!", thisSrcFile, __LINE__, 0);
+								userMessages->logMsg (INTERNAL_ERROR, L"Expression ender " + currTkn->descr_sans_line_num_col() + L" closed an empty expression!", thisSrcFile, __LINE__, 0);
 								isStopFail = true;
 
-							} else if (top > 0 || exprScopeStack[top]->scopedKids.size() > 1)	{
-								if (OK != closeNestedScopes())	{
+							} else if (top > 0 || exprScopeStack[top]->scopedKids.size() >= 1)	{
+								if (OK != closeNestedScopes(isExprClosed, exprScopeStack))	{
 									// TODO:
 									isStopFail = true;
 								}
@@ -206,14 +223,14 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 							isStopFail = true;
 						}
 
-					} else if (!isExpectedTknType (curr_legal_tkn_types, next_legal_tkn_types, currTkn))	{
+					} else if (!isExpectedTknType (curr_legal_tkn_types, next_legal_tkn_types, currTkn, exprScopeStack))	{
 						userMessages->logMsg (USER_ERROR
 								, L"Unexpected token type! Expected " + makeExpectedTknTypesStr(curr_legal_tkn_types) + L" but got " + currTkn->descr_sans_line_num_col()
 								, userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
 						isStopFail = true;
 
 					} else if ((currTkn->tkn_type == SRC_OPR8R_TKN && (TERNARY_2ND & usrSrcTerms.get_type_mask(currTkn->_string)))
-							&& !isTernaryOpen())	{
+							&& !isTernaryOpen(exprScopeStack))	{
 						// Unexpected TERNARY_2ND
 						userMessages->logMsg (USER_ERROR
 								,L"Got middle ternary operand " + currTkn->descr_sans_line_num_col() + L" without required preceding starting ternary operator " + usrSrcTerms.get_ternary_1st()
@@ -221,16 +238,16 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 						isStopFail = true;
 
 					} else if ((currTkn->tkn_type == SRC_OPR8R_TKN && (TERNARY_2ND & usrSrcTerms.get_type_mask(currTkn->_string)))
-							&& get2ndTernaryCnt() > 0)	{
+							&& get2ndTernaryCnt(exprScopeStack) > 0)	{
 						// Unexpected *EXTRA* TERNARY_2ND
 						userMessages->logMsg (USER_ERROR, L"Got unexpected additional middle ternary operand " + currTkn->descr_sans_line_num_col()
 								, userSrcFileName, currTkn->get_line_number(), currTkn->get_column_pos());
 						isStopFail = true;
 
-					} else if ((currTkn->tkn_type == SPR8R_TKN && currTkn->_string == L"(")
+          } else if ((currTkn->tkn_type == SPR8R_TKN && currTkn->_string == L"(")
 							|| (currTkn->tkn_type == SRC_OPR8R_TKN && (TERNARY_1ST & usrSrcTerms.get_type_mask(currTkn->_string))))	{
 						// Open parenthesis or 1st ternary
-						if (OK != openSubExprScope(tknStream))	{
+						if (OK != openSubExprScope(tknStream, exprScopeStack))	{
 							isStopFail = true;
 						}
 
@@ -239,7 +256,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 						// Remove Token from stream without destroying - move to flat expression in current scope
 						tknStream.erase(tknStream.begin());
 
-						if (OK != closeNestedScopes ())	{
+						if (OK != closeNestedScopes (isExprClosed, exprScopeStack))	{
 							isStopFail = true;
 
 						} else if (expectedEndTkn.tkn_type == SPR8R_TKN && expectedEndTkn._string == currTkn->_string 
@@ -250,12 +267,26 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 							exprCloseLine = __LINE__;
 						}
 
-					} else if (currTkn->tkn_type == END_OF_STREAM_TKN) {
+          } else if (currTkn->tkn_type == SYSTEM_CALL_TKN)  {
+						tknStream.erase(tknStream.begin());
+
+            // The system call and its parameters will get processed and encapsulated into sys_call_node
+            std::shared_ptr<ExprTreeNode> sys_call_node = std::make_shared<ExprTreeNode> (currTkn);
+
+            if (OK != compile_system_call(tknStream, sys_call_node))
+              // TODO: Opportunity to check for continued progress?
+              isStopFail = true;
+            else if (!exprScopeStack.empty())
+              exprScopeStack[exprScopeStack.size() - 1]->scopedKids.push_back(sys_call_node);
+            else
+              isStopFail = true;
+
+          } else if (currTkn->tkn_type == END_OF_STREAM_TKN) {
 						userMessages->logMsg (INTERNAL_ERROR, L"parseExpression should never hit END_OF_STREAM_TKN!", thisSrcFile, __LINE__, 0);
 						isStopFail = true;
 						tknStream.erase(tknStream.begin());
 
-					} else	{
+          } else	{
 						// Remove Token from stream without destroying - move to flat expression in current scope
 						tknStream.erase(tknStream.begin());
 						std::shared_ptr<ExprTreeNode> treeNode = std::make_shared<ExprTreeNode> (currTkn);
@@ -278,7 +309,8 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 					// Don't accumulate junk. We've moved|shared what was in this pointer by now
 					currTkn.reset();
 				}
-			}
+        num_tkns_done++;
+      }
 
 			if (isExprClosed && !isStopFail)	{
 				int numTknsLeftInExpr = exprScopeStack[0]->scopedKids.size();
@@ -301,12 +333,12 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 					devMsg.append (std::to_wstring(exprCloseLine));
 					devMsg.append(L";");
 					userMessages->logMsg (INTERNAL_ERROR, devMsg, thisSrcFile, __LINE__, 0);
-					showDebugInfo (thisSrcFile, __LINE__);
+					showDebugInfo (thisSrcFile, __LINE__, exprScopeStack);
 				}
 			}
 		}
 
-		cleanScopeStack();
+		cleanScopeStack(exprScopeStack);
   }
 
 	isCallerExprClosed = isExprClosed;
@@ -317,12 +349,41 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 }
 
 /* ****************************************************************************
+ * General utility fxn to replace often replicated code
+ * ***************************************************************************/
+ int ExpressionParser::check_for_expected_token (TokenPtrVector & tknStream, Token & prev_tkn, std::wstring pattern_str, bool is_consume_tkn) {
+  int ret_code = GENERAL_FAILURE;
+
+  if (tknStream.empty())	{
+  	userMessages->logMsg (USER_ERROR, L"Expected Token after " + prev_tkn._string + L" but stream is empty!", userSrcFileName
+      , prev_tkn.get_line_number(), prev_tkn.get_column_pos());
+    SET_FAILED_ON_SRC_LINE;
+
+  } else {
+    std::shared_ptr <Token> curr_tkn = tknStream.front();
+
+    if (curr_tkn->_string != pattern_str) {
+      userMessages->logMsg (USER_ERROR, L"Expected \"" + pattern_str + L"\"  after " + prev_tkn._string + L" but instead got: " + curr_tkn->descr_sans_line_num_col()
+        , userSrcFileName, curr_tkn->get_line_number(), curr_tkn->get_column_pos());
+      SET_FAILED_ON_SRC_LINE;
+    
+    } else {
+      if (is_consume_tkn)
+        tknStream.erase (tknStream.begin());
+      ret_code = OK;
+    }  
+  }
+  
+  return ret_code;
+}
+
+/* ****************************************************************************
  * Next Token is a opening parenthesis or an opening ternary (?)
  * Increase the current scope level of the expression
  * Deeper|greater scope corresponds to higher precedence, or deeper levels of
  * parentheses.
  * ***************************************************************************/
-int ExpressionParser::openSubExprScope (TokenPtrVector & tknStream)  {
+int ExpressionParser::openSubExprScope (TokenPtrVector & tknStream, std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack)  {
   int ret_code = GENERAL_FAILURE;
 
 	std::shared_ptr <Token>currTkn = tknStream.front();
@@ -347,18 +408,18 @@ int ExpressionParser::openSubExprScope (TokenPtrVector & tknStream)  {
  * parent scope.  Check if the parent scope can be collapsed also &
  * recursively.  It's turtles all the way down!
 * ***************************************************************************/
- int ExpressionParser::closeNestedScopes()	{
+ int ExpressionParser::closeNestedScopes(bool isExprClosed, std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack)	{
 	int ret_code = GENERAL_FAILURE;
 
 	bool isParentLinked = false;
 	bool isRootScope = false;
 	bool isStopFail = false;
 
-	if (OK == makeTreeAndLinkParent(isParentLinked))	{
+	if (OK == makeTreeAndLinkParent(isParentLinked, isExprClosed, exprScopeStack))	{
 		int  prevStackSize = exprScopeStack.size(), currStackSize;
 	
 		while (!isParentLinked && !isRootScope && !isStopFail)	{
-			if (OK != makeTreeAndLinkParent(isParentLinked))	{
+			if (OK != makeTreeAndLinkParent(isParentLinked, isExprClosed, exprScopeStack))	{
 				isStopFail = true;
 				break;
 	
@@ -369,7 +430,7 @@ int ExpressionParser::openSubExprScope (TokenPtrVector & tknStream)  {
 					// Only the root scope remains. Check for correctness
 					isRootScope = true;
 					int numRootKids = exprScopeStack[0]->scopedKids.size();
-					if (numRootKids > 1 && OK != turnClosedScopeIntoTree (exprScopeStack[exprScopeStack.size() - 1]->scopedKids))	{
+					if (numRootKids > 1 && OK != turnClosedScopeIntoTree (exprScopeStack[exprScopeStack.size() - 1]->scopedKids, isExprClosed, exprScopeStack))	{
 						isStopFail = true;
 					}
 				
@@ -395,7 +456,7 @@ int ExpressionParser::openSubExprScope (TokenPtrVector & tknStream)  {
  * a single codeToken by working through the precedence of the operators.
  * Decrease the current scope level of the expression
  * ***************************************************************************/
-int ExpressionParser::makeTreeAndLinkParent (bool & isParentFndYet)  {
+int ExpressionParser::makeTreeAndLinkParent (bool & isParentFndYet, bool isExprClosed, std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack)  {
   int ret_code = GENERAL_FAILURE;
 	bool isScopenerFound = false;
 	bool isRootScope = false;
@@ -438,7 +499,7 @@ int ExpressionParser::makeTreeAndLinkParent (bool & isParentFndYet)  {
 		isStopFail = true;
 
 	} else if (isRootScope) {
-			ret_code = turnClosedScopeIntoTree (exprScopeStack[exprScopeStack.size() - 1]->scopedKids);
+			ret_code = turnClosedScopeIntoTree (exprScopeStack[exprScopeStack.size() - 1]->scopedKids, isExprClosed, exprScopeStack);
 
 	} else {
 		int stackSzB4 = exprScopeStack.size();
@@ -446,7 +507,7 @@ int ExpressionParser::makeTreeAndLinkParent (bool & isParentFndYet)  {
 		if (!isStopFail && isParentFndYet != isOpenedByTernary)	{
 			// Call turnClosedScopeIntoTree to collapse the current flat list of ExprTreeNodes into
 			// a hierarchical tree based on OPR8R precedence - a root ExprTreeNode
-			if (OK == turnClosedScopeIntoTree (exprScopeStack[exprScopeStack.size() - 1]->scopedKids, isOpenedByTernary))	{
+			if (OK == turnClosedScopeIntoTree (exprScopeStack[exprScopeStack.size() - 1]->scopedKids, isOpenedByTernary, exprScopeStack))	{
 				// Update the placeholder "(" ExprTreeNode so that it now points to the parent ExprTreeNode
 				// TODO: After expression is completed, then remove the intermediary "(" objects ???????
 				std::shared_ptr<NestedScopeExpr> stackTop = exprScopeStack[exprScopeStack.size() - 1];
@@ -525,7 +586,7 @@ int ExpressionParser::makeTreeAndLinkParent (bool & isParentFndYet)  {
 						if (isScopenerFound && !isExprAttached && exprScopeStack.size() == 1)	{
 							// TODO: Figure out boolz
 							if (exprScopeStack[0]->scopedKids.size() > 1)	{
-								ret_code = turnClosedScopeIntoTree (exprScopeStack[exprScopeStack.size() - 1]->scopedKids);
+								ret_code = turnClosedScopeIntoTree (exprScopeStack[exprScopeStack.size() - 1]->scopedKids, isExprClosed, exprScopeStack);
 							}	else	{
 							 	ret_code = OK;
 							}
@@ -539,7 +600,7 @@ int ExpressionParser::makeTreeAndLinkParent (bool & isParentFndYet)  {
 
 							userMessages->logMsg (USER_ERROR, scopeErrMsg + scopenerDesc + L" with current scope stack level = " + std::__cxx11::to_wstring(exprScopeStack.size() - 1)
 									, userSrcFileName, scopener->originalTkn->get_line_number(), scopener->originalTkn->get_column_pos());
-							printScopeStack(thisSrcFile, __LINE__);
+							printScopeStack(thisSrcFile, __LINE__, exprScopeStack);
 							isStopFail = true;
 
 						} else	{
@@ -562,7 +623,7 @@ int ExpressionParser::makeTreeAndLinkParent (bool & isParentFndYet)  {
 					, L"Failed to reduce expression scope depth. Before call: " + std::__cxx11::to_wstring(stackSzB4)
 					+ L"; After call: " + std::__cxx11::to_wstring(stackSzAfter) + L";"
 					, thisSrcFile, __LINE__, 0);
-			printScopeStack(thisSrcFile, __LINE__);
+			printScopeStack(thisSrcFile, __LINE__, exprScopeStack);
 			isStopFail = true;
 		}
 	}
@@ -587,7 +648,8 @@ int ExpressionParser::makeTreeAndLinkParent (bool & isParentFndYet)  {
  * list and attached to the OPR8R.
  * ***************************************************************************/
 int ExpressionParser::moveNeighborsIntoTree (ExprTreeNodePtrVector & currScope
-	, int opr8rIdx, opr8rReadyState opr8rState, bool isMoveLeftNbr, bool isMoveRightNbr)	{
+	, int opr8rIdx, opr8rReadyState opr8rState, bool isMoveLeftNbr, bool isMoveRightNbr
+  , std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack)	{
 	int ret_code = GENERAL_FAILURE;
 
 	if (opr8rIdx >= 0 && opr8rIdx < currScope.size())	{
@@ -602,23 +664,23 @@ int ExpressionParser::moveNeighborsIntoTree (ExprTreeNodePtrVector & currScope
 
 		if (isMoveRightNbr)	{
 			if ((currScope.size() - 1) < (opr8rIdx + 1))	{
-				failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+				SET_FAILED_ON_SRC_LINE;
 
 			} else {
 				rightNbr = currScope.at(opr8rIdx + 1);
 				if (rightNbr == NULL)	{
-					failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+					SET_FAILED_ON_SRC_LINE;
 				
 				} else {
-          if (usrSrcTerms.isViableVarName(rightNbr->originalTkn->_string))
+          if (usrSrcTerms.is_viable_var_name(rightNbr->originalTkn->_string))
             // > 0 variable leaf nodes means that this expression isn't fixed|static
             num_var_leaf_nodes++;
 
           if ((opr8r.type_mask & PREFIX) && (rightNbr->originalTkn->tkn_type != USER_WORD_TKN 
-							|| !usrSrcTerms.isViableVarName(rightNbr->originalTkn->_string)
+							|| !usrSrcTerms.is_viable_var_name(rightNbr->originalTkn->_string)
 							|| OK != scopedNameSpace->findVar(rightNbr->originalTkn->_string, 0, tmpTkn, READ_ONLY, lookUpMsg)))	{
 						// Make sure our right neighbor is a variable name before moving
-						failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+						SET_FAILED_ON_SRC_LINE;
 					
 					} else	{
 						currScope.erase(currScope.begin() + (opr8rIdx + 1));
@@ -632,10 +694,10 @@ int ExpressionParser::moveNeighborsIntoTree (ExprTreeNodePtrVector & currScope
 								rightNbr->treeParent = opr8rNode;
 							
 							}	else	{
-                failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+                SET_FAILED_ON_SRC_LINE;
 							}
 						} else	{
-							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+							SET_FAILED_ON_SRC_LINE;
 						}
 					}
 				}
@@ -644,23 +706,23 @@ int ExpressionParser::moveNeighborsIntoTree (ExprTreeNodePtrVector & currScope
 
 		if (isMoveLeftNbr)	{
 			if (opr8rIdx - 1 < 0)	{
-				failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+				SET_FAILED_ON_SRC_LINE;
 
 			} else {
 				leftNbr = currScope.at(opr8rIdx - 1);
 				if (leftNbr == NULL)	{
-					failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+					SET_FAILED_ON_SRC_LINE;
 				
 				} else {
-          if (usrSrcTerms.isViableVarName(leftNbr->originalTkn->_string))
+          if (usrSrcTerms.is_viable_var_name(leftNbr->originalTkn->_string))
             // > 0 variable leaf nodes means that this expression isn't fixed|static
             num_var_leaf_nodes++;
 
           if ((opr8r.type_mask & POSTFIX) && (leftNbr->originalTkn->tkn_type != USER_WORD_TKN 
-							|| !usrSrcTerms.isViableVarName(leftNbr->originalTkn->_string)
+							|| !usrSrcTerms.is_viable_var_name(leftNbr->originalTkn->_string)
 							|| OK != scopedNameSpace->findVar(leftNbr->originalTkn->_string, 0, tmpTkn, READ_ONLY, lookUpMsg)))	{
 						// Make sure our left neighbor is a variable name before moving
-						failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+						SET_FAILED_ON_SRC_LINE;
 					
 					} else	{
 						currScope.erase(currScope.begin() + (opr8rIdx - 1));
@@ -674,18 +736,18 @@ int ExpressionParser::moveNeighborsIntoTree (ExprTreeNodePtrVector & currScope
 								leftNbr->treeParent = opr8rNode;
 							
 							} else	{
-                failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+                SET_FAILED_ON_SRC_LINE;
 							}
 						
 						} else {
-							failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+							SET_FAILED_ON_SRC_LINE;
 						}
 					}
 				}
 			}
 		}
 
-		if (!failOnSrcLine && (isMoveLeftNbr || isMoveRightNbr))	{
+		if (!failed_on_src_line && (isMoveLeftNbr || isMoveRightNbr))	{
 			// We tried to do something and didn't fail at it!
 			ret_code = OK;
 			if ((logLevel == ILLUSTRATIVE && !isExprVarDeclaration) || logLevel > ILLUSTRATIVE)	{
@@ -715,7 +777,7 @@ int ExpressionParser::moveNeighborsIntoTree (ExprTreeNodePtrVector & currScope
 					// Avoid printing out a completed parse tree, because that happens elsewhere
 					int opr8rStartPos;
 
-					printSingleScope (bannerMsg , exprScopeStack.size() - 1, updatedOprIdx, opr8rStartPos);
+					printSingleScope (bannerMsg , exprScopeStack.size() - 1, updatedOprIdx, opr8rStartPos, exprScopeStack);
 					
 					if (updatedOprIdx >= 0 && updatedOprIdx < currScope.size())	{
 						std::wcout << L"Parse tree of moved operator " << std::endl;
@@ -732,7 +794,7 @@ int ExpressionParser::moveNeighborsIntoTree (ExprTreeNodePtrVector & currScope
 
 /* ****************************************************************************
  * ***************************************************************************/
- int ExpressionParser::exec_delayed_ternary_2nd (ExprTreeNodePtrVector & currScope) {
+ int ExpressionParser::exec_delayed_ternary_2nd (ExprTreeNodePtrVector & currScope, std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack) {
   int ret_code = GENERAL_FAILURE;
 
   for (int idx = 0; idx < currScope.size(); idx++)	{
@@ -743,8 +805,8 @@ int ExpressionParser::moveNeighborsIntoTree (ExprTreeNodePtrVector & currScope
       if (topIdx > 0 && exprScopeStack[topIdx]->myParentScopener != NULL && exprScopeStack[topIdx]->myParentScopener->_2ndChild != NULL)
         currScope[idx]->treeParent = exprScopeStack[topIdx]->myParentScopener->_2ndChild;
 
-      if (OK != moveNeighborsIntoTree (currScope, idx, ATTACH_BOTH, true, true))	{
-        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+      if (OK != moveNeighborsIntoTree (currScope, idx, ATTACH_BOTH, true, true, exprScopeStack))	{
+        SET_FAILED_ON_SRC_LINE;
         userMessages->logMsg (INTERNAL_ERROR, L"Failed to attach branches to OPR8R [" + usrSrcTerms.get_ternary_2nd() + L"]"
           , thisSrcFile, __LINE__, 0);
       
@@ -783,7 +845,7 @@ int ExpressionParser::moveNeighborsIntoTree (ExprTreeNodePtrVector & currScope
 /* ****************************************************************************
  * ***************************************************************************/
  int ExpressionParser::exec_prec_lvl_opr8rs (ExprTreeNodePtrVector & currScope,  Opr8rPrecedenceLvl & precedenceLvl
-  , bool & is_skip_tern2nd) {
+  , bool & is_skip_tern2nd, std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack) {
 
 
   // TODO: std::wcout << L"**************** BEGIN exec_prec_lvl_opr8rs **************** " << std::endl;
@@ -801,7 +863,7 @@ int ExpressionParser::moveNeighborsIntoTree (ExprTreeNodePtrVector & currScope
       isOpenedByTernary = true;
   }
 
-  while (!isPrecLvlExhausted && !failOnSrcLine)	{
+  while (!isPrecLvlExhausted && !failed_on_src_line)	{
     // Not done w/ precedence level until we check each operator node in the current list for a match
     opr8rReadyState opr8rState = OPR8R_NOT_READY;
     int startSize = currScope.size();
@@ -813,7 +875,7 @@ int ExpressionParser::moveNeighborsIntoTree (ExprTreeNodePtrVector & currScope
 
     currNodeR8r = currScope.begin();
 
-    while (!failOnSrcLine && !isEndOfNodeList && !failOnSrcLine && !isOpr8rExecd) {
+    while (!failed_on_src_line && !isEndOfNodeList && !failed_on_src_line && !isOpr8rExecd) {
       // Move left-to-right through the expression. Do some work if there's a match to an OPR8R at the current precedence level
       // When objects are moved around, the iterator will be invalidated and need to restart.
       if (currNodeR8r == currScope.end()) {
@@ -832,7 +894,7 @@ int ExpressionParser::moveNeighborsIntoTree (ExprTreeNodePtrVector & currScope
           Operator node_opr8r;
           usrSrcTerms.getExecOpr8rDetails(usrSrcTerms.getOpCodeFor(currTkn->_string), node_opr8r);
           
-          while (!failOnSrcLine && !isPrecLvlSrchDone && !isOpr8rExecd)  {
+          while (!failed_on_src_line && !isPrecLvlSrchDone && !isOpr8rExecd)  {
             if (precItr8r == precedenceLvl.opr8rs.end())  {
               // Check if we're done
               isPrecLvlSrchDone = true;
@@ -882,8 +944,8 @@ int ExpressionParser::moveNeighborsIntoTree (ExprTreeNodePtrVector & currScope
 
                 if (opr8rState != OPR8R_NOT_READY)  {
                   // Ready to execute this operator
-                  if (OK != moveNeighborsIntoTree (currScope, nodeListIdx, opr8rState, isMoveLeftNbr, isMoveRightNbr)) {
-                    failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+                  if (OK != moveNeighborsIntoTree (currScope, nodeListIdx, opr8rState, isMoveLeftNbr, isMoveRightNbr, exprScopeStack)) {
+                    SET_FAILED_ON_SRC_LINE;
                   
                   } else {
                     isOpr8rExecd = true;
@@ -908,7 +970,7 @@ int ExpressionParser::moveNeighborsIntoTree (ExprTreeNodePtrVector & currScope
     }
   }
 
-	if (!failOnSrcLine) {
+	if (!failed_on_src_line) {
     ret_code = OK;
 	}
 
@@ -917,8 +979,8 @@ int ExpressionParser::moveNeighborsIntoTree (ExprTreeNodePtrVector & currScope
 
 /* ****************************************************************************
  * ***************************************************************************/
-int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope)  {
-	return turnClosedScopeIntoTree(currScope, false);
+int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope, bool isExprClosed, std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack)  {
+	return turnClosedScopeIntoTree(currScope, false, isExprClosed, exprScopeStack);
 }
 
 /* ****************************************************************************
@@ -936,7 +998,8 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
  *    3,2
  * Higher precedence operations get pushed further down the tree
  * ***************************************************************************/
-int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope, bool isOpenedByTernary)  {
+int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope, bool isOpenedByTernary
+  , bool isExprClosed, std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack)  {
   int ret_code = GENERAL_FAILURE;
   bool isStopFail = false;
   bool isReachedEOL = false;
@@ -957,9 +1020,9 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 			bannerMsg.append (L" NOT");
     }
 	 	bannerMsg.append (L" read in all Tokens for this expression.");
-		printScopeStack (bannerMsg, false);
+		printScopeStack (bannerMsg, false, exprScopeStack);
 	}
-	
+
   bool is_tern2nd_pending = false, is_tern2nd_skipped = false;
   // TODO: Code inspect, comment, simplify if you can
 	for (outr8r = usrSrcTerms.grouped_opr8rs.begin(); outr8r != usrSrcTerms.grouped_opr8rs.end() && !isStopFail && ret_code != OK; outr8r++){
@@ -967,7 +1030,7 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 		// treated as having the same precedence, and therefore we can't rely on an ABSOUTE ordering of OPR8R precedence
     precedenceLvl = *outr8r;
 
-    if (OK != exec_prec_lvl_opr8rs (currScope, precedenceLvl, is_tern2nd_skipped))  {
+    if (OK != exec_prec_lvl_opr8rs (currScope, precedenceLvl, is_tern2nd_skipped, exprScopeStack))  {
       isStopFail = true;
 
     } else if (currScope.size() == 1)	{
@@ -979,14 +1042,14 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 	}
 
   if (is_tern2nd_pending)
-    ret_code = exec_delayed_ternary_2nd(currScope);
+    ret_code = exec_delayed_ternary_2nd(currScope, exprScopeStack);
 
   if (ret_code != OK) {
     if (!isStopFail)
       userMessages->logMsg (INTERNAL_ERROR, L"Unhandled error", thisSrcFile, __LINE__, 0);
     else
       userMessages->logMsg (INTERNAL_ERROR, L"Could not make tree", thisSrcFile, __LINE__, 0);
-		showDebugInfo (thisSrcFile, __LINE__);
+		showDebugInfo (thisSrcFile, __LINE__, exprScopeStack);
 	}
 
 
@@ -1067,10 +1130,16 @@ std::wstring ExpressionParser::makeExpectedTknTypesStr (uint32_t expected_tkn_ty
 		expected.append(L"Variable or fxn declaration");
 	}
 
-	if (FXN_CALL_NXT_OK & expected_tkn_types)  {
+	if (SYSTEM_CALL_NXT_OK & expected_tkn_types)  {
 		if (expected.length() > 0)
 			expected.append(L"|");
-		expected.append (L"FXN_CALL");
+		expected.append (L"SYSTEM_CALL");
+	}
+
+	if (USER_FXN_CALL_NXT_OK & expected_tkn_types)  {
+		if (expected.length() > 0)
+			expected.append(L"|");
+		expected.append (L"USER_FXN_CALL");
 	}
 
 	expected.insert (0, L"[");
@@ -1083,7 +1152,7 @@ std::wstring ExpressionParser::makeExpectedTknTypesStr (uint32_t expected_tkn_ty
  * Check if the TERNARY_1st OPR8R was encountered previously at the currently
  * opened scope.
  * ***************************************************************************/
-bool ExpressionParser::isTernaryOpen ()  {
+bool ExpressionParser::isTernaryOpen (std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack)  {
   bool isT3rnOpen = false;
 
 	int stackSize = exprScopeStack.size();
@@ -1106,7 +1175,7 @@ bool ExpressionParser::isTernaryOpen ()  {
  * Return the count of TERNARY_2ND OPR8Rs encountered at the current scope.
  * There should be only 1 per scope
  * ***************************************************************************/
-int ExpressionParser::get2ndTernaryCnt ()  {
+int ExpressionParser::get2ndTernaryCnt (std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack)  {
   int count = 0;
 
 	int stackSize = exprScopeStack.size();
@@ -1124,11 +1193,14 @@ int ExpressionParser::get2ndTernaryCnt ()  {
  * Think of this fxn as the guts of a state machine that determines if the next
  * state can be reached by the current state.  If not, the expression is not
  * well formed.
+ * TODO: Handle void() system calls and user fxn calls?
  * ***************************************************************************/
-bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t & next_legal_tkn_types, std::shared_ptr<Token> curr_tkn)  {
+bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t & next_legal_tkn_types, std::shared_ptr<Token> curr_tkn
+  , std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack)  {
   bool isTknTypeOK = false;
 
   if (curr_tkn != NULL)	{
+    next_legal_tkn_types = 0x0;
   	// Grab any disambiguated EXEC_OPR8R strings early to make life easier
   	std::wstring execPrefixOpr8rStr = usrSrcTerms.getUniqExecOpr8rStr(curr_tkn->_string, PREFIX);
   	std::wstring execUnaryOpr8rStr = usrSrcTerms.getUniqExecOpr8rStr(curr_tkn->_string, UNARY);
@@ -1147,8 +1219,13 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
 
   		isTknTypeOK = true;
   		next_legal_tkn_types = (POSTFIX_OPR8R_NXT_OK|BINARY_OPR8R_NXT_OK|TERNARY_OPR8R_1ST_NXT_OK|CLOSE_PAREN_NXT_OK);
-  		if (isTernaryOpen())
+  		if (isTernaryOpen(exprScopeStack))
   			next_legal_tkn_types |= TERNARY_OPR8R_2ND_NXT_OK;
+
+    } else if ((allowed_tkn_types & SYSTEM_CALL_NXT_OK) && curr_tkn->tkn_type == SYSTEM_CALL_TKN) {
+      // TODO: What about sys calls that return void?
+  		isTknTypeOK = true;
+  		next_legal_tkn_types = (BINARY_OPR8R_NXT_OK|TERNARY_OPR8R_1ST_NXT_OK|CLOSE_PAREN_NXT_OK);
 
   	} else if ((allowed_tkn_types & LITERAL_NXT_OK) && curr_tkn->tkn_type == STRING_TKN || curr_tkn->tkn_type == DATETIME_TKN
   			|| curr_tkn->tkn_type == UINT8_TKN || curr_tkn->tkn_type == UINT16_TKN
@@ -1159,7 +1236,7 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
     	// LITERAL
   		isTknTypeOK = true;
   		next_legal_tkn_types = (BINARY_OPR8R_NXT_OK|TERNARY_OPR8R_1ST_NXT_OK|CLOSE_PAREN_NXT_OK);
-  		if (isTernaryOpen())
+  		if (isTernaryOpen(exprScopeStack))
   			next_legal_tkn_types |= TERNARY_OPR8R_2ND_NXT_OK;
 
   	} else if ((allowed_tkn_types & PREFIX_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN && !execPrefixOpr8rStr.empty())	{
@@ -1173,45 +1250,45 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   		// Make user source OPR8R unambiguous for internal use
  			curr_tkn->_string = execUnaryOpr8rStr;
 			isTknTypeOK = true;
-			next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|OPEN_PAREN_NXT_OK);
+			next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|SYSTEM_CALL_NXT_OK|OPEN_PAREN_NXT_OK);
 
   	} else if ((allowed_tkn_types & POSTFIX_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN && !execPostfixOpr8rStr.empty())	{
 			// Make user source OPR8R unambiguous for internal use
 			curr_tkn->_string = execPostfixOpr8rStr;
 			isTknTypeOK = true;
 			next_legal_tkn_types = (BINARY_OPR8R_NXT_OK|TERNARY_OPR8R_1ST_NXT_OK|CLOSE_PAREN_NXT_OK);
-			if (isTernaryOpen())
+			if (isTernaryOpen(exprScopeStack))
 				next_legal_tkn_types |= TERNARY_OPR8R_2ND_NXT_OK;
 
   	} else if ((allowed_tkn_types & TERNARY_OPR8R_2ND_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN
   			&& (TERNARY_2ND & usrSrcTerms.get_type_mask(curr_tkn->_string)))	{
   		isTknTypeOK = true;
   		// TODO: Is PREFIX_OPR8R legit here?
-  		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
+  		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|SYSTEM_CALL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
 
   	} else if ((allowed_tkn_types & TERNARY_OPR8R_1ST_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN
   			&& (TERNARY_1ST & usrSrcTerms.get_type_mask(curr_tkn->_string)))	{
     	// TERNARY_OPR8R
   		isTknTypeOK = true;
-  		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
+  		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|SYSTEM_CALL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
 
   	} else if ((allowed_tkn_types & BINARY_OPR8R_NXT_OK) && curr_tkn->tkn_type == SRC_OPR8R_TKN && !execBinaryOpr8rStr.empty())	{
     	// BINARY_OPR8R
  			curr_tkn->_string = execBinaryOpr8rStr;
-			next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
+			next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|SYSTEM_CALL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
 			isTknTypeOK = true;
 
   	} else if ((allowed_tkn_types & OPEN_PAREN_NXT_OK) && SPR8R_TKN == curr_tkn->tkn_type && 0 == curr_tkn->_string.compare(L"("))	{
     	// OPEN_PAREN
   		isTknTypeOK = true;
-  		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
+  		next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|SYSTEM_CALL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
 
   	} else if ((allowed_tkn_types & CLOSE_PAREN_NXT_OK) && SPR8R_TKN == curr_tkn->tkn_type && 0 == curr_tkn->_string.compare(L")"))	{
     	// CLOSE_PAREN
   		isTknTypeOK = true;
   		next_legal_tkn_types = (BINARY_OPR8R_NXT_OK|TERNARY_1ST|CLOSE_PAREN_NXT_OK);
 
-  		if (isTernaryOpen())
+  		if (isTernaryOpen(exprScopeStack))
   			next_legal_tkn_types |= TERNARY_OPR8R_2ND_NXT_OK;
 
   	} else if ((allowed_tkn_types & DCLR_VAR_OR_FXN_NXT_OK) && USER_WORD_TKN == curr_tkn->tkn_type && usrSrcTerms.is_valid_datatype(curr_tkn->_string))	{
@@ -1224,14 +1301,14 @@ bool ExpressionParser::isExpectedTknType (uint32_t allowed_tkn_types, uint32_t &
   	// TODO: FXN_CALL
   }
 
-  return (isTknTypeOK);
+  return (isTknTypeOK && 0 != next_legal_tkn_types);
 }
 
 /* ****************************************************************************
  * Called after an expression has been compiled.  Releases memory and gets back
  * to an initial state.
  * ***************************************************************************/
-void ExpressionParser::cleanScopeStack()	{
+void ExpressionParser::cleanScopeStack(std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack)	{
 	std::vector<std::shared_ptr<NestedScopeExpr>>::reverse_iterator scopeR8r;
 	std::vector<std::shared_ptr<ExprTreeNode>>::reverse_iterator kidR8r;
 	int lastKidIdx;
@@ -1270,6 +1347,7 @@ void ExpressionParser::cleanScopeStack()	{
 int ExpressionParser::getExpectedEndToken (std::shared_ptr<Token> startTkn, uint32_t & _1stTknType, Token & expectedEndTkn, expr_ender_type ended_by)	{
 	int ret_code = GENERAL_FAILURE;
 	bool isStopFail = false;
+  _1stTknType = 0x0;
 
 	if (startTkn != NULL)	{
 		expectedEndTkn.resetToken();
@@ -1306,6 +1384,9 @@ int ExpressionParser::getExpectedEndToken (std::shared_ptr<Token> startTkn, uint
 			// expectedEndTkn.tkn_type = SRC_OPR8R_TKN;
 			_1stTknType = LITERAL_NXT_OK;
 
+    } else if (startTkn->tkn_type == SYSTEM_CALL_TKN) {
+      _1stTknType = SYSTEM_CALL_NXT_OK;
+
 		} else	{
 			isStopFail = true;
   		userMessages->logMsg (INTERNAL_ERROR, L"Could not determine _1stTknType for " + startTkn->descr_sans_line_num_col(), thisSrcFile, __LINE__, 0);
@@ -1340,7 +1421,7 @@ int ExpressionParser::getExpectedEndToken (std::shared_ptr<Token> startTkn, uint
 			}
 		}
 
-	  if (!isStopFail)
+	  if (!isStopFail && 0 != _1stTknType)
 	  	ret_code = OK;
 	}
 
@@ -1350,10 +1431,10 @@ int ExpressionParser::getExpectedEndToken (std::shared_ptr<Token> startTkn, uint
 /* ****************************************************************************
  * Used an aid in debugging and instruction
  * ***************************************************************************/
-void ExpressionParser::printSingleScope (std::wstring headerMsg, int scopeLvl)	{
+void ExpressionParser::printSingleScope (std::wstring headerMsg, int scopeLvl, std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack)	{
 	int tmpPos;
 
-	printSingleScope(headerMsg, scopeLvl, -1, tmpPos);
+	printSingleScope(headerMsg, scopeLvl, -1, tmpPos, exprScopeStack);
 }
 
 
@@ -1361,7 +1442,7 @@ void ExpressionParser::printSingleScope (std::wstring headerMsg, int scopeLvl)	{
  * Used an aid in debugging and instruction
  * ***************************************************************************/
  void ExpressionParser::printSingleScope (std::wstring headerMsg, int scopeLvl
-	, int tgtIdx, int & tgtStartPos)	{
+	, int tgtIdx, int & tgtStartPos, std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack)	{
 	
 	tgtStartPos = 0;
 
@@ -1410,18 +1491,20 @@ void ExpressionParser::printSingleScope (std::wstring headerMsg, int scopeLvl)	{
 /* ****************************************************************************
  * Used an aid in debugging and instruction
  * ***************************************************************************/
-void ExpressionParser::printScopeStack (std::wstring fileName, int lineNumber)	{
+void ExpressionParser::printScopeStack (std::wstring fileName, int lineNumber
+  , std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack)	{
 
 	std::wstringstream banner;
 	banner << L"********** ExpressionParser::printScopeStack called from " << fileName << L":" << lineNumber << L" **********";
-	printScopeStack (banner.str(), false);
+	printScopeStack (banner.str(), false, exprScopeStack);
 
 }
 
 /* ****************************************************************************
  * Used an aid in debugging and instruction
  * ***************************************************************************/
- void ExpressionParser::printScopeStack (std::wstring bannerMsg, bool isUseDefault)	{
+ void ExpressionParser::printScopeStack (std::wstring bannerMsg, bool isUseDefault
+  , std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack)	{
 	std::wstring defaultMsg = L"Compiler's expression; may be incomplete. Scope levels > 0 opened by [(] or [?] from previous level.";
 	defaultMsg.append (L"\n[] contains a single OPR8R, e.g., [*]. /\\ contains a tree with left and|or right operands beneath it, e.g., /*\\");
 
@@ -1437,7 +1520,7 @@ void ExpressionParser::printScopeStack (std::wstring fileName, int lineNumber)	{
 
 	for (scopeR8r = exprScopeStack.rbegin(); scopeR8r != exprScopeStack.rend(); scopeR8r++)	{
 		
-		printSingleScope (L"", scopeLvl);
+		printSingleScope (L"", scopeLvl, exprScopeStack);
 		scopeLvl--;
 	}
 
@@ -1446,8 +1529,8 @@ void ExpressionParser::printScopeStack (std::wstring fileName, int lineNumber)	{
 /* ****************************************************************************
  * Used an aid in debugging.
  * ***************************************************************************/
-void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
-	printScopeStack(srcFileName, lineNum);
+void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum, std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack)	{
+	printScopeStack(srcFileName, lineNum, exprScopeStack);
 	if (exprScopeStack.size() > 0)	{
 		ExprTreeNodePtrVector::iterator nodeR8r;
 
@@ -1730,7 +1813,7 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
 
     if (isTreeRightHeavy)  {
       if (OK != setFullTreeDisplayPos(startBranch->_2ndChild, displayLines, leftMaxLineLen)) {
-        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+        SET_FAILED_ON_SRC_LINE;
 
       } else {
         // Insert startBranch root at the top of displayLines
@@ -1760,10 +1843,10 @@ void ExpressionParser::showDebugInfo (std::wstring srcFileName, int lineNum)	{
       }
   
     } else if (OK != setFullTreeDisplayPos(startBranch, displayLines, leftMaxLineLen)) {
-      failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+      SET_FAILED_ON_SRC_LINE;
     }
     
-    if (!failOnSrcLine)  {
+    if (!failed_on_src_line)  {
       std::wstring rightAdjustStr;
   
       if (leftMaxLineLen < adjustToRight)
@@ -1860,7 +1943,7 @@ int ExpressionParser::setCtrStartByPrevBndry (bool isLeftTree, std::shared_ptr<E
       myParent = currBranch->treeParent;
 
     if (myParent == NULL) {
-      failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+      SET_FAILED_ON_SRC_LINE;
 
     } else if (myParent->nodePos == CENTER_NODE)  {
       myGrandParent = myParent->treeParent;
@@ -1882,17 +1965,17 @@ int ExpressionParser::setCtrStartByPrevBndry (bool isLeftTree, std::shared_ptr<E
       // Go down the child branches until we find a resolved OUTER_NODE
       int maxEndPos = 0;
       if (OK != findMaxOuterNodeEndPos (isLeftTree, ctrSearchCousin, maxEndPos))
-        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+        SET_FAILED_ON_SRC_LINE;
 
       else if (maxEndPos <= 0)
-        failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+        SET_FAILED_ON_SRC_LINE;
 
       else  {
         currBranch->displayStartPos = maxEndPos + 1;
         ret_code = OK;
       }
     } else {
-      failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+      SET_FAILED_ON_SRC_LINE;
     }
   }
 
@@ -1978,7 +2061,7 @@ int ExpressionParser::setOuterLeafNodeDisplayPos (bool isLeftTree, int halfTreeL
       ret_code = OK;
     
     } else {
-      failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;      
+      SET_FAILED_ON_SRC_LINE;      
     }
 
   } else if (currBranch != NULL && currBranch->nodePos == OUTER_NODE) {
@@ -2095,9 +2178,9 @@ int ExpressionParser::setHalfTreeDisplayPos (bool isLeftTree, int halfTreeLevel,
     currLvlList.push_back(currBranch);
 
     if (OK != setIsCenterNode (isLeftTree, halfTreeLevel, currBranch))
-      failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+      SET_FAILED_ON_SRC_LINE;
 
-    if (!failOnSrcLine)	{
+    if (!failed_on_src_line)	{
       currBranch->displayRow = halfTreeLevel;
 
       if (currBranch->nodePos == CENTER_NODE) {
@@ -2107,16 +2190,16 @@ int ExpressionParser::setHalfTreeDisplayPos (bool isLeftTree, int halfTreeLevel,
             currBranch->displayStartPos = 0;
 
             if (currBranch->originalTkn->tkn_type == SRC_OPR8R_TKN && OK != setDownstreamCenters (isLeftTree, currBranch))
-              failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+              SET_FAILED_ON_SRC_LINE;
 
           } else if (halfTreeLevel >= 2) {
             // New CENTER_NODE with uninitialized displayStartPos. Look back to previous branch closer to
             // center. Find already resolved OUTER_NODE with greatest displayEndPos; use to set our displayStartPos
             if (currBranch->displayStartPos < 0)  {
               if (OK != setCtrStartByPrevBndry (isLeftTree, currBranch)) 
-                failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+                SET_FAILED_ON_SRC_LINE;
               else if (currBranch->originalTkn->tkn_type == SRC_OPR8R_TKN && OK != setDownstreamCenters (isLeftTree, currBranch))
-                failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+                SET_FAILED_ON_SRC_LINE;
             } 
           }
         }
@@ -2135,30 +2218,30 @@ int ExpressionParser::setHalfTreeDisplayPos (bool isLeftTree, int halfTreeLevel,
         ret_code = setOuterLeafNodeDisplayPos (isLeftTree, halfTreeLevel, currBranch);
       } 
       
-      if (!failOnSrcLine && currBranch->originalTkn->tkn_type == SRC_OPR8R_TKN) {
+      if (!failed_on_src_line && currBranch->originalTkn->tkn_type == SRC_OPR8R_TKN) {
         // Recursive case
         if ((isLeftTree && currBranch->_2ndChild != NULL) || (!isLeftTree && currBranch->_1stChild != NULL))  {
           // Resolve CENTER branch 1st
           if (OK != setHalfTreeDisplayPos (isLeftTree, halfTreeLevel + 1
               , isLeftTree ? currBranch->_2ndChild : currBranch->_1stChild, halfDisplayLines))
-            failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+            SET_FAILED_ON_SRC_LINE;
         }
   
-        if (!failOnSrcLine && ((isLeftTree && currBranch->_1stChild != NULL) || (!isLeftTree && currBranch->_2ndChild != NULL)))  {
+        if (!failed_on_src_line && ((isLeftTree && currBranch->_1stChild != NULL) || (!isLeftTree && currBranch->_2ndChild != NULL)))  {
           // Resolve OUTSIDE branch next 
           if (OK != setHalfTreeDisplayPos (isLeftTree, halfTreeLevel + 1
               , isLeftTree ? currBranch->_1stChild : currBranch->_2ndChild, halfDisplayLines))
-            failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+            SET_FAILED_ON_SRC_LINE;
         }
   
-        if (!failOnSrcLine)  {
+        if (!failed_on_src_line)  {
           if (OK != setBranchNodeDisplayPos (isLeftTree, halfTreeLevel, currBranch))
-            failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+            SET_FAILED_ON_SRC_LINE;
         }
       }
     }
  
-    if (!failOnSrcLine)  {
+    if (!failed_on_src_line)  {
       ret_code = OK;
     }
   }
@@ -2248,11 +2331,11 @@ int ExpressionParser::setHalfTreeDisplayPos (bool isLeftTree, int halfTreeLevel,
 		displayLines[0].append(rootNodeStr);
 
     if (OK != fillDisplayLeft(displayLines, leftLines, maxLeftLineLen))
-      failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+      SET_FAILED_ON_SRC_LINE;
     else if (OK != fillDisplayRight(displayLines, rightLines, centerGapSpaces))
-      failOnSrcLine = failOnSrcLine == 0 ? __LINE__ : failOnSrcLine;
+      SET_FAILED_ON_SRC_LINE;
 
-    if (!failOnSrcLine)
+    if (!failed_on_src_line)
       ret_code = OK;
  	}
 
@@ -2284,4 +2367,96 @@ int ExpressionParser::setHalfTreeDisplayPos (bool isLeftTree, int halfTreeLevel,
 	return (ret_code);
 
 }
+
+/* ****************************************************************************
+ * Encountered a system call. Check that it's a recognized system call and has
+ * the expected number and type of arguments.
+ * ***************************************************************************/
+ int ExpressionParser::compile_system_call (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> sys_call_node) {
+  int ret_code = GENERAL_FAILURE;
+
+  if (sys_call_node != NULL) {
+
+    TokenTypeEnum call_ret_type;
+    std::vector <uint8_t> parameters;
+
+    if (OK != usrSrcTerms.get_system_call_details (sys_call_node->originalTkn->_string, parameters, call_ret_type))  {
+      SET_FAILED_ON_SRC_LINE;
+    
+    } else if (OK != check_for_expected_token(tknStream, *sys_call_node->originalTkn, L"(", false))  {
+      SET_FAILED_ON_SRC_LINE;
+
+    } else { 
+      // TODO: Currently this *should* be set to SYSTEM_CALL_TKN, but when we do that we lose the return data type
+      // Does the return data type need to be preserved, since the return data type of the system call can be 
+      // looked up when it's evaluated?
+      // Could have flags is_system_call and is_user_fxn to indicate
+      // Still need to do better with VOID data type
+      // sys_call_node->originalTkn->tkn_type = call_ret_type;
+      sys_call_node->originalTkn->tkn_type = SYSTEM_CALL_TKN;
+
+      Token expr_ended_by;
+      int make_tree_ret;
+      bool is_expr_closed, is_expr_static;
+
+      if (0 == parameters.size()) {
+        ret_code = check_for_expected_token(tknStream, *sys_call_node->originalTkn, L")", true);
+
+      } else {
+        RunTimeInterpreter interpreter (usrSrcTerms, scopedNameSpace, userSrcFileName, userMessages, logLevel);
+        std::vector<Token> flatExprTkns;
+        int idx = 0;
+        std::wstring type_conversion_msg;
+
+        for (; idx < parameters.size() && !failed_on_src_line; idx++) {
+          std::shared_ptr<Token> empty_tkn = std::make_shared<Token>();
+          std::shared_ptr<ExprTreeNode> param_expr_tree = std::make_shared<ExprTreeNode> (empty_tkn);
+    
+          make_tree_ret = makeExprTree (tknStream, param_expr_tree, expr_ended_by
+            , idx + 1 < parameters.size() ? ENDS_IN_COMMA : ENDS_IN_PARENTHESES
+            , is_expr_closed, false, is_expr_static);
+    
+          if (OK != make_tree_ret)  {
+            SET_FAILED_ON_SRC_LINE;
+
+          } else if (OK != usrSrcTerms.flattenExprTree(param_expr_tree, flatExprTkns))	{
+            // (3 + 4) -> [3][4][+]
+            SET_FAILED_ON_SRC_LINE;
+          
+          } else if (OK != interpreter.resolveFlatExpr(flatExprTkns))	{
+            // TODO: Using this interpreter means using an EMPTY namespace that doesn't have the variables stuffed into 
+            // the original namespace that came with GeneralParser's interpreter.  Might need to share the GP interpreter
+            // back with ExpressionParser
+            // TODO: Pass it in through the constructor
+            SET_FAILED_ON_SRC_LINE;
+      
+          } else if (flatExprTkns.size() != 1)	{
+            // flattenedExpr should have 1 Token left - the result of the expression
+            userMessages->logMsg(INTERNAL_ERROR, L"Failed to resolve expression starting with " + sys_call_node->originalTkn->descr_sans_line_num_col()
+                  , thisSrcFile, __LINE__, 0);
+            SET_FAILED_ON_SRC_LINE;
+            
+          } else if (parameters[idx] != INVALID_OPCODE && OK != usrSrcTerms.tkn_type_converts_to_opcode(parameters[idx], flatExprTkns[0], L"parameter " + std::to_wstring(idx), type_conversion_msg)) {
+            // INVALID_OPCODE is a special case 
+            userMessages->logMsg(USER_ERROR, type_conversion_msg + L" for system call " + sys_call_node->originalTkn->_string
+                  , userSrcFileName, sys_call_node->originalTkn->get_line_number(), sys_call_node->originalTkn->get_column_pos());
+            SET_FAILED_ON_SRC_LINE;
+
+          } else {
+            sys_call_node->parameter_list.push_back(param_expr_tree);
+          }
+
+          flatExprTkns.clear();
+        }
+    
+        if (idx == parameters.size() && failed_on_src_line == 0)  {
+          ret_code = OK;
+        }
+      }
+    }
+  }
+
+  return ret_code;
+}
+
 

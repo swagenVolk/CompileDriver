@@ -27,10 +27,10 @@ public:
 		, logLvlEnum logLvl);
 
 	virtual ~RunTimeInterpreter();
-  void dumpTokenPtrStream (TokenPtrVector tokenStream, std::wstring callersSrcFile, int lineNum);
 	// TODO: Should I make this static?
 	int resolveFlatExpr(std::vector<Token> & flatExprTkns);
 	int execRootScope();
+
 
 protected:
 
@@ -46,12 +46,14 @@ private:
 	std::wstring userSrcFileName;
 	InterpreterModesType usageMode;
 	InterpretedFileReader fileReader;
-	int failOnSrcLine;
+	int failed_on_src_line;
 	logLvlEnum logLevel;
 	bool isIllustrative;
 	std::wstring tknsIllustrativeStr;
 
-	int execCurrScope (uint32_t execStartPos, uint32_t afterBoundaryPos, uint32_t & break_scope_end_pos);
+  int execCurrScope (uint32_t execStartPos, uint32_t afterBoundaryPos, uint32_t & break_scope_end_pos);
+  int check_expr_element_is_ready (std::vector<Token> & flat_expr_tkns, int curr_idx, bool & is_actor);
+  int exec_flat_expr_list_element (std::vector<Token> & flat_expr_tkns, int exec_idx);
   int execFlatExpr_OLR (std::vector<Token> & exprTknStream, int startIdx);
 	int execOperation (Operator opr8r, int opr8rIdx, std::vector<Token> & flatExprTkns);
 	int execExpression (uint32_t objStartPos, Token & resultTkn);
@@ -79,6 +81,10 @@ private:
   bool isOkToIllustrate ();
   void illustrativeB4op (std::vector<Token> & flatExprTkns, int currIdx);	
 	void illustrativeAfterOp (std::vector<Token> & flatExprTkns);
+
+  // TODO: Should these be protected?  One of them private?
+  int exec_system_call (std::vector<Token> & flat_expr_tkns, int sys_call_idx);
+  int exec_sys_call_str (std::vector<Token> & flat_expr_tkns, int sys_call_idx);
 
 };
 

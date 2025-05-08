@@ -27,8 +27,8 @@ public:
 	int writeObjectLen (uint32_t objStartPos);
 	int writeRawUnsigned (uint64_t  payload, int payloadBitSize);
 	int writeString (uint8_t op_code, std::wstring tokenStr);
+  int write_user_var (std::wstring tokenStr, bool is_array);
 	uint32_t getWriteFilePos ();
-	int flattenExprTree (std::shared_ptr<ExprTreeNode> rootOfExpr, std::vector<Token> & flatExprTknList, std::wstring userSrcFileName);
 
 private:
 	std::wstring thisSrcFile;
@@ -44,11 +44,8 @@ private:
 	int write32BitOpCode (uint8_t op_code, uint32_t payload);
 	int write64BitOpCode (uint8_t op_code, uint64_t payload);
 	int writeRawString (std::wstring tokenStr);
-	int writeToken (Token token);
-  int makeFlatExpr_LRO (std::shared_ptr<ExprTreeNode> currBranch, std::vector<Token> & flatExprTknList);
-	int makeFlatExpr_OLR (std::shared_ptr<ExprTreeNode> currBranch, std::vector<Token> & flatExprTknList);
-	int addTokenToFlatList (std::shared_ptr<Token> token, std::vector<Token> & flatExprTknList);
-
+  int writeToken (Token token);
+	
 };
 
 #endif /* INTERPRETEDFILEWRITER_H_ */

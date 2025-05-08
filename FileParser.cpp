@@ -569,9 +569,10 @@ void FileParser::resolve_final_tkn_type (std::shared_ptr<Token>  tkn_of_ambiguit
       case JUNK_TKN:                 // e.g. 200KbarKnives
         break;
       case USER_WORD_TKN:
-        if (compilerTerms.isDataType(tkn_of_ambiguity->_string))
+        if (compilerTerms.is_valid_user_data_type(tkn_of_ambiguity->_string)) {
           tkn_of_ambiguity->tkn_type = DATA_TYPE_TKN;
-        else if (compilerTerms.isReservedWord (tkn_of_ambiguity->_string))  {
+        
+        } else if (compilerTerms.is_reserved_word (tkn_of_ambiguity->_string))  {
           if (tkn_of_ambiguity->_string == FALSE_RESERVED_WORD) {
             tkn_of_ambiguity->tkn_type = BOOL_TKN;
             tkn_of_ambiguity->_unsigned = 0;
@@ -585,6 +586,8 @@ void FileParser::resolve_final_tkn_type (std::shared_ptr<Token>  tkn_of_ambiguit
           } else  {
             tkn_of_ambiguity->tkn_type = RESERVED_WORD_TKN;
           }
+        } else if (compilerTerms.is_system_call(tkn_of_ambiguity->_string)) {
+          tkn_of_ambiguity->tkn_type = SYSTEM_CALL_TKN;
         }
         break;
 

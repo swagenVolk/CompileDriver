@@ -26,6 +26,7 @@ enum tkn_type_enum {
   ,START_UNDEF_TKN          // Illegal for a *committed* token
   ,WHITE_SPACE_TKN          // Illegal for a *committed* token - syntactic sugar
   ,RESERVED_WORD_TKN
+  ,SYSTEM_CALL_TKN
   ,DATA_TYPE_TKN
   ,USER_WORD_TKN             
   ,STRING_TKN              
@@ -43,6 +44,7 @@ enum tkn_type_enum {
 	,INT32_TKN
 	,INT64_TKN
   ,DOUBLE_TKN   
+  ,VOID_TKN                 // Only allowed as a return type for system calls and user defined fxns
   ,SRC_OPR8R_TKN
 	,EXEC_OPR8R_TKN						// Run-time OPR8R Token stores op_code in _unsigned rather than a string representation
   ,SPR8R_TKN
@@ -70,6 +72,7 @@ class Token {
     TokenCompareResult compare (Token & otherTkn);
     // Make isOperand static to live beyond any single Token instance
     static bool isDirectOperand (TokenTypeEnum tokenType);
+    static bool is_valid_call_ret_type (TokenTypeEnum token_type);
     bool isDirectOperand();
     bool evalResolvedTokenAsIf ();
     bool isUnsigned ();
@@ -94,7 +97,6 @@ class Token {
     FileLineCol src;
     bool is_Rvalue;
     bool isInitialized;
-
 
   private:
 

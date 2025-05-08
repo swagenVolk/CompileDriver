@@ -11,6 +11,8 @@
 #define GENERAL_FAILURE         1
 #define CATASTROPHIC_FAILURE    2
 
+#define SET_FAILED_ON_SRC_LINE  failed_on_src_line = failed_on_src_line == 0 ? __LINE__ : failed_on_src_line
+
 
 enum read_write_enum {
 	READ_ONLY

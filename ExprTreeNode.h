@@ -41,6 +41,10 @@ public:
   int displayCol;
   branchNodeDisplayType nodePos;
 
+  // TODO: Make this private?
+  // For system_call or user defined fxn call, parameter_list will encapsulate the call's parameters at compile time
+  std::vector <std::shared_ptr<ExprTreeNode>> parameter_list;
+
 
 };
 
