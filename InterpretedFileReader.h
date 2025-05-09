@@ -31,15 +31,15 @@ public:
 	int readNextByte (uint8_t & nextByte);
 	int peekNextByte (uint8_t & nextByte);
 	int readNextDword (uint32_t & nextDword);
-	uint32_t getReadFilePos ();
-	int setFilePos (uint32_t newFilePos);
+	uint32_t getPos ();
+	int setPos (uint32_t newFilePos);
 	bool isEOF ();
 
 	// TODO: Would the fxns below be more generic if exprTknStream was excluded?  Probably.....
 	int resolveOpr8r (uint8_t op_code, Token & nxtTkn);
 	int readFixedRange (uint8_t op_code, Token & nxtTkn);
 	int readString (uint8_t op_code, Token & nxtTkn);
-  int read_user_var (Token & nxtTkn);
+  int readUserVar (Token & nxtTkn);
 
 
 protected:

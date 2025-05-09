@@ -49,7 +49,7 @@ Parse tree of moved operator
                /B+\
          [four]   [six]
 
-Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
+Current highest precedence sub-expression closed; compiler has read in all Tokens for this expression.
 Scope Level 2: [three][:][four]
 Scope Level 1: [six][*][one][<<][five][<][eight][*][four][?]
 Scope Level 0: [expect_64][=]/B+\[*]/B+\[B+]['(']
@@ -154,6 +154,7 @@ Compiler ret_code = 0
 [=][expect_64][B+][*][6][10][?][<][<<][*][six][one][five][*][eight][four][three][four]
                    ^ Multiply next 2 sequential operand(s); replace w/ result
 [=][expect_64][B+][60][?][<][<<][*][six][one][five][*][eight][four][three][four]
+                       ^ Ternary (if-else) next 3 sequential operand(s); replace w/ result; [Conditional][TRUE path][FALSE path]
                                  ^ Multiply next 2 sequential operand(s); replace w/ result
 [=][expect_64][B+][60][?][<][<<][6][five][*][eight][four][three][four]
                              ^ Left shift next 2 sequential operand(s); replace w/ result

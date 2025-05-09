@@ -42,7 +42,7 @@ InterpretedFileReader::~InterpretedFileReader() {
 /* ****************************************************************************
  *
  * ***************************************************************************/
-uint32_t InterpretedFileReader::getReadFilePos ()	{
+uint32_t InterpretedFileReader::getPos ()	{
 
 	uint32_t currFilePos = inputStream.tellg();
 	return (currFilePos);
@@ -52,7 +52,7 @@ uint32_t InterpretedFileReader::getReadFilePos ()	{
 /* ****************************************************************************
  *
  * ***************************************************************************/
-int InterpretedFileReader::setFilePos (uint32_t newFilePos)	{
+int InterpretedFileReader::setPos (uint32_t newFilePos)	{
 	int ret_code = GENERAL_FAILURE;
 
 	inputStream.seekg(newFilePos);
@@ -365,7 +365,7 @@ int InterpretedFileReader::readString (uint8_t op_code, Token & nxtTkn)	{
  * USER_VAR_OPCODE  0x61  [op_code][total_length][STRING_OPCODE string] for scalar variable
  *                        [op_code][total_length][STRING_OPCODE string][string|integer]+ for array variable
  * ***************************************************************************/
- int InterpretedFileReader::read_user_var (Token & nxtTkn)	{
+ int InterpretedFileReader::readUserVar (Token & nxtTkn)	{
 	int ret_code = GENERAL_FAILURE;
 	uint32_t user_var_obj_len;
 	bool isFailed = false;
@@ -476,7 +476,7 @@ int InterpretedFileReader::readExprIntoList (std::vector<Token> & exprTknStream)
 						 	exprTknStream.push_back(nxtTkn);
 
 					} else if (op_code == USER_VAR_OPCODE) {
-            if (OK != read_user_var (nxtTkn))
+            if (OK != readUserVar (nxtTkn))
               isFailed = true;
             else
               exprTknStream.push_back(nxtTkn);

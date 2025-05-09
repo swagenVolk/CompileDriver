@@ -118,32 +118,27 @@ ExpressionParser::~ExpressionParser() {
 		// Dump out a debugging hint
 		std::wcout << L"FAILURE on " << thisSrcFile << L":" << failed_on_src_line << std::endl;
 	}
-
 }
 
 /* ****************************************************************************
- * Parse through the current expression and if it's well formed, commit it to
- * the interpreted stream. If it's not well formed, generate a clear error
- * message to the user.
+ * Parse through the current expression and if it's not well formed, generate 
+ * a clear error message to the user.
  * ***************************************************************************/
 int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree
 		, Token & enderTkn, expr_ender_type ended_by, bool & isCallerExprClosed, bool isInVarDec, bool & is_expr_static)  {
   int ret_code = GENERAL_FAILURE;
-	int exprCloseLine = 0;
+	int expr_closed__LINE = 0;
 	isExprVarDeclaration = isInVarDec;
   num_var_leaf_nodes = 0;
   // Start off pessimistic
   is_expr_static = true;
 
   std::vector<std::shared_ptr<NestedScopeExpr>> exprScopeStack;
-  bool isExprClosed = false;
-
 	
   if (expressionTree == NULL)	{
   	userMessages->logMsg (INTERNAL_ERROR, L"Passed parameter expressionTree is NULL!", thisSrcFile, __LINE__, 0);
 
   } else	{
-
 		std::shared_ptr<NestedScopeExpr> rootScope = std::make_shared<NestedScopeExpr>();
 		exprScopeStack.push_back (rootScope);
 
@@ -161,7 +156,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 			isStopFail = true;
 
 		} else	{
-			while (!isStopFail && !isExprClosed)	{
+			while (!isStopFail && 0 == expr_closed__LINE)	{
 				// Consume flat stream of Tokens in current expression; attach each to an ExprTreeNode for tree transformation
 				if (!tknStream.empty())	{
 					std::shared_ptr<Token> currTkn = tknStream.front();
@@ -179,20 +174,6 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 						}
 					}
 
-/*          
-          if (0 == num_tkns_done && exprScopeStack.size() == 1 && exprScopeStack[0]->scopedKids.size() == 0 
-            && currTkn->tkn_type == SPR8R_TKN && currTkn->_string == L"(") {
-            // Very 1st Token is "("; don't open a new scope now because it would leave an empty parent scope with no
-            // children when the expression has been completely closed
-            tknStream.erase (tknStream.begin());
-            std::shared_ptr<ExprTreeNode> branchNode = std::make_shared<ExprTreeNode> (currTkn);
-            exprScopeStack[0]->scopedKids.push_back (branchNode);
-            // TODO: This is repeat code from isExpectedTknType
-            next_legal_tkn_types = (VAR_NAME_NXT_OK|LITERAL_NXT_OK|SYSTEM_CALL_NXT_OK|PREFIX_OPR8R_NXT_OK|UNARY_OPR8R_NXT_OK|OPEN_PAREN_NXT_OK);
-
-
-          } else 
-*/          
           if ((currTkn->tkn_type == expectedEndTkn.tkn_type && currTkn->_string == expectedEndTkn._string)
 							|| (currTkn->tkn_type == SRC_OPR8R_TKN && currTkn->_string == usrSrcTerms.get_statement_ender()))	{
 						// Expression ended by a SPR8R - e.g. [,] or ;
@@ -200,8 +181,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 
 						if (0 == (curr_legal_tkn_types & (VAR_NAME_NXT_OK|LITERAL_NXT_OK|SYSTEM_CALL_NXT_OK|OPEN_PAREN_NXT_OK)))	{
 							// Check if expression is in a closeable state
-							isExprClosed = true;
-							exprCloseLine = __LINE__;
+							expr_closed__LINE = __LINE__;
 							enderTkn = *currTkn;
 
 							top = exprScopeStack.size() - 1;
@@ -210,7 +190,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 								isStopFail = true;
 
 							} else if (top > 0 || exprScopeStack[top]->scopedKids.size() >= 1)	{
-								if (OK != closeNestedScopes(isExprClosed, exprScopeStack))	{
+								if (OK != closeNestedScopes(expr_closed__LINE > 0, exprScopeStack))	{
 									// TODO:
 									isStopFail = true;
 								}
@@ -256,15 +236,14 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 						// Remove Token from stream without destroying - move to flat expression in current scope
 						tknStream.erase(tknStream.begin());
 
-						if (OK != closeNestedScopes (isExprClosed, exprScopeStack))	{
+						if (OK != closeNestedScopes (expr_closed__LINE > 0, exprScopeStack))	{
 							isStopFail = true;
 
 						} else if (expectedEndTkn.tkn_type == SPR8R_TKN && expectedEndTkn._string == currTkn->_string 
 							&& exprScopeStack.size() == 1 && exprScopeStack[0]->scopedKids.size() == 1)	{
 							// TODO: Failure when expecting to close by a [;]
-							isExprClosed = true;
 							enderTkn = *currTkn;
-							exprCloseLine = __LINE__;
+							expr_closed__LINE = __LINE__;
 						}
 
           } else if (currTkn->tkn_type == SYSTEM_CALL_TKN)  {
@@ -312,7 +291,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
         num_tkns_done++;
       }
 
-			if (isExprClosed && !isStopFail)	{
+			if (expr_closed__LINE && !isStopFail)	{
 				int numTknsLeftInExpr = exprScopeStack[0]->scopedKids.size();
 				if (exprScopeStack.size() == 1 && 1 == numTknsLeftInExpr)	{
 					ret_code = OK;
@@ -330,7 +309,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 					devMsg.append (L"; # scope levels = ");
 					devMsg.append (std::to_wstring(exprScopeStack.size()));
 					devMsg.append (L"; exprCloseLine = ");
-					devMsg.append (std::to_wstring(exprCloseLine));
+					devMsg.append (std::to_wstring(expr_closed__LINE));
 					devMsg.append(L";");
 					userMessages->logMsg (INTERNAL_ERROR, devMsg, thisSrcFile, __LINE__, 0);
 					showDebugInfo (thisSrcFile, __LINE__, exprScopeStack);
@@ -341,9 +320,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 		cleanScopeStack(exprScopeStack);
   }
 
-	isCallerExprClosed = isExprClosed;
-	// Init for next call into proc
-	isExprClosed = false;
+	isCallerExprClosed = expr_closed__LINE > 0;
 
   return (ret_code);
 }
@@ -507,7 +484,7 @@ int ExpressionParser::makeTreeAndLinkParent (bool & isParentFndYet, bool isExprC
 		if (!isStopFail && isParentFndYet != isOpenedByTernary)	{
 			// Call turnClosedScopeIntoTree to collapse the current flat list of ExprTreeNodes into
 			// a hierarchical tree based on OPR8R precedence - a root ExprTreeNode
-			if (OK == turnClosedScopeIntoTree (exprScopeStack[exprScopeStack.size() - 1]->scopedKids, isOpenedByTernary, exprScopeStack))	{
+			if (OK == turnClosedScopeIntoTree (exprScopeStack[exprScopeStack.size() - 1]->scopedKids, isExprClosed, isOpenedByTernary, exprScopeStack))	{
 				// Update the placeholder "(" ExprTreeNode so that it now points to the parent ExprTreeNode
 				// TODO: After expression is completed, then remove the intermediary "(" objects ???????
 				std::shared_ptr<NestedScopeExpr> stackTop = exprScopeStack[exprScopeStack.size() - 1];
