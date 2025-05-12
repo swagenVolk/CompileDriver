@@ -656,7 +656,7 @@ int GeneralParser::handleExpression (bool & isStopFail, bool & is_expr_static, e
 
 		std::shared_ptr<Token> emptyTkn = std::make_shared<Token>();
 		std::shared_ptr<ExprTreeNode> exprTree = std::make_shared<ExprTreeNode> (emptyTkn);
-
+    int expected_ret_tkn_cnt;
     Token exprEnder;
 		Token tmpTkn;
 		std::vector<Token> flatExprTkns;
@@ -683,12 +683,12 @@ int GeneralParser::handleExpression (bool & isStopFail, bool & is_expr_static, e
 			// Write out to interpreted file BEFORE we destructively resolve the flat stream of Tokens that make up the expression
 			isStopFail = true;
 
-		} else if (OK != interpreter.resolveFlatExpr(flatExprTkns))	{
+		} else if (OK != interpreter.resolveFlatExpr(flatExprTkns, expected_ret_tkn_cnt))	{
 			isStopFail = true;
 
 		} else	{
 			// flattenedExpr should have 1 Token left - the result of the expression
-			if (flatExprTkns.size() != 1)	{
+			if (flatExprTkns.size() != expected_ret_tkn_cnt)	{
 				userMessages->logMsg(INTERNAL_ERROR, L"Failed to resolve expression starting with " + currTkn->descr_sans_line_num_col()
 						, thisSrcFile, __LINE__, 0);
 				isStopFail = true;
@@ -717,6 +717,7 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
 	std::vector<Token> flatExprTkns;
 	closerTkn.resetToken();
   bool is_expr_static;
+  int expected_ret_tkn_cnt;
 
 	int makeTreeRetCode = exprParser.makeExprTree (tkn_stream, exprTree, exprEnder, ENDS_IN_COMMA, isExprClosed, true, is_expr_static);
 	closerTkn = exprEnder;
@@ -739,12 +740,12 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
 		// Write out the expression BEFORE we destructively resolve it
 		SET_FAILED_ON_SRC_LINE;
 
-	} else if (OK != interpreter.resolveFlatExpr(flatExprTkns))	{
+	} else if (OK != interpreter.resolveFlatExpr(flatExprTkns, expected_ret_tkn_cnt))	{
 		SET_FAILED_ON_SRC_LINE;
 
 	} else if (!failed_on_src_line)	{
 		// flattenedExpr should have 1 Token left - the result of the expression
-		if (flatExprTkns.size() != 1)	{
+		if (flatExprTkns.size() != expected_ret_tkn_cnt)	{
 			userMessages->logMsg (INTERNAL_ERROR, L"Failed to resolve variable initialization expression for " + varTkn.descr_sans_line_num_col()
 					, thisSrcFile, __LINE__, 0);
       SET_FAILED_ON_SRC_LINE;
@@ -1110,7 +1111,13 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
     // TODO: Exercise expression to test for data type contention
     } else {
       // Write the Token stream out to the interpreted file
-      ret_code = interpretedFileWriter.writeFlatExprToFile(sys_call_tkn_list, false);
+      Token tmp_tkn;
+      if (OK != interpretedFileWriter.writeFlatExprToFile (sys_call_tkn_list, false))
+        SET_FAILED_ON_SRC_LINE;
+      else if (OK != exprParser.check_for_expected_token (tkn_stream, tmp_tkn, L";", true))
+        SET_FAILED_ON_SRC_LINE;
+      else
+        ret_code = OK;
     }
   }
 

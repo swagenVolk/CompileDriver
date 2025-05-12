@@ -21,6 +21,7 @@
 #include "Opr8rPrecedenceLvl.h"
 #include "OpCodes.h"
 #include "ExprTreeNode.h"
+#include "Utilities.h"
 
 enum interpreter_modes_enum {
 	COMPILE_TIME
@@ -64,6 +65,11 @@ public:
   int get_num_sys_call_parameters (std::wstring sys_call, int & num_params);
   int tkn_type_converts_to_opcode (uint8_t op_code, Token & check_token, std::wstring variable_name, std::wstring & error_msg);
 
+	void dumpTokenList (std::vector<Token> & tokenStream, std::wstring callersSrcFile, int lineNum);
+	void dumpTokenList (std::vector<Token> & tokenStream, int startIdx, std::wstring callersSrcFile, int lineNum);
+	void dumpTokenList (TokenPtrVector & tknPtrVector, std::wstring callersSrcFile, int lineNum, bool isShowDetail);
+	void dumpTokenList (TokenPtrVector & tknPtrVector, int startIdx, std::wstring callersSrcFile, int lineNum, bool isShowDetail);
+
   // TODO: Is this the right place for these to live?
   int append_to_flat_tkn_list (std::shared_ptr<ExprTreeNode> tree_node, std::vector<Token> & flatExprTknList);
   int flattenExprTree (std::shared_ptr<ExprTreeNode> rootOfExpr, std::vector<Token> & flatExprTknList);
@@ -72,6 +78,7 @@ public:
 
 protected:
   int failed_on_src_line;  
+  std::wstring this_src_file;
   
   std::wstring atomic_1char_opr8rs;
   std::wstring _1char_spr8rs;
@@ -87,8 +94,10 @@ protected:
 
   void validityCheck();
 
+
 private:
   int makeFlatExpr_OLR (std::shared_ptr<ExprTreeNode> currBranch, std::vector<Token> & flatExprTknList);
+  Utilities util;
 
 };
 

@@ -2375,6 +2375,7 @@ int ExpressionParser::setHalfTreeDisplayPos (bool isLeftTree, int halfTreeLevel,
       Token expr_ended_by;
       int make_tree_ret;
       bool is_expr_closed, is_expr_static;
+      int expected_ret_tkn_cnt;
 
       if (0 == parameters.size()) {
         ret_code = check_for_expected_token(tknStream, *sys_call_node->originalTkn, L")", true);
@@ -2400,7 +2401,8 @@ int ExpressionParser::setHalfTreeDisplayPos (bool isLeftTree, int halfTreeLevel,
             // (3 + 4) -> [3][4][+]
             SET_FAILED_ON_SRC_LINE;
           
-          } else if (OK != interpreter.resolveFlatExpr(flatExprTkns))	{
+          } else if (OK != interpreter.resolveFlatExpr(flatExprTkns, expected_ret_tkn_cnt)
+              || expected_ret_tkn_cnt != 1)	{
             // TODO: Using this interpreter means using an EMPTY namespace that doesn't have the variables stuffed into 
             // the original namespace that came with GeneralParser's interpreter.  Might need to share the GP interpreter
             // back with ExpressionParser

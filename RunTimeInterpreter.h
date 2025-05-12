@@ -28,7 +28,7 @@ public:
 
 	virtual ~RunTimeInterpreter();
 	// TODO: Should I make this static?
-	int resolveFlatExpr(std::vector<Token> & flat_expr_tkns);
+	int resolveFlatExpr(std::vector<Token> & flat_expr_tkns, int & expected_tkn_cnt);
 	int execRootScope();
 
 
@@ -54,7 +54,7 @@ private:
   int execCurrScope (uint32_t exec_start_pos, uint32_t after_bndry_pos, uint32_t & break_scope_end_pos);
   int check_expr_element_is_ready (std::vector<Token> & flat_expr_tkns, int curr_idx, bool & is_actor);
   int exec_flat_expr_list_element (std::vector<Token> & flat_expr_tkns, int exec_idx);
-  int execFlatExpr_OLR (std::vector<Token> & expr_tkn_stream, int start_idx);
+  int execFlatExpr_OLR (std::vector<Token> & expr_tkn_stream, int start_idx, int & expected_tkn_cnt);
 	int execOperation (Operator opr8r, int opr8r_idx, std::vector<Token> & flat_expr_tkns);
 	int execExpression (uint32_t obj_start_pos, Token & result_tkn);
 	int execVarDeclaration (uint32_t obj_start_pos, uint32_t object_len);
@@ -85,6 +85,7 @@ private:
   // TODO: Should these be protected?  One of them private?
   int exec_system_call (std::vector<Token> & flat_expr_tkns, int sys_call_idx);
   int exec_sys_call_str (std::vector<Token> & flat_expr_tkns, int sys_call_idx);
+  int exec_sys_call_print_line (std::vector<Token> & flat_expr_tkns, int sys_call_idx);
 
 };
 

@@ -1,0 +1,17 @@
+
+/* *************** <COMPILATION STAGE> **************** */
+
+Compiler ret_code = 0
+
+/* *************** </COMPILATION STAGE> *************** */
+
+/* *************** <INTERPRETER STAGE> **************** */
+Interpreter ret_code = 0
+
+/* ********** <SHOW VARIABLES & VALUES> ********** */
+// ********** <SCOPE LEVEL 0> ********** 
+// Scope opened by: INTERNAL_USE_TKN(U)->[__ROOT_SCOPE] on line 0 column 0
+result = 0x3;
+// ********** </SCOPE LEVEL 0> ********** 
+/* ********** </SHOW VARIABLES & VALUES> ********** */
+/* *************** </INTERPRETER STAGE> *************** */

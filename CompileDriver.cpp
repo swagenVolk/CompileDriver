@@ -188,7 +188,7 @@ int main(int argc, const char * argv[])
 			if (OK == fileParser.gnr8_token_stream(input_file_path, tokenStream))	{
 
 				// TODO: For early debug
-				// util.dumpTokenList(tokenStream, 0, srcExecTerms, L"main", __LINE__, true);
+				// srcExecTerms.dumpTokenList(tokenStream, 0, L"main", __LINE__, true);
 				std::string output_file_name = "interpreted_file.o";
 				std::wstring wide_output_file_name = util.stringToWstring(output_file_name);
 

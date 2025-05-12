@@ -22,10 +22,15 @@
 
 BaseLanguageTerms::BaseLanguageTerms() {
   failed_on_src_line = 0;
+	this_src_file = util.getLastSegment(util.stringToWstring(__FILE__), L"/");
 
 }
 
 BaseLanguageTerms::~BaseLanguageTerms() {
+	if (failed_on_src_line > 0)	{
+		// Dump out a debugging hint
+		std::wcout << L"FAILURE on " << this_src_file << L":" << failed_on_src_line << std::endl;
+	}
 }
 
 /* ****************************************************************************
@@ -649,62 +654,67 @@ bool BaseLanguageTerms::is_viable_var_name (std::wstring varName)	{
  * ***************************************************************************/
 int BaseLanguageTerms::append_to_flat_tkn_list (std::shared_ptr<ExprTreeNode> tree_node, std::vector<Token> & flatExprTknList)	{
 	int ret_code = GENERAL_FAILURE;
-	bool isFailed = false;
 
   if (tree_node != NULL)  {
     if (tree_node->originalTkn->tkn_type == SRC_OPR8R_TKN && get_statement_ender() == tree_node->originalTkn->_string)  {
-		  ret_code = OK;
+		  // Syntactic sugar
+      ret_code = OK;
 
     } else if (tree_node->originalTkn->tkn_type == SYSTEM_CALL_TKN) {
-      ret_code = append_flattened_system_call (tree_node, flatExprTknList);
+      if (OK != append_flattened_system_call (tree_node, flatExprTknList))
+        SET_FAILED_ON_SRC_LINE;
+      else
+        ret_code = OK;
 
-    } else {
+    } else if (tree_node->originalTkn->tkn_type != SRC_OPR8R_TKN && tree_node->originalTkn->tkn_type != EXEC_OPR8R_TKN) {
       switch(tree_node->originalTkn->tkn_type)	{
-      case USER_WORD_TKN :
-      case STRING_TKN :
-      case DATETIME_TKN :
-      case BOOL_TKN :
-      case UINT8_TKN :
-      case UINT16_TKN :
-      case UINT32_TKN :
-      case UINT64_TKN :
-      case INT8_TKN :
-      case INT16_TKN :
-      case INT32_TKN :
-      case INT64_TKN :
-      case DOUBLE_TKN :
-      case SRC_OPR8R_TKN :
-        break;
-      default:
-        isFailed = true;
-        break;
+        case USER_WORD_TKN :
+        case STRING_TKN :
+        case DATETIME_TKN :
+        case BOOL_TKN :
+        case UINT8_TKN :
+        case UINT16_TKN :
+        case UINT32_TKN :
+        case UINT64_TKN :
+        case INT8_TKN :
+        case INT16_TKN :
+        case INT32_TKN :
+        case INT64_TKN :
+        case DOUBLE_TKN :
+        case SRC_OPR8R_TKN :
+          break;
+        default:
+          SET_FAILED_ON_SRC_LINE;
+          break;
+      }
+    }
+
+    if (!failed_on_src_line && ret_code != OK)	{
+      if (tree_node->originalTkn->tkn_type == SRC_OPR8R_TKN || tree_node->originalTkn->tkn_type == EXEC_OPR8R_TKN)	{
+        // Prior to putting OPR8Rs in flattened list, make them EXEC_OPR8R_TKNs
+        // since the caller is expected to use the RunTimeInterpreter to resolve
+        // the expression
+        uint8_t op_code = getOpCodeFor (tree_node->originalTkn->_string);
+        tree_node->originalTkn->resetTokenExceptSrc();
+        tree_node->originalTkn->tkn_type = EXEC_OPR8R_TKN;
+        tree_node->originalTkn->_unsigned = op_code;
+        Operator opr8r;
+        if (OK != getExecOpr8rDetails (op_code, opr8r))
+          SET_FAILED_ON_SRC_LINE;
+        else
+          tree_node->originalTkn->_string = opr8r.symbol;
+
+        if (op_code == INVALID_OPCODE)
+          SET_FAILED_ON_SRC_LINE;
+
       }
 
-      if (!isFailed)	{
-        if (tree_node->originalTkn->tkn_type == SRC_OPR8R_TKN || tree_node->originalTkn->tkn_type == EXEC_OPR8R_TKN)	{
-          // Prior to putting OPR8Rs in flattened list, make them EXEC_OPR8R_TKNs
-          // since the caller is expected to use the RunTimeInterpreter to resolve
-          // the expression
-          uint8_t op_code = getOpCodeFor (tree_node->originalTkn->_string);
-          tree_node->originalTkn->resetTokenExceptSrc();
-          tree_node->originalTkn->tkn_type = EXEC_OPR8R_TKN;
-          tree_node->originalTkn->_unsigned = op_code;
-          Operator opr8r;
-          if (OK == getExecOpr8rDetails (op_code, opr8r))	{
-            tree_node->originalTkn->_string = opr8r.symbol;
-          }
-          if (op_code == INVALID_OPCODE)
-            isFailed = true;
-
-        }
-
+      if (!failed_on_src_line)  {
         if (!(tree_node->originalTkn->tkn_type == EXEC_OPR8R_TKN && tree_node->originalTkn->_unsigned == TERNARY_2ND_OPR8R_OPCODE))
           // No need to put the [:] OPR8R in the stream
           flatExprTknList.push_back (*tree_node->originalTkn);
-        if (!isFailed)
-          ret_code = OK;
+        ret_code = OK;
       }
-
     }
 	}
 
@@ -718,17 +728,16 @@ int BaseLanguageTerms::append_to_flat_tkn_list (std::shared_ptr<ExprTreeNode> tr
  * ***************************************************************************/
  int BaseLanguageTerms::append_flattened_system_call (std::shared_ptr<ExprTreeNode> tree_node, std::vector<Token> & flatExprTknList)	{
 	int ret_code = GENERAL_FAILURE;
-	bool isFailed = false;
 
   flatExprTknList.push_back(*(tree_node->originalTkn));
 
   int idx = 0;
-  for (; idx < tree_node->parameter_list.size() && !isFailed; idx++) {
+  for (; idx < tree_node->parameter_list.size() && !failed_on_src_line; idx++) {
     if (OK != append_to_flat_tkn_list(tree_node->parameter_list[idx], flatExprTknList))
-      isFailed = true;
+      SET_FAILED_ON_SRC_LINE;
   }
 
-  if (idx == tree_node->parameter_list.size() && !isFailed)
+  if (idx == tree_node->parameter_list.size() && !failed_on_src_line)
     ret_code = OK;
 
   return ret_code;
@@ -744,24 +753,23 @@ int BaseLanguageTerms::append_to_flat_tkn_list (std::shared_ptr<ExprTreeNode> tr
  * ***************************************************************************/
  int BaseLanguageTerms::makeFlatExpr_OLR (std::shared_ptr<ExprTreeNode> currBranch, std::vector<Token> & flatExprTknList)	{
 	int ret_code = GENERAL_FAILURE;
-	bool isFailed = false;
 
 	if (currBranch != NULL)	{
 
 		if (OK != append_to_flat_tkn_list(currBranch, flatExprTknList))
-			isFailed = true;
+			SET_FAILED_ON_SRC_LINE;
 
-		if (!isFailed && currBranch->_1stChild != NULL)	{
+		if (!failed_on_src_line && currBranch->_1stChild != NULL)	{
 			if (OK != makeFlatExpr_OLR (currBranch->_1stChild, flatExprTknList))
-				isFailed = true;
+        SET_FAILED_ON_SRC_LINE;
 
-			if (!isFailed && currBranch->_2ndChild != NULL)	{
+			if (!failed_on_src_line && currBranch->_2ndChild != NULL)	{
 				if (OK != makeFlatExpr_OLR (currBranch->_2ndChild, flatExprTknList))
-					isFailed = true;
+          SET_FAILED_ON_SRC_LINE;
 			}
 		}
 
-		if (!isFailed)	{
+		if (!failed_on_src_line)	{
 			ret_code = OK;
 		}
 	}
@@ -846,4 +854,70 @@ int BaseLanguageTerms::append_to_flat_tkn_list (std::shared_ptr<ExprTreeNode> tr
   }
 
   return ret_code;
+}
+
+/* ****************************************************************************
+ * TODO: Should various dumpTokenList fxns get moved into Token class?
+ * ***************************************************************************/
+ void BaseLanguageTerms::dumpTokenList (std::vector<Token> & tokenStream, std::wstring callersSrcFile, int lineNum)	{
+	std::wstring tknStrmStr = L"";
+
+	dumpTokenList (tokenStream, 0, callersSrcFile, lineNum);
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+void BaseLanguageTerms::dumpTokenList (std::vector<Token> & tokenStream, int startIdx, std::wstring callersSrcFile, int lineNum)	{
+	std::wstring tknStrmStr = L"";
+
+
+	std::wcout << L"********** dumpTokenList called from " << callersSrcFile << L":" << lineNum << L" **********" << std::endl;
+	if (startIdx >= 0 && startIdx < tokenStream.size())	{
+		for (int idx = startIdx; idx < tokenStream.size(); idx++)	{
+			std::wcout << tokenStream[idx].getBracketedValueStr();
+		}
+	
+	} else {
+		std::wcout << L"tokenStream size = " << tokenStream.size() << L" but passed in startIdx = " << startIdx;
+	}
+
+	std::wcout << std::endl;
+
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+void BaseLanguageTerms::dumpTokenList (TokenPtrVector & tknPtrVector
+	, std::wstring callersSrcFile, int lineNum, bool isShowDetail)	{
+	std::wstring tknStrmStr = L"";
+
+	dumpTokenList (tknPtrVector, 0, callersSrcFile, lineNum, isShowDetail);
+}
+
+/* ****************************************************************************
+ *
+ * ***************************************************************************/
+void BaseLanguageTerms::dumpTokenList (TokenPtrVector & tknPtrVector, int startIdx
+	, std::wstring callersSrcFile, int lineNum, bool isShowDetail)	{
+	std::wstring tknStrmStr = L"";
+
+
+	std::wcout << L"********** dumpTokenList called from " << callersSrcFile << L":" << lineNum << L" **********" << std::endl;
+	if (startIdx >= 0 && startIdx < tknPtrVector.size())	{
+		for (int idx = startIdx; idx < tknPtrVector.size(); idx++)	{
+			Token currTkn = *tknPtrVector[idx];
+			if (!isShowDetail)
+				std::wcout << currTkn.getBracketedValueStr();
+			else
+			 	std::wcout << currTkn.descr_line_num_col() << std::endl;
+		}
+	
+	} else {
+		std::wcout << L"tokenStream size = " << tknPtrVector.size() << L" but passed in startIdx = " << startIdx;
+	}
+
+	std::wcout << std::endl;
+
 }

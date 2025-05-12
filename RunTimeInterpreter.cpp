@@ -110,6 +110,7 @@
 
 #include "RunTimeInterpreter.h"
 #include "BaseLanguageTerms.h"
+#include "CompileExecTerms.h"
 #include "ExprTreeNode.h"
 #include "FileLineCol.h"
 #include "OpCodes.h"
@@ -438,6 +439,7 @@ int RunTimeInterpreter::execExpression (uint32_t obj_start_pos, Token & result_t
 	std::wstringstream obj_start_pos_str;
 	obj_start_pos_str.str(L"");
 	obj_start_pos_str << L"0x" << std::hex << obj_start_pos;
+  int expected_ret_tkn_cnt;
 
 	if (OK != file_reader.setPos(obj_start_pos))	{
 		// Follow on fxn expects to start at beginning of expression
@@ -452,12 +454,12 @@ int RunTimeInterpreter::execExpression (uint32_t obj_start_pos, Token & result_t
 			user_messages->logMsg(INTERNAL_ERROR
 				, L"Failed to retrieve expression starting at " + obj_start_pos_str.str(), this_src_file, failed_on_src_line, 0);
 		
-		}	else if (OK != resolveFlatExpr(expr_tkns)) {
+		}	else if (OK != resolveFlatExpr(expr_tkns, expected_ret_tkn_cnt)) {
 				SET_FAILED_ON_SRC_LINE;
 				user_messages->logMsg(INTERNAL_ERROR
 					, L"Failed to resolve flat expression starting at " + obj_start_pos_str.str(), this_src_file, failed_on_src_line, 0);
 
-		} else if (expr_tkns.size() != 1)	{
+     } else if (expr_tkns.size() != expected_ret_tkn_cnt)	{
 			// TODO: Should not have returned OK!
 			// flattenedExpr should have 1 Token left - the result of the expression
 			SET_FAILED_ON_SRC_LINE;
@@ -465,7 +467,8 @@ int RunTimeInterpreter::execExpression (uint32_t obj_start_pos, Token & result_t
 			user_messages->logMsg (INTERNAL_ERROR, dev_msg, this_src_file, failed_on_src_line, 0);
 
 		} else {
-			result_tkn = expr_tkns[0];
+      if (expected_ret_tkn_cnt == 1)
+			  result_tkn = expr_tkns[0];
 			ret_code = OK;
 		}
 	}
@@ -1701,8 +1704,9 @@ int RunTimeInterpreter::execBinaryOp(std::vector<Token> & expr_tkn_stream, int o
  * ***************************************************************************/
 int RunTimeInterpreter::exec_logical_and (std::vector<Token> & expr_tkn_stream, int opr8r_idx)	{
 	int ret_code = GENERAL_FAILURE;
+  int expected_ret_tkn_cnt;
 	
-	if (OK != execFlatExpr_OLR(expr_tkn_stream, opr8r_idx + 1))	{
+	if (OK != execFlatExpr_OLR(expr_tkn_stream, opr8r_idx + 1, expected_ret_tkn_cnt))	{
 		// Resolve the 1st expression
 		SET_FAILED_ON_SRC_LINE;
 	
@@ -1710,7 +1714,7 @@ int RunTimeInterpreter::exec_logical_and (std::vector<Token> & expr_tkn_stream, 
 		// 1st expression evaluated as TRUE
 		bool is_2nd_true = false;
 
-		if (OK != execFlatExpr_OLR(expr_tkn_stream, opr8r_idx + 2))	{
+		if (OK != execFlatExpr_OLR(expr_tkn_stream, opr8r_idx + 2, expected_ret_tkn_cnt))	{
 			// Resolve the 2nd expression
 			SET_FAILED_ON_SRC_LINE;
 		
@@ -1756,8 +1760,9 @@ int RunTimeInterpreter::exec_logical_and (std::vector<Token> & expr_tkn_stream, 
  * ***************************************************************************/
 int RunTimeInterpreter::exec_logical_or (std::vector<Token> & expr_tkn_stream, int opr8r_idx)	{
 	int ret_code = GENERAL_FAILURE;
+  int expected_ret_tkn_cnt;
 
-	if (OK != execFlatExpr_OLR(expr_tkn_stream, opr8r_idx + 1))	{
+	if (OK != execFlatExpr_OLR(expr_tkn_stream, opr8r_idx + 1, expected_ret_tkn_cnt))	{
 		// Resolve the 1st expression
 		SET_FAILED_ON_SRC_LINE;
 	
@@ -1785,7 +1790,7 @@ int RunTimeInterpreter::exec_logical_or (std::vector<Token> & expr_tkn_stream, i
 			// Evaluate 2nd|Right [operand|expression] for final [TRUE|FALSE]
 			bool is_right_true = false;
 
-			if (OK != execFlatExpr_OLR(expr_tkn_stream, opr8r_idx + 1))	{
+			if (OK != execFlatExpr_OLR(expr_tkn_stream, opr8r_idx + 1, expected_ret_tkn_cnt))	{
 				// Resolve the 2nd expression
 				SET_FAILED_ON_SRC_LINE;
 			
@@ -1821,8 +1826,9 @@ int RunTimeInterpreter::exec_logical_or (std::vector<Token> & expr_tkn_stream, i
  * ***************************************************************************/
 int RunTimeInterpreter::execTernary1stOp(std::vector<Token> & flat_expr_tkns, int opr8r_idx)     {
 	int ret_code = GENERAL_FAILURE;
+  int expected_ret_tkn_cnt;
 
-	if (OK != execFlatExpr_OLR(flat_expr_tkns, opr8r_idx + 1))	{
+	if (OK != execFlatExpr_OLR(flat_expr_tkns, opr8r_idx + 1, expected_ret_tkn_cnt))	{
 		// Resolve the conditional
 		SET_FAILED_ON_SRC_LINE;
 	
@@ -1835,7 +1841,7 @@ int RunTimeInterpreter::execTernary1stOp(std::vector<Token> & flat_expr_tkns, in
 		int last_idx_sub_expr;
 
 		if (is_tern_cond_true)	{
-			if (flat_expr_tkns[opr8r_idx].tkn_type == EXEC_OPR8R_TKN && OK != execFlatExpr_OLR(flat_expr_tkns, opr8r_idx))	
+			if (flat_expr_tkns[opr8r_idx].tkn_type == EXEC_OPR8R_TKN && OK != execFlatExpr_OLR(flat_expr_tkns, opr8r_idx, expected_ret_tkn_cnt))	
 				// Must resolve the TRUE path 
 				SET_FAILED_ON_SRC_LINE;
 		
@@ -1859,7 +1865,7 @@ int RunTimeInterpreter::execTernary1stOp(std::vector<Token> & flat_expr_tkns, in
 				// Short-circuit the TRUE path
 				flat_expr_tkns.erase(flat_expr_tkns.begin() + opr8r_idx, flat_expr_tkns.begin() + last_idx_sub_expr + 1);
 				if (flat_expr_tkns[opr8r_idx].tkn_type == EXEC_OPR8R_TKN)	{
-					if (OK != execFlatExpr_OLR(flat_expr_tkns, opr8r_idx))
+					if (OK != execFlatExpr_OLR(flat_expr_tkns, opr8r_idx, expected_ret_tkn_cnt))
 						// Resolving the FALSE path failed
 						SET_FAILED_ON_SRC_LINE;
 				}
@@ -2215,8 +2221,9 @@ int RunTimeInterpreter::execOperation (Operator opr8r, int opr8r_idx, std::vecto
  * paths after the conditional is resolved.  Also useful for short-circuiting
  * the 2nd expression in the [&&] and [||] OPR8Rs.
  * ***************************************************************************/
-int RunTimeInterpreter::execFlatExpr_OLR(std::vector<Token> & flat_expr_tkns, int start_idx)     {
+int RunTimeInterpreter::execFlatExpr_OLR(std::vector<Token> & flat_expr_tkns, int start_idx, int & expected_tkn_cnt)     {
 	int ret_code = GENERAL_FAILURE;
+  expected_tkn_cnt = 1;
 	bool is_1_rand_left = false;
 	int prev_tkn_cnt = flat_expr_tkns.size();
 	int currTknCnt;
@@ -2232,6 +2239,17 @@ int RunTimeInterpreter::execFlatExpr_OLR(std::vector<Token> & flat_expr_tkns, in
 		sub_expr_completed_line = __LINE__;
 
 	} else 	{
+
+    if (flat_expr_tkns[start_idx].tkn_type == SYSTEM_CALL_TKN)  {
+      // Check expected return data type. If it's a void, let our caller know by adjusting
+      // expected_tkn_cnt
+      TokenTypeEnum ret_data_type;
+      std::vector<uint8_t> param_list;
+      if (OK != exec_terms.get_system_call_details (flat_expr_tkns[start_idx]._string, param_list, ret_data_type))
+        SET_FAILED_ON_SRC_LINE;
+      else if (ret_data_type == VOID_TKN)
+        expected_tkn_cnt = 0;
+    }
 		int opr8r_cnt = 0;
 		bool is_out_of_tkns = false;
 		int caret_pos;
@@ -2277,7 +2295,7 @@ int RunTimeInterpreter::execFlatExpr_OLR(std::vector<Token> & flat_expr_tkns, in
 				devMsg.append (std::to_wstring(curr_idx));
 				devMsg.append (L";");
 				user_messages->logMsg (INTERNAL_ERROR, devMsg, this_src_file, failed_on_src_line, 0);
-				util.dumpTokenList (flat_expr_tkns, exec_terms, this_src_file, __LINE__);
+				exec_terms.dumpTokenList (flat_expr_tkns, this_src_file, __LINE__);
 			}
 		}
 	}
@@ -2304,7 +2322,7 @@ int RunTimeInterpreter::execFlatExpr_OLR(std::vector<Token> & flat_expr_tkns, in
 	if (ret_code != OK && !failed_on_src_line)	{
 		user_messages->logMsg (INTERNAL_ERROR, L"Unhandled error!", this_src_file, __LINE__, 0);
 		// See the final result
-		util.dumpTokenList (flat_expr_tkns, exec_terms, this_src_file, __LINE__);
+		exec_terms.dumpTokenList (flat_expr_tkns, this_src_file, __LINE__);
 	}
 
 	return (ret_code);
@@ -2313,7 +2331,7 @@ int RunTimeInterpreter::execFlatExpr_OLR(std::vector<Token> & flat_expr_tkns, in
 /* ****************************************************************************
  * Publicly facing fxn
  * ***************************************************************************/
-int RunTimeInterpreter::resolveFlatExpr(std::vector<Token> & flat_expr_tkns)     {
+int RunTimeInterpreter::resolveFlatExpr(std::vector<Token> & flat_expr_tkns, int & expected_tkn_cnt)     {
 	int ret_code = GENERAL_FAILURE;
 
 	if (0 == flat_expr_tkns.size())	{
@@ -2321,7 +2339,7 @@ int RunTimeInterpreter::resolveFlatExpr(std::vector<Token> & flat_expr_tkns)    
 	
 	} else	{
 		tkns_illustrative_str.clear();
-		ret_code = execFlatExpr_OLR(flat_expr_tkns, 0);
+		ret_code = execFlatExpr_OLR(flat_expr_tkns, 0, expected_tkn_cnt);
 	}
 
 	return (ret_code);
@@ -2512,8 +2530,10 @@ int RunTimeInterpreter::get_expr_from_var_declaration (uint32_t start_pos, std::
  int RunTimeInterpreter::exec_cached_expr (std::vector<Token> expr_tkn_list, bool & is_result_true) {
   int ret_code = GENERAL_FAILURE;
   Token result_tkn;
+  int expected_ret_tkn_cnt;
 
-  if (OK == resolveFlatExpr(expr_tkn_list) && expr_tkn_list.size() == 1) {
+  if (OK == resolveFlatExpr(expr_tkn_list, expected_ret_tkn_cnt) && expected_ret_tkn_cnt == 1
+    && expr_tkn_list.size() == 1) {
     is_result_true = expr_tkn_list[0].evalResolvedTokenAsIf();
     ret_code = OK;
   }
@@ -2768,11 +2788,14 @@ int RunTimeInterpreter::get_expr_from_var_declaration (uint32_t start_pos, std::
   int ret_code = GENERAL_FAILURE;
 
   if (sys_call_idx >= 0 && sys_call_idx < flat_expr_tkns.size())  {
-
     std::wstring sys_call = flat_expr_tkns[sys_call_idx]._string;
 
-    if (sys_call == STR_SYS_CALL) {
+    if (sys_call == SYS_CALL_STR) {
       ret_code = exec_sys_call_str (flat_expr_tkns, sys_call_idx);
+    
+    } else if (sys_call == SYS_CALL_PRINT_LINE) {
+      ret_code = exec_sys_call_print_line(flat_expr_tkns, sys_call_idx);
+    
     }
   }
 
@@ -2781,7 +2804,8 @@ int RunTimeInterpreter::get_expr_from_var_declaration (uint32_t start_pos, std::
  }
 
 /* ****************************************************************************
- * This fxn acts as a "routing table" to get the proper system call invoked
+ * System call str() will return a string representation for a Tokens of any 
+ * valid data type 
  * ***************************************************************************/
  int RunTimeInterpreter::exec_sys_call_str (std::vector<Token> & flat_expr_tkns, int sys_call_idx)  {
 
@@ -2808,8 +2832,32 @@ int RunTimeInterpreter::get_expr_from_var_declaration (uint32_t start_pos, std::
 
     if (0 == failed_on_src_line)  {
       flat_expr_tkns[sys_call_idx].resetToString(token_str);
-      // Only need to delete 1 item from the list - the single parameter passed to the STR_SYS_CALL
+      // Only need to delete 1 item from the list - the single parameter passed to the SYS_CALL_STR
       flat_expr_tkns.erase(flat_expr_tkns.begin() + sys_call_idx + 1);
+      ret_code = OK;      
+    }
+  }
+
+  return ret_code;
+
+ }
+
+ /* ****************************************************************************
+ * System call print_line() doesn't have a return value (void), but takes a
+ * resolved STRING_TKN and prints it out.
+ * ***************************************************************************/
+ int RunTimeInterpreter::exec_sys_call_print_line (std::vector<Token> & flat_expr_tkns, int sys_call_idx)  {
+
+  int ret_code = GENERAL_FAILURE;
+  std::wstring token_str;
+
+  if (flat_expr_tkns.size() >= sys_call_idx + 2) {
+    Token param_tkn = flat_expr_tkns[sys_call_idx + 1];
+
+    if (param_tkn.tkn_type == STRING_TKN) {
+      std::wcout << param_tkn._string << std::endl;
+      // Delete 2 items from the list - print_line sys_call and the single parameter passed to it
+      flat_expr_tkns.erase(flat_expr_tkns.begin() + sys_call_idx, flat_expr_tkns.begin() + sys_call_idx + 2);
       ret_code = OK;      
     }
   }

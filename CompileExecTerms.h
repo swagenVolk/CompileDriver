@@ -20,13 +20,13 @@
 #define BINARY_PLUS_OPR8R 	L"B+"
 #define BINARY_MINUS_OPR8R	L"B-"
 
-#define STR_SYS_CALL        L"str"
+#define SYS_CALL_STR        L"str"
+#define SYS_CALL_PRINT_LINE L"print_line"
 
 class CompileExecTerms: public BaseLanguageTerms {
 public:
 	CompileExecTerms();
 	virtual ~CompileExecTerms();
-
 };
 
 #endif /* COMPILEEXECTERMS_H_ */

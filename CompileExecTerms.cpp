@@ -162,7 +162,9 @@ CompileExecTerms::CompileExecTerms() {
   reserved_words.push_back (VOID_RESERVED_WORD);
 
   std::vector <uint8_t> param_list {INVALID_OPCODE};
-  system_calls.insert (std::pair {STR_SYS_CALL, std::pair {param_list, STRING_TKN}});
+  system_calls.insert (std::pair {SYS_CALL_STR, std::pair {param_list, STRING_TKN}});
+  param_list[0] = DATA_TYPE_STRING_OPCODE;
+  system_calls.insert (std::pair {SYS_CALL_PRINT_LINE, std::pair {param_list, VOID_TKN}});
 
   // TODO: What is the right way to do this?
   validityCheck();
@@ -170,5 +172,7 @@ CompileExecTerms::CompileExecTerms() {
 
 CompileExecTerms::~CompileExecTerms() {
 }
+
+
 
 
