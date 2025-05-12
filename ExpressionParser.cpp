@@ -124,8 +124,19 @@ ExpressionParser::~ExpressionParser() {
  * Parse through the current expression and if it's not well formed, generate 
  * a clear error message to the user.
  * ***************************************************************************/
+ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree
+  , Token & enderTkn, expr_ender_type ended_by, bool & isCallerExprClosed, bool isInVarDec, bool & is_expr_static)  {
+
+  return makeExprTree(tknStream, expressionTree, enderTkn, ended_by, isCallerExprClosed, isInVarDec, is_expr_static, true);
+}
+
+/* ****************************************************************************
+ * Parse through the current expression and if it's not well formed, generate 
+ * a clear error message to the user.
+ * ***************************************************************************/
 int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree
-		, Token & enderTkn, expr_ender_type ended_by, bool & isCallerExprClosed, bool isInVarDec, bool & is_expr_static)  {
+		, Token & enderTkn, expr_ender_type ended_by, bool & isCallerExprClosed, bool isInVarDec, bool & is_expr_static
+    , bool is_clean_scope_stack)  {
   int ret_code = GENERAL_FAILURE;
 	int expr_closed__LINE = 0;
 	isExprVarDeclaration = isInVarDec;
@@ -174,7 +185,22 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 						}
 					}
 
-          if ((currTkn->tkn_type == expectedEndTkn.tkn_type && currTkn->_string == expectedEndTkn._string)
+        if (currTkn->tkn_type == SPR8R_TKN && currTkn->_string == L")")	{
+          // Close parenthesis - syntactic sugar that just melts away
+          // Remove Token from stream without destroying - move to flat expression in current scope
+          tknStream.erase(tknStream.begin());
+
+          if (OK != closeNestedScopes (expr_closed__LINE > 0, exprScopeStack))	{
+            isStopFail = true;
+
+          } else if (expectedEndTkn.tkn_type == SPR8R_TKN && expectedEndTkn._string == currTkn->_string 
+            && exprScopeStack.size() == 1 && exprScopeStack[0]->scopedKids.size() == 1)	{
+            // TODO: Failure when expecting to close by a [;]
+            enderTkn = *currTkn;
+            expr_closed__LINE = __LINE__;
+          }
+
+        } else if ((currTkn->tkn_type == expectedEndTkn.tkn_type && currTkn->_string == expectedEndTkn._string)
 							|| (currTkn->tkn_type == SRC_OPR8R_TKN && currTkn->_string == usrSrcTerms.get_statement_ender()))	{
 						// Expression ended by a SPR8R - e.g. [,] or ;
 						tknStream.erase(tknStream.begin());
@@ -229,21 +255,6 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 						// Open parenthesis or 1st ternary
 						if (OK != openSubExprScope(tknStream, exprScopeStack))	{
 							isStopFail = true;
-						}
-
-					} else if (currTkn->tkn_type == SPR8R_TKN && currTkn->_string == L")")	{
-						// Close parenthesis - syntactic sugar that just melts away
-						// Remove Token from stream without destroying - move to flat expression in current scope
-						tknStream.erase(tknStream.begin());
-
-						if (OK != closeNestedScopes (expr_closed__LINE > 0, exprScopeStack))	{
-							isStopFail = true;
-
-						} else if (expectedEndTkn.tkn_type == SPR8R_TKN && expectedEndTkn._string == currTkn->_string 
-							&& exprScopeStack.size() == 1 && exprScopeStack[0]->scopedKids.size() == 1)	{
-							// TODO: Failure when expecting to close by a [;]
-							enderTkn = *currTkn;
-							expr_closed__LINE = __LINE__;
 						}
 
           } else if (currTkn->tkn_type == SYSTEM_CALL_TKN)  {
@@ -317,7 +328,9 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 			}
 		}
 
-		cleanScopeStack(exprScopeStack);
+		if (is_clean_scope_stack)
+      // TODO: Is this needed?
+      cleanScopeStack(exprScopeStack);
   }
 
 	isCallerExprClosed = expr_closed__LINE > 0;
@@ -2373,33 +2386,49 @@ int ExpressionParser::setHalfTreeDisplayPos (bool isLeftTree, int halfTreeLevel,
       sys_call_node->originalTkn->tkn_type = SYSTEM_CALL_TKN;
 
       Token expr_ended_by;
-      int make_tree_ret;
       bool is_expr_closed, is_expr_static;
       int expected_ret_tkn_cnt;
 
       if (0 == parameters.size()) {
-        ret_code = check_for_expected_token(tknStream, *sys_call_node->originalTkn, L")", true);
+        if (OK != check_for_expected_token(tknStream, *sys_call_node->originalTkn, L"(", true))
+          SET_FAILED_ON_SRC_LINE;
+        else if (OK != check_for_expected_token(tknStream, *sys_call_node->originalTkn, L")", true))
+          SET_FAILED_ON_SRC_LINE;
+        else
+          ret_code = OK;
 
       } else {
+        /* TODO
         RunTimeInterpreter interpreter (usrSrcTerms, scopedNameSpace, userSrcFileName, userMessages, logLevel);
         std::vector<Token> flatExprTkns;
+        */
         int idx = 0;
         std::wstring type_conversion_msg;
+
+        if (parameters.size() > 1 && OK != check_for_expected_token(tknStream, *sys_call_node->originalTkn, L"(", true))
+          SET_FAILED_ON_SRC_LINE;
 
         for (; idx < parameters.size() && !failed_on_src_line; idx++) {
           std::shared_ptr<Token> empty_tkn = std::make_shared<Token>();
           std::shared_ptr<ExprTreeNode> param_expr_tree = std::make_shared<ExprTreeNode> (empty_tkn);
     
-          make_tree_ret = makeExprTree (tknStream, param_expr_tree, expr_ended_by
+          if (OK != makeExprTree (tknStream, param_expr_tree, expr_ended_by
             , idx + 1 < parameters.size() ? ENDS_IN_COMMA : ENDS_IN_PARENTHESES
-            , is_expr_closed, false, is_expr_static);
-    
-          if (OK != make_tree_ret)  {
+            , is_expr_closed, false, is_expr_static, false))
             SET_FAILED_ON_SRC_LINE;
 
+          else
+            // Data type checking will be done after the COMPLETE expression has been compiled
+            sys_call_node->parameter_list.push_back(param_expr_tree);
+
+/*  TODO:
           } else if (OK != usrSrcTerms.flattenExprTree(param_expr_tree, flatExprTkns))	{
             // (3 + 4) -> [3][4][+]
             SET_FAILED_ON_SRC_LINE;
+
+          } else {
+            
+          }
           
           } else if (OK != interpreter.resolveFlatExpr(flatExprTkns, expected_ret_tkn_cnt)
               || expected_ret_tkn_cnt != 1)	{
@@ -2426,8 +2455,8 @@ int ExpressionParser::setHalfTreeDisplayPos (bool isLeftTree, int halfTreeLevel,
           }
 
           flatExprTkns.clear();
-        }
-    
+*/
+        }          
         if (idx == parameters.size() && failed_on_src_line == 0)  {
           ret_code = OK;
         }

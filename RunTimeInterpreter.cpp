@@ -2131,6 +2131,8 @@ int RunTimeInterpreter::execOperation (Operator opr8r, int opr8r_idx, std::vecto
     // Now check to see if we have enough resolved operands to execute the operator|system call|user_fxn_call (future)
     if (curr_idx + num_req_seq_rands >= flat_expr_tkns.size())  {
       SET_FAILED_ON_SRC_LINE;
+      // TODO:
+      exec_terms.dumpTokenList(flat_expr_tkns, this_src_file, __LINE__);
 
     } else {
       int num_fnd_seq_rands;

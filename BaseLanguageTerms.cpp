@@ -733,7 +733,7 @@ int BaseLanguageTerms::append_to_flat_tkn_list (std::shared_ptr<ExprTreeNode> tr
 
   int idx = 0;
   for (; idx < tree_node->parameter_list.size() && !failed_on_src_line; idx++) {
-    if (OK != append_to_flat_tkn_list(tree_node->parameter_list[idx], flatExprTknList))
+    if (OK != makeFlatExpr_OLR (tree_node->parameter_list[idx], flatExprTknList))
       SET_FAILED_ON_SRC_LINE;
   }
 

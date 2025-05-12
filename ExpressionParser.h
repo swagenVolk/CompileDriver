@@ -94,6 +94,8 @@ private:
   std::vector<int> leftTreeMaxCol;
   std::vector<int> rightTreeMaxCol;
 
+  int makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree, Token & enderTkn
+    , expr_ender_type ended_by, bool & isCallerExprClosed, bool isInVarDec, bool & is_expr_static, bool is_clean_scope_stack);
   void cleanScopeStack (std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack);
   std::wstring makeExpectedTknTypesStr (uint32_t expected_tkn_types);
   bool isExpectedTknType (uint32_t allowed_tkn_types, uint32_t & next_legal_tkn_types, std::shared_ptr<Token> curr_tkn
