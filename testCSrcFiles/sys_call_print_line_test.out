@@ -6,12 +6,25 @@ Compiler ret_code = 0
 /* *************** </COMPILATION STAGE> *************** */
 
 /* *************** <INTERPRETER STAGE> **************** */
+********** SIGNED INTEGER EXAMPLES USING print_line() and str() **********
+signed_result = 4;
+signed_result = 5;
+signed_result = 7;
+signed_result = 5;
+signed_result = 3;
+********** UNSIGNED INTEGER EXAMPLES USING print_line() and str() **********
+unsigned_result = 0x4;
+unsigned_result = 0x5;
+unsigned_result = 0x7;
+unsigned_result = 0x5;
+unsigned_result = 0x3;
 Interpreter ret_code = 0
 
 /* ********** <SHOW VARIABLES & VALUES> ********** */
 // ********** <SCOPE LEVEL 0> ********** 
 // Scope opened by: INTERNAL_USE_TKN(U)->[__ROOT_SCOPE] on line 0 column 0
-result = 0x3;
+signed_result   = 3;
+unsigned_result = 0x3;
 // ********** </SCOPE LEVEL 0> ********** 
 /* ********** </SHOW VARIABLES & VALUES> ********** */
 /* *************** </INTERPRETER STAGE> *************** */
