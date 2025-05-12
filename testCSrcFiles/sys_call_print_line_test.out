@@ -6,18 +6,34 @@ Compiler ret_code = 0
 /* *************** </COMPILATION STAGE> *************** */
 
 /* *************** <INTERPRETER STAGE> **************** */
-********** SIGNED INTEGER EXAMPLES USING print_line() and str() **********
-signed_result = 4;
-signed_result = 5;
-signed_result = 7;
-signed_result = 5;
-signed_result = 3;
-********** UNSIGNED INTEGER EXAMPLES USING print_line() and str() **********
-unsigned_result = 0x4;
-unsigned_result = 0x5;
-unsigned_result = 0x7;
-unsigned_result = 0x5;
-unsigned_result = 0x3;
+
+********** SIGNED INTEGER VARIABLE EXAMPLES USING print_line() and str() **********
+print_line output: signed_result = 4;
+print_line output: signed_result = 5;
+print_line output: signed_result = 7;
+print_line output: signed_result = 5;
+print_line output: signed_result = 3;
+
+********** UNSIGNED INTEGER VARIABLE EXAMPLES USING print_line() and str() **********
+print_line output: unsigned_result = 0x4;
+print_line output: unsigned_result = 0x5;
+print_line output: unsigned_result = 0x7;
+print_line output: unsigned_result = 0x5;
+print_line output: unsigned_result = 0x3;
+
+********** SIGNED INTEGER EXPRESSION EXAMPLES USING print_line() and str() **********
+Expression passed to str: (1 + 1) * 2;       Resolved to: 4;
+Expression passed to str: 2 * 2 + 1;         Resolved to: 5;
+Expression passed to str: 4 + 3;             Resolved to: 7;
+Expression passed to str: 3 + 2;             Resolved to: 5;
+Expression passed to str: 2 + 1;             Resolved to: 3;
+
+********** UNSIGNED INTEGER EXPRESSION EXAMPLES USING print_line() and str() **********
+Expression passed to str: (0x1 + 0x1) * 0x2; Resolved to: 0x4;
+Expression passed to str: 0x2 * 0x2 + 0x1;   Resolved to: 0x5;
+Expression passed to str: 0x4 + 0x3;         Resolved to: 0x7;
+Expression passed to str: 0x3 + 0x2;         Resolved to: 0x5;
+Expression passed to str: 0x2 + 0x1;         Resolved to: 0x3;
 Interpreter ret_code = 0
 
 /* ********** <SHOW VARIABLES & VALUES> ********** */
