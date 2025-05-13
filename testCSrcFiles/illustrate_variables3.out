@@ -12,7 +12,7 @@ expect_78 = ((one + two) + three) * (four + six) + (six * three);
 /* *************** <COMPILATION STAGE> **************** */
 // ILLUSTRATIVE MODE: Starting compilation of expression that begins on illustrate_variables3.c:7:1
 
-Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
+Current highest precedence sub-expression closed
 Scope Level 2: [one][B+][two]
 Scope Level 1: ['(']
 Scope Level 0: [expect_78][=]['(']
@@ -23,7 +23,7 @@ Parse tree of moved operator
                /B+\
           [one]   [two]
 
-Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
+Current highest precedence sub-expression closed
 Scope Level 1: /B+\[B+][three]
 Scope Level 0: [expect_78][=]['(']
 Left & right operands moved under (like tree branches) [B+] operator (Add)
@@ -34,7 +34,7 @@ Parse tree of moved operator
            /B+\   [three]
      [one][two]
 
-Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
+Current highest precedence sub-expression closed
 Scope Level 1: [four][B+][six]
 Scope Level 0: [expect_78][=]/B+\[*]['(']
 Left & right operands moved under (like tree branches) [B+] operator (Add)
@@ -44,7 +44,7 @@ Parse tree of moved operator
                /B+\
          [four]   [six]
 
-Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
+Current highest precedence sub-expression closed
 Scope Level 1: [six][*][three]
 Scope Level 0: [expect_78][=]/B+\[*]/B+\[B+]['(']
 Left & right operands moved under (like tree branches) [*] operator (Multiply)
@@ -54,7 +54,7 @@ Parse tree of moved operator
                /*\
           [six]   [three]
 
-Current highest precedence sub-expression closed; compiler has read in all Tokens for this expression.
+Current highest precedence sub-expression closed
 Scope Level 0: [expect_78][=]/B+\[*]/B+\[B+]/*\
 Left & right operands moved under (like tree branches) [*] operator (Multiply)
 Scope Level 0: [expect_78][=]/*\[B+]/*\
@@ -112,7 +112,7 @@ Interpreter ret_code = 0
 
 /* ********** <SHOW VARIABLES & VALUES> ********** */
 // ********** <SCOPE LEVEL 0> ********** 
-// Scope opened by: INTERNAL_USE_TKN(U)->[__ROOT_SCOPE] on line 0 column 0
+// Scope opened by: INTERNAL USE(U)->[__ROOT_SCOPE] on line 0 column 0
 eight     = 8;
 expect_78 = 78;
 five      = 5;

@@ -2,8 +2,8 @@
 /* *************** <COMPILATION STAGE> **************** */
 
 Compiler ret_code = 0
-WARNING: Uninitialized variable used - USER_WORD_TKN(U)->[three] shallow_test.c:4:9
-WARNING: Uninitialized variable used - USER_WORD_TKN(U)->[four] shallow_test.c:4:17
+WARNING: Uninitialized variable used - user word(U)->[three] shallow_test.c:4:9
+WARNING: Uninitialized variable used - user word(U)->[four] shallow_test.c:4:17
 
 /* *************** </COMPILATION STAGE> *************** */
 
@@ -12,7 +12,7 @@ Interpreter ret_code = 0
 
 /* ********** <SHOW VARIABLES & VALUES> ********** */
 // ********** <SCOPE LEVEL 0> ********** 
-// Scope opened by: INTERNAL_USE_TKN(U)->[__ROOT_SCOPE] on line 0 column 0
+// Scope opened by: INTERNAL USE(U)->[__ROOT_SCOPE] on line 0 column 0
 MikeWasHere             = "Mike was HERE!!!! But he went skipping to the Louvre";
 altCount                = 5;
 count                   = 1723;

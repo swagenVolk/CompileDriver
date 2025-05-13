@@ -1104,6 +1104,11 @@ int GeneralParser::resolveVarInitExpr (Token & varTkn, Token currTkn, Token & cl
 
   if (OK == exprParser.compile_system_call(tkn_stream, sys_call_node)) {
     // TODO:
+
+    if (logLevel >= ILLUSTRATIVE)	{
+      std::wcout << L"Compiler's Parse Tree for stand-alone system call" << std::endl;
+      exprParser.displayParseTree(sys_call_node, 0);
+    }
     if (OK != usrSrcTerms.flatten_system_call(sys_call_node, sys_call_tkn_list))  {
       // Turn this system call into a flat expression
       SET_FAILED_ON_SRC_LINE;

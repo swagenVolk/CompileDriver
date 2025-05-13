@@ -10,7 +10,7 @@ expect_71 = 1 + 2 * ((3 + 4) * 5);
 /* *************** <COMPILATION STAGE> **************** */
 // ILLUSTRATIVE MODE: Starting compilation of expression that begins on illustrate_literals2.c:5:1
 
-Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
+Current highest precedence sub-expression closed
 Scope Level 2: [3][B+][4]
 Scope Level 1: ['(']
 Scope Level 0: [expect_71][=][1][B+][2][*]['(']
@@ -21,7 +21,7 @@ Parse tree of moved operator
                /B+\
             [3]   [4]
 
-Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
+Current highest precedence sub-expression closed
 Scope Level 1: /B+\[*][5]
 Scope Level 0: [expect_71][=][1][B+][2][*]['(']
 Left & right operands moved under (like tree branches) [*] operator (Multiply)
@@ -32,7 +32,7 @@ Parse tree of moved operator
            /B+\   [5]
          [3][4]
 
-Current highest precedence sub-expression closed; compiler has read in all Tokens for this expression.
+Current highest precedence sub-expression closed
 Scope Level 0: [expect_71][=][1][B+][2][*]/*\
 Left & right operands moved under (like tree branches) [*] operator (Multiply)
 Scope Level 0: [expect_71][=][1][B+]/*\
@@ -86,7 +86,7 @@ Interpreter ret_code = 0
 
 /* ********** <SHOW VARIABLES & VALUES> ********** */
 // ********** <SCOPE LEVEL 0> ********** 
-// Scope opened by: INTERNAL_USE_TKN(U)->[__ROOT_SCOPE] on line 0 column 0
+// Scope opened by: INTERNAL USE(U)->[__ROOT_SCOPE] on line 0 column 0
 expect_71 = 71;
 // ********** </SCOPE LEVEL 0> ********** 
 /* ********** </SHOW VARIABLES & VALUES> ********** */

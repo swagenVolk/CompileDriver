@@ -10,8 +10,12 @@
 #include "Token.h"
 #include "TokenCompareResult.h"
 #include "locale_strings.h"
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <iostream>
+#include <regex>
+#include <variant>
 
 using namespace std;
 Token::Token()	{
@@ -119,94 +123,130 @@ Token& Token::operator= (const Token & srcTkn)
 /* ****************************************************************************
  *
  * ***************************************************************************/
-std::wstring Token::get_type_str()  {
-  wstring ret_string;
-
+std::wstring Token::get_type_str(bool is_ret_friendly_name)  {
+  wstring internal_type_str, friendly_type_str;
+  
   switch (tkn_type)  {
-
     case BRKN_TKN                :
-      ret_string = L"BRKN_TKN";
+      internal_type_str = L"BRKN_TKN";
+      friendly_type_str = L"UNDEFINED";
       break;
     case JUNK_TKN                :
-      ret_string = L"JUNK_TKN";
+      internal_type_str = L"JUNK_TKN";
+      friendly_type_str = L"UNDEFINED";
       break;
     case START_UNDEF_TKN         :
-      ret_string = L"START_UNDEF_TKN";
+      internal_type_str = L"START_UNDEF_TKN";
+      friendly_type_str = L"UNDEFINED";
       break;
     case WHITE_SPACE_TKN         :
-      ret_string = L"WHITE_SPACE_TKN";
+      internal_type_str = L"WHITE_SPACE_TKN";
       break;
 		case INTERNAL_USE_TKN:
-			ret_string = L"INTERNAL_USE_TKN";
+			internal_type_str = L"INTERNAL_USE_TKN";
+      friendly_type_str = L"INTERNAL USE";
 			break;
   	case RESERVED_WORD_TKN				:
-			ret_string = L"RESERVED_WORD_TKN";
+			internal_type_str = L"RESERVED_WORD_TKN";
 			break;
 		case DATA_TYPE_TKN						:
-			ret_string = L"DATA_TYPE_TKN";
+			internal_type_str = L"DATA_TYPE_TKN";
 			break;
     case USER_WORD_TKN             :
-      ret_string = L"USER_WORD_TKN";
+      internal_type_str = L"USER_WORD_TKN";
       break;
     case STRING_TKN              :
-      ret_string = L"STRING_TKN";
+      internal_type_str = L"STRING_TKN";
       break;
     case DATETIME_TKN            :
-      ret_string = L"DATETIME_TKN";
+      internal_type_str = L"DATETIME_TKN";
       break;
     case OLD_SCHOOL_CMMNT_TKN    :
-      ret_string = L"OLD_SCHOOL_CMMNT_TKN";
+      internal_type_str = L"OLD_SCHOOL_CMMNT_TKN";
       break;
     case TIL_EOL_CMMNT_TKN       :
-      ret_string = L"TIL_EOL_CMMNT_TKN";
+      internal_type_str = L"TIL_EOL_CMMNT_TKN";
       break;
 		case BOOL_TKN:
-		ret_string = L"BOOL_TKN";
+		  internal_type_str = L"BOOL_TKN";
+      friendly_type_str = L"boolean";
 			break;
     case UINT8_TKN								:
-			ret_string = L"UINT8_TKN";
+			internal_type_str = L"UINT8_TKN";
 			break;
     case UINT16_TKN								:
-			ret_string = L"UINT16_TKN";
+			internal_type_str = L"UINT16_TKN";
 			break;
 		case UINT32_TKN								:
-			ret_string = L"UINT32_TKN";
+			internal_type_str = L"UINT32_TKN";
 			break;
 		case UINT64_TKN								:
-			ret_string = L"UINT64_TKN";
+			internal_type_str = L"UINT64_TKN";
 			break;
 		case INT8_TKN								:
-			ret_string = L"INT8_TKN";
+			internal_type_str = L"INT8_TKN";
 			break;
 		case INT16_TKN								:
-			ret_string = L"INT16_TKN";
+			internal_type_str = L"INT16_TKN";
 			break;
 		case INT32_TKN								:
-			ret_string = L"INT32_TKN";
+			internal_type_str = L"INT32_TKN";
 			break;
 		case INT64_TKN								:
-			ret_string = L"INT64_TKN";
+			internal_type_str = L"INT64_TKN";
 			break;
     case DOUBLE_TKN              :
-        // TODO: Support DOUBLE_TKN
-        ret_string = L"DOUBLE_TKN";
-        break;
+      // TODO: Support DOUBLE_TKN
+      internal_type_str = L"DOUBLE_TKN";
+      break;
     case SRC_OPR8R_TKN               :
-      ret_string = L"SRC_OPR8R_TKN";
+      internal_type_str = L"SRC_OPR8R_TKN";
+      friendly_type_str = L"compile time operator";
       break;
     case EXEC_OPR8R_TKN               :
-      ret_string = L"EXEC_OPR8R_TKN";
+      internal_type_str = L"EXEC_OPR8R_TKN";
+      friendly_type_str = L"interpreted time operator";
       break;
     case SPR8R_TKN               :
-      ret_string = L"SPR8R_TKN";
+      internal_type_str = L"SPR8R_TKN";
+      friendly_type_str = L"separator";
       break;
     case END_OF_STREAM_TKN       :
-      ret_string = L"END_OF_STREAM_TKN";
+      internal_type_str = L"END_OF_STREAM_TKN";
       break;
+    case VOID_TKN:
+      internal_type_str = L"VOID_TKN";     
+      break; 
     default:
-      ret_string = L"BRKN_TKN";
+      internal_type_str = L"BRKN_TKN";
+      friendly_type_str = L"UNDEFINED";
       break;
   }
+
+  std::wstring ret_string = internal_type_str;
+  if (is_ret_friendly_name) {
+    if (friendly_type_str.empty())  {
+      friendly_type_str = internal_type_str;
+      std::wstring _tkn_str = L"_TKN";
+      auto pos = friendly_type_str.find_last_of(_tkn_str);
+      if (pos != internal_type_str.npos) {
+        friendly_type_str.replace(pos - _tkn_str.size() + 1, _tkn_str.size(), L"");
+        std::transform(friendly_type_str.begin(), friendly_type_str.end(), friendly_type_str.begin(), ::towlower);
+
+        while (1) {
+          pos = friendly_type_str.find (L"_");
+          if (pos != friendly_type_str.npos)  {
+            friendly_type_str.replace(pos, 1, L" ");
+          } else {
+            break;
+          }
+        }
+      }
+    }
+    ret_string = friendly_type_str;
+
+  }
+
   return (ret_string);
 }
 
@@ -267,7 +307,7 @@ std::wstring Token::getValueStr ()	{
 
 	if (value.empty())
 		// Nothing normal fits, but we need to display SOMETHING
-		value.append (get_type_str());
+		value.append (get_type_str(false));
 
 	return (value);
 }
@@ -283,7 +323,7 @@ std::wstring Token::getValueStr ()	{
  *
  * ***************************************************************************/
 std::wstring Token::descr_sans_line_num_col ()	{
-	std::wstring desc = get_type_str();
+	std::wstring desc = get_type_str(true);
 
 	desc.append(L"(");
 	desc.append (isInitialized ? L"I)" : L"U)");
@@ -724,7 +764,7 @@ int Token::convertTo (Token newValTkn, std::wstring variableName, std::wstring &
 
 	if (OK != ret_code)	{
 		// TODO:
-		errorMsg = L"Failed to convert variable [" + variableName + L"] of type " + get_type_str() + L" to " + newValTkn.descr_sans_line_num_col();
+		errorMsg = L"Failed to convert variable [" + variableName + L"] of type " + get_type_str(true) + L" to " + newValTkn.descr_sans_line_num_col();
 	}
 
 	return (ret_code);

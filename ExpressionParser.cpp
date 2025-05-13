@@ -127,7 +127,18 @@ ExpressionParser::~ExpressionParser() {
  int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree
   , Token & enderTkn, expr_ender_type ended_by, bool & isCallerExprClosed, bool isInVarDec, bool & is_expr_static)  {
 
-  return makeExprTree(tknStream, expressionTree, enderTkn, ended_by, isCallerExprClosed, isInVarDec, is_expr_static, true);
+  int ret_code = GENERAL_FAILURE;
+
+  if (OK == makeExprTree(tknStream, expressionTree, enderTkn, ended_by, isCallerExprClosed, isInVarDec, is_expr_static, false)) {
+    if (!isInVarDec && logLevel >= ILLUSTRATIVE)	{
+      std::wcout << L"Compiler's Parse Tree for Complete Expression" << std::endl;
+      displayParseTree(expressionTree, 0);
+    }
+
+    ret_code = OK;
+  }
+
+  return ret_code;
 }
 
 /* ****************************************************************************
@@ -136,7 +147,7 @@ ExpressionParser::~ExpressionParser() {
  * ***************************************************************************/
 int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree
 		, Token & enderTkn, expr_ender_type ended_by, bool & isCallerExprClosed, bool isInVarDec, bool & is_expr_static
-    , bool is_clean_scope_stack)  {
+    , bool is_nested_call)  {
   int ret_code = GENERAL_FAILURE;
 	int expr_closed__LINE = 0;
 	isExprVarDeclaration = isInVarDec;
@@ -198,6 +209,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
             // TODO: Failure when expecting to close by a [;]
             enderTkn = *currTkn;
             expr_closed__LINE = __LINE__;
+
           }
 
         } else if ((currTkn->tkn_type == expectedEndTkn.tkn_type && currTkn->_string == expectedEndTkn._string)
@@ -307,13 +319,8 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 				if (exprScopeStack.size() == 1 && 1 == numTknsLeftInExpr)	{
 					ret_code = OK;
 					expressionTree = exprScopeStack[0]->scopedKids[0];
-
           is_expr_static = (num_var_leaf_nodes == 0);
 
-					if ((logLevel == ILLUSTRATIVE && !isExprVarDeclaration) || logLevel > ILLUSTRATIVE)	{
-            std::wcout << L"Compiler's Parse Tree for Complete Expression" << std::endl;
-            displayParseTree(expressionTree, 0);
- 					}
 				} else	{
 					std::wstring devMsg = L"Expression closed but tree conversion failed! Remaining Token count at stack top = ";
 					devMsg.append ( std::to_wstring(numTknsLeftInExpr));
@@ -328,7 +335,7 @@ int ExpressionParser::makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<
 			}
 		}
 
-		if (is_clean_scope_stack)
+		if (!is_nested_call)
       // TODO: Is this needed?
       cleanScopeStack(exprScopeStack);
   }
@@ -1005,11 +1012,7 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 	// [?]_2ndChild is the [:] OPR8R; [:]._1stChild is the TRUE path; [:]_2ndChild is the FALSE path
 	if (((logLevel == ILLUSTRATIVE && !isExprVarDeclaration) || logLevel > ILLUSTRATIVE)
 		&& (exprScopeStack.size() > 1 || (exprScopeStack.size() == 1 && exprScopeStack[0]->scopedKids.size() > 1)))	{
-		std::wstring bannerMsg = L"Current highest precedence sub-expression closed; compiler has";
-		if (!isExprClosed) {
-			bannerMsg.append (L" NOT");
-    }
-	 	bannerMsg.append (L" read in all Tokens for this expression.");
+		std::wstring bannerMsg = L"Current highest precedence sub-expression closed";
 		printScopeStack (bannerMsg, false, exprScopeStack);
 	}
 
@@ -2414,7 +2417,7 @@ int ExpressionParser::setHalfTreeDisplayPos (bool isLeftTree, int halfTreeLevel,
     
           if (OK != makeExprTree (tknStream, param_expr_tree, expr_ended_by
             , idx + 1 < parameters.size() ? ENDS_IN_COMMA : ENDS_IN_PARENTHESES
-            , is_expr_closed, false, is_expr_static, false))
+            , is_expr_closed, false, is_expr_static, true))
             SET_FAILED_ON_SRC_LINE;
 
           else

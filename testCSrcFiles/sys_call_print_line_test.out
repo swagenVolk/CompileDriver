@@ -38,7 +38,7 @@ Interpreter ret_code = 0
 
 /* ********** <SHOW VARIABLES & VALUES> ********** */
 // ********** <SCOPE LEVEL 0> ********** 
-// Scope opened by: INTERNAL_USE_TKN(U)->[__ROOT_SCOPE] on line 0 column 0
+// Scope opened by: INTERNAL USE(U)->[__ROOT_SCOPE] on line 0 column 0
 signed_result   = 3;
 unsigned_result = 0x3;
 // ********** </SCOPE LEVEL 0> ********** 

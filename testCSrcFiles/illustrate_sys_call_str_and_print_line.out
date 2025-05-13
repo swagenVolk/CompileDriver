@@ -8,7 +8,7 @@ print_line ("2 * 2 + 1 -> " + str(2 * 2 + 1) + ";");
 
 // ILLUSTRATIVE MODE: Starting compilation of expression that begins on illustrate_sys_call_str_and_print_line.c:1:34
 
-Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
+Current highest precedence sub-expression closed
 Scope Level 1: [2][*][2][B+][1]
 Scope Level 0: ['(']
 Left & right operands moved under (like tree branches) [*] operator (Multiply)
@@ -26,11 +26,7 @@ Parse tree of moved operator
             /*\   [1]
          [2][2]
 
-Compiler's Parse Tree for Complete Expression
-       /B+\
-    /*\   [1]
- [2][2]
-Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
+Current highest precedence sub-expression closed
 Scope Level 1: ["2 * 2 + 1 -> "][B+][sys_call::str][B+][";"]
 Scope Level 0: ['(']
 Left & right operands moved under (like tree branches) [B+] operator (Add)
@@ -48,10 +44,8 @@ Parse tree of moved operator
                              /B+\   [";"]
  ["2 * 2 + 1 -> "][sys_call::str]
 
-Compiler's Parse Tree for Complete Expression
-                                 /B+\
-                             /B+\   [";"]
- ["2 * 2 + 1 -> "][sys_call::str]
+Compiler's Parse Tree for stand-alone system call
+[sys_call::print_line]
 
 Compiler ret_code = 0
 
@@ -65,20 +59,20 @@ Compiler ret_code = 0
 [sys_call::print_line][B+][B+]["2 * 2 + 1 -> "][sys_call::str][B+][4][1][";"]
                                                                ^ Add next 2 sequential operand(s); replace w/ result
 [sys_call::print_line][B+][B+]["2 * 2 + 1 -> "][sys_call::str][5][";"]
-                                                ^ 
+                                                ^ system call consumes next 1 sequential operand(s); replace w/ result (string)
 [sys_call::print_line][B+][B+]["2 * 2 + 1 -> "]["5"][";"]
                            ^ Add next 2 sequential operand(s); replace w/ result
 [sys_call::print_line][B+]["2 * 2 + 1 -> 5"][";"]
                        ^ Add next 2 sequential operand(s); replace w/ result
 [sys_call::print_line]["2 * 2 + 1 -> 5;"]
- ^ 
+ ^ system call consumes next 1 sequential operand(s); replace w/ result (void)
 2 * 2 + 1 -> 5;
 
 Interpreter ret_code = 0
 
 /* ********** <SHOW VARIABLES & VALUES> ********** */
 // ********** <SCOPE LEVEL 0> ********** 
-// Scope opened by: INTERNAL_USE_TKN(U)->[__ROOT_SCOPE] on line 0 column 0
+// Scope opened by: INTERNAL USE(U)->[__ROOT_SCOPE] on line 0 column 0
 // ********** </SCOPE LEVEL 0> ********** 
 /* ********** </SHOW VARIABLES & VALUES> ********** */
 /* *************** </INTERPRETER STAGE> *************** */

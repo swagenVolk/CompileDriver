@@ -17,7 +17,7 @@ expect_64 = ((one + two) + three) * (four + six) + ((six * one << five) <  (eigh
 /* *************** <COMPILATION STAGE> **************** */
 // ILLUSTRATIVE MODE: Starting compilation of expression that begins on illustrate_variables4.c:7:1
 
-Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
+Current highest precedence sub-expression closed
 Scope Level 2: [one][B+][two]
 Scope Level 1: ['(']
 Scope Level 0: [expect_64][=]['(']
@@ -28,7 +28,7 @@ Parse tree of moved operator
                /B+\
           [one]   [two]
 
-Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
+Current highest precedence sub-expression closed
 Scope Level 1: /B+\[B+][three]
 Scope Level 0: [expect_64][=]['(']
 Left & right operands moved under (like tree branches) [B+] operator (Add)
@@ -39,7 +39,7 @@ Parse tree of moved operator
            /B+\   [three]
      [one][two]
 
-Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
+Current highest precedence sub-expression closed
 Scope Level 1: [four][B+][six]
 Scope Level 0: [expect_64][=]/B+\[*]['(']
 Left & right operands moved under (like tree branches) [B+] operator (Add)
@@ -49,7 +49,7 @@ Parse tree of moved operator
                /B+\
          [four]   [six]
 
-Current highest precedence sub-expression closed; compiler has read in all Tokens for this expression.
+Current highest precedence sub-expression closed
 Scope Level 2: [three][:][four]
 Scope Level 1: [six][*][one][<<][five][<][eight][*][four][?]
 Scope Level 0: [expect_64][=]/B+\[*]/B+\[B+]['(']
@@ -60,7 +60,7 @@ Parse tree of moved operator
                /:\
         [three]   [four]
 
-Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
+Current highest precedence sub-expression closed
 Scope Level 1: [six][*][one][<<][five][<][eight][*][four][?\
 Scope Level 0: [expect_64][=]/B+\[*]/B+\[B+]['(']
 Left & right operands moved under (like tree branches) [*] operator (Multiply)
@@ -104,7 +104,7 @@ Parse tree of moved operator
         /*\ [five]  [eight][four]
  [six][one]                      
 
-Current highest precedence sub-expression closed; compiler has NOT read in all Tokens for this expression.
+Current highest precedence sub-expression closed
 Scope Level 0: [expect_64][=]/B+\[*]/B+\[B+]/?\
 Left & right operands moved under (like tree branches) [*] operator (Multiply)
 Scope Level 0: [expect_64][=]/*\[B+]/?\
@@ -173,7 +173,7 @@ Interpreter ret_code = 0
 
 /* ********** <SHOW VARIABLES & VALUES> ********** */
 // ********** <SCOPE LEVEL 0> ********** 
-// Scope opened by: INTERNAL_USE_TKN(U)->[__ROOT_SCOPE] on line 0 column 0
+// Scope opened by: INTERNAL USE(U)->[__ROOT_SCOPE] on line 0 column 0
 eight     = 8;
 expect_64 = 64;
 five      = 5;

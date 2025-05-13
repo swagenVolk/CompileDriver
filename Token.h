@@ -13,6 +13,7 @@
 #include <memory>
 #include <cmath>
 #include "OpCodes.h"
+#include <regex.h>
 
 #define END_OF_STREAM_STR L"END_OF_STREAM"
 
@@ -63,7 +64,7 @@ class Token {
     Token(tkn_type_enum found_type, std::wstring tokenized_str, std::wstring srcFileName, int line_num, int col_pos);
     ~Token();
     Token& operator= (const Token & srcTkn);
-    std::wstring get_type_str();
+    std::wstring get_type_str(bool is_ret_friendly_name);
     std::wstring get_tkn_type_by_enum (tkn_type_enum tkn_type);
     std::wstring descr_sans_line_num_col ();
     std::wstring descr_line_num_col ();

@@ -2053,7 +2053,17 @@ int RunTimeInterpreter::execOperation (Operator opr8r, int opr8r_idx, std::vecto
 					if (opr8r.op_code == TERNARY_1ST_OPR8R_OPCODE)	{
 						tmp_str.append (L"; [Conditional][TRUE path][FALSE path]");
 					}
-				}
+				} else if (flat_expr_tkns[opr8r_idx].tkn_type == SYSTEM_CALL_TKN) {
+          tmp_str.append (L"system call consumes next ");
+          std::vector<uint8_t> param_list;
+          TokenTypeEnum data_type;
+          exec_terms.get_system_call_details(flat_expr_tkns[opr8r_idx]._string, param_list, data_type);
+          tmp_str.append (std::to_wstring(param_list.size()));
+					tmp_str.append (L" sequential operand(s); replace w/ result (");
+          Token tmp_type_tkn (data_type, L"");
+          tmp_str.append (tmp_type_tkn.get_type_str(true));
+          tmp_str.append (L")");
+        }
 			}
 			std::wcout << tmp_str << std::endl;
 		}
