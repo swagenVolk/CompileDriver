@@ -28,23 +28,23 @@
 
 // Values below used in a bit mask variable that indicates
 // allowable next states.
-#define	VAR_NAME_NXT_OK							0x1
-#define LITERAL_NXT_OK							0x2
-#define PREFIX_OPR8R_NXT_OK					0x4
-#define UNARY_OPR8R_NXT_OK					0x8
-#define POSTFIX_OPR8R_NXT_OK				0x10	
-#define BINARY_OPR8R_NXT_OK					0x20
-#define TERNARY_OPR8R_1ST_NXT_OK		0x40	
-#define TERNARY_OPR8R_2ND_NXT_OK		0x80	
-#define	OPEN_PAREN_NXT_OK						0x100
-#define CLOSE_PAREN_NXT_OK					0x200
-#define DCLR_VAR_OR_FXN_NXT_OK			0x400
+#define VAR_NAME_NXT_OK             0x1
+#define LITERAL_NXT_OK              0x2
+#define PREFIX_OPR8R_NXT_OK         0x4
+#define UNARY_OPR8R_NXT_OK          0x8
+#define POSTFIX_OPR8R_NXT_OK        0x10  
+#define BINARY_OPR8R_NXT_OK         0x20
+#define TERNARY_OPR8R_1ST_NXT_OK    0x40  
+#define TERNARY_OPR8R_2ND_NXT_OK    0x80  
+#define OPEN_PAREN_NXT_OK           0x100
+#define CLOSE_PAREN_NXT_OK          0x200
+#define DCLR_VAR_OR_FXN_NXT_OK      0x400
 #define SYSTEM_CALL_NXT_OK          0x800
-#define USER_FXN_CALL_NXT_OK				0x1000
-#define STATEMENT_ENDER_NXT_OK			0x2000
+#define USER_FXN_CALL_NXT_OK        0x1000
+#define STATEMENT_ENDER_NXT_OK      0x2000
 
-#define END_COMMA_IS_EXPECTED				true
-#define END_COMMA_NOT_EXPECTED			false
+#define END_COMMA_IS_EXPECTED       true
+#define END_COMMA_NOT_EXPECTED      false
 
 #define DISPLAY_GAP_SPACES          3
 
@@ -67,11 +67,11 @@ typedef expr_ender_enum expr_ender_type;
 
 class ExpressionParser {
 public:
-	ExpressionParser(CompileExecTerms & inUsrSrcTerms, std::shared_ptr<StackOfScopes> inVarScopeStack, std::wstring userSrcFileName
+  ExpressionParser(CompileExecTerms & inUsrSrcTerms, std::shared_ptr<StackOfScopes> inVarScopeStack, std::wstring userSrcFileName
     , std::shared_ptr<UserMessages> userMessages, logLvlEnum logLvl);
-	virtual ~ExpressionParser();
-	int makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree, Token & enderTkn
-			, expr_ender_type ended_by, bool & isCallerExprClosed, bool isInVarDec, bool & is_expr_static);
+  virtual ~ExpressionParser();
+  int makeExprTree (TokenPtrVector & tknStream, std::shared_ptr<ExprTreeNode> & expressionTree, Token & enderTkn
+      , expr_ender_type ended_by, bool & isCallerExprClosed, bool isInVarDec, bool & is_expr_static);
 
   int displayParseTree (std::shared_ptr<ExprTreeNode> startBranch, int adjustToRight);
   int displayParseTree (std::shared_ptr<ExprTreeNode> startBranch, std::wstring callersSrcFile, int srcLineNum);
@@ -85,10 +85,10 @@ private:
   Utilities util;
   std::shared_ptr<StackOfScopes> scopedNameSpace;
   Token scratchTkn;
-	std::shared_ptr<UserMessages> userMessages;
+  std::shared_ptr<UserMessages> userMessages;
   logLvlEnum logLevel;
   bool isExprVarDeclaration;
-	int failed_on_src_line;
+  int failed_on_src_line;
   int num_var_leaf_nodes;
 
   std::vector<int> leftTreeMaxCol;

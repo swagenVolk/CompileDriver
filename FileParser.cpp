@@ -26,7 +26,7 @@ using namespace std;
  * ***************************************************************************/
 FileParser::FileParser (BaseLanguageTerms & inCompilerTerms, std::wstring fileName) {
   curr_file_pos = 0;
-	line_num = 1;
+  line_num = 1;
   curr_line_start_pos = 0;
   curr_tkn_starts_on_line_num = 1;
   curr_tkn_starts_on_col_pos = 1;
@@ -468,21 +468,21 @@ void FileParser::resolve_final_tkn_type (std::shared_ptr<Token>  tkn_of_ambiguit
 
         if (tkn_of_ambiguity->tkn_type != JUNK_TKN) {
           try {
-          	cnvrtd_unsigned = std::stoul(tkn_of_ambiguity->_string, &sz, 16);
+            cnvrtd_unsigned = std::stoul(tkn_of_ambiguity->_string, &sz, 16);
             tkn_of_ambiguity->_unsigned = cnvrtd_unsigned;
 
             // Store this unsigned number (literal?) in the smallest possible size
             if (cnvrtd_unsigned < ceil(exp2(8)))  {
-            	tkn_of_ambiguity->tkn_type = UINT8_TKN;
+              tkn_of_ambiguity->tkn_type = UINT8_TKN;
               tkn_of_ambiguity->isInitialized = true;
             } else if (cnvrtd_unsigned < ceil(exp2(16)))  {
-            	tkn_of_ambiguity->tkn_type = UINT16_TKN;
+              tkn_of_ambiguity->tkn_type = UINT16_TKN;
               tkn_of_ambiguity->isInitialized = true;
             } else if (cnvrtd_unsigned < ceil(exp2(32)))  {
-            	tkn_of_ambiguity->tkn_type = UINT32_TKN;
+              tkn_of_ambiguity->tkn_type = UINT32_TKN;
               tkn_of_ambiguity->isInitialized = true;
             } else if (cnvrtd_unsigned < ceil(exp2(64)))  {
-            	tkn_of_ambiguity->tkn_type = UINT64_TKN;
+              tkn_of_ambiguity->tkn_type = UINT64_TKN;
             } else if (cnvrtd_unsigned < ceil(exp2(64)))  {
             } else  {
               tkn_of_ambiguity->tkn_type = JUNK_TKN;
@@ -527,13 +527,13 @@ void FileParser::resolve_final_tkn_type (std::shared_ptr<Token>  tkn_of_ambiguit
             // Store this signed number (literal?) in the smallest possible size
             // Use 2's complement to determine range for each signed data type
             if (cnvrtd_signed >= (0 - ceil(exp2(7))) && cnvrtd_signed < ceil(exp2(7)))  
-            	tkn_of_ambiguity->tkn_type = INT8_TKN;
+              tkn_of_ambiguity->tkn_type = INT8_TKN;
             else if (cnvrtd_signed >= (0 - ceil(exp2(15))) && cnvrtd_signed < ceil(exp2(15))) 
-            	tkn_of_ambiguity->tkn_type = INT16_TKN;
+              tkn_of_ambiguity->tkn_type = INT16_TKN;
             else if (cnvrtd_signed >= (0 - ceil(exp2(31))) && cnvrtd_signed < ceil(exp2(31))) 
-            	tkn_of_ambiguity->tkn_type = INT32_TKN;
+              tkn_of_ambiguity->tkn_type = INT32_TKN;
             else if (cnvrtd_signed >= (0 - ceil(exp2(63))) && cnvrtd_signed < ceil(exp2(63))) 
-            	tkn_of_ambiguity->tkn_type = INT64_TKN;
+              tkn_of_ambiguity->tkn_type = INT64_TKN;
             else  
               tkn_of_ambiguity->tkn_type = JUNK_TKN;
 
@@ -558,7 +558,7 @@ void FileParser::resolve_final_tkn_type (std::shared_ptr<Token>  tkn_of_ambiguit
         break;
       case SRC_OPR8R_TKN:
         // Check to make sure it's not junk
-      	if (!compilerTerms.is_valid_opr8r(tkn_of_ambiguity->_string, USR_SRC))
+        if (!compilerTerms.is_valid_opr8r(tkn_of_ambiguity->_string, USR_SRC))
           // Not a valid OPR8R
           tkn_of_ambiguity->tkn_type = JUNK_TKN;
         break;
@@ -624,7 +624,7 @@ tkn_type_enum FileParser::start_new_tkn_get_type (std::fstream & input_stream, T
   if (iswspace(curr_char)) {
     tkn_type = WHITE_SPACE_TKN;
 
-  } else if (iswalpha (curr_char) || curr_char == '_')	{
+  } else if (iswalpha (curr_char) || curr_char == '_')  {
     tkn_type = USER_WORD_TKN;
   }
 
@@ -662,9 +662,9 @@ tkn_type_enum FileParser::start_new_tkn_get_type (std::fstream & input_stream, T
       tkn_type = SRC_OPR8R_TKN;
     }
   } else if (iswdigit(curr_char))  {
-  	// These 64-bit data types will be used as place holders. When the Token is finalized, we can
-  	// drop the data type size of this literal down to the minimum size that can accommodate the data.
-  	if (curr_char == '0' && OK == peek_next_char(input_stream, peeked) && (peeked == 'X' || peeked == 'x'))  {
+    // These 64-bit data types will be used as place holders. When the Token is finalized, we can
+    // drop the data type size of this literal down to the minimum size that can accommodate the data.
+    if (curr_char == '0' && OK == peek_next_char(input_stream, peeked) && (peeked == 'X' || peeked == 'x'))  {
       tkn_type = UINT64_TKN;
     
     } else  {
@@ -882,14 +882,14 @@ int FileParser::gnr8_token_stream(std::string file_name, TokenPtrVector & token_
           case TIL_EOL_CMMNT_TKN   :
             curr_str += curr_char;
             break;
-          case UINT8_TKN					 :
+          case UINT8_TKN           :
           case UINT16_TKN          :
           case UINT32_TKN          :
           case UINT64_TKN          :
           case INT8_TKN            :
-          case INT16_TKN		       :
-          case INT32_TKN		       :
-          case INT64_TKN		       :
+          case INT16_TKN           :
+          case INT32_TKN           :
+          case INT64_TKN           :
             if (iswpunct(curr_char) || iswspace (curr_char) || compilerTerms.is_sngl_char_spr8r(curr_char))  {
               std::shared_ptr<Token> tkn = std::make_shared <Token> (curr_tkn_type, curr_str, fileName, curr_tkn_starts_on_line_num, curr_tkn_starts_on_col_pos);
               resolve_final_tkn_type (tkn);

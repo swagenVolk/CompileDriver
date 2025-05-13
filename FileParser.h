@@ -31,7 +31,7 @@
 
 class FileParser {
   public:
-  	FileParser(BaseLanguageTerms & inCompilerTerms, std::wstring fileName);
+    FileParser(BaseLanguageTerms & inCompilerTerms, std::wstring fileName);
     int gnr8_token_stream(std::string file_name, TokenPtrVector & token_stream);
   
   private:

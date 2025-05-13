@@ -15,8 +15,8 @@
 
 
 enum read_write_enum {
-	READ_ONLY
-	,COMMIT_WRITE
+  READ_ONLY
+  ,COMMIT_WRITE
 };
 
 typedef read_write_enum ReadOrWrite;
@@ -86,21 +86,21 @@ typedef read_write_enum ReadOrWrite;
 #define BIT_1                   0x2
 #define BIT_0                   0x1
 
-#define NUM_BYTES_IN_WORD				2
-#define NUM_BYTES_IN_DWORD			4
-#define NUM_BYTES_IN_QWORD			8
+#define NUM_BYTES_IN_WORD       2
+#define NUM_BYTES_IN_DWORD      4
+#define NUM_BYTES_IN_QWORD      8
 
-#define NUM_BITS_IN_BYTE				8
-#define NUM_BITS_IN_WORD				16
-#define NUM_BITS_IN_DWORD				32
-#define NUM_BITS_IN_QWORD				64
+#define NUM_BITS_IN_BYTE        8
+#define NUM_BITS_IN_WORD        16
+#define NUM_BITS_IN_DWORD       32
+#define NUM_BITS_IN_QWORD       64
 
 enum log_level_enum {
-	SILENT
-	,ILLUSTRATIVE
-	,VERBOSE
-	,EFFUSIVE
-	,DEBUG
+  SILENT
+  ,ILLUSTRATIVE
+  ,VERBOSE
+  ,EFFUSIVE
+  ,DEBUG
 };
 
 typedef log_level_enum logLvlEnum;

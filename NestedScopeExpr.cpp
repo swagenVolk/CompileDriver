@@ -12,19 +12,19 @@
 #include "NestedScopeExpr.h"
 
 NestedScopeExpr::NestedScopeExpr() {
-	// Attach this shared_ptr to an already existing shared_ptr of type ExprTreeNode
-	myParentScopener = NULL;
-	ternary2ndCnt = 0;
-	scopedKids.clear();
+  // Attach this shared_ptr to an already existing shared_ptr of type ExprTreeNode
+  myParentScopener = NULL;
+  ternary2ndCnt = 0;
+  scopedKids.clear();
 
 }
 
 
 NestedScopeExpr::NestedScopeExpr(std::shared_ptr<ExprTreeNode> openParenPtr) {
-	// Attach this shared_ptr to an already existing shared_ptr of type ExprTreeNode
-	myParentScopener = openParenPtr;
-	ternary2ndCnt = 0;
-	scopedKids.clear();
+  // Attach this shared_ptr to an already existing shared_ptr of type ExprTreeNode
+  myParentScopener = openParenPtr;
+  ternary2ndCnt = 0;
+  scopedKids.clear();
 
 }
 

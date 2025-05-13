@@ -8,11 +8,11 @@
 #include "TokenCompareResult.h"
 
 TokenCompareResult::TokenCompareResult() {
-	gr8rThan = compareFailed;
-	gr8rEquals = compareFailed;
-	lessThan = compareFailed;
-	lessEquals = compareFailed;
-	equals = compareFailed;
+  gr8rThan = compareFailed;
+  gr8rEquals = compareFailed;
+  lessThan = compareFailed;
+  lessEquals = compareFailed;
+  equals = compareFailed;
 
 }
 

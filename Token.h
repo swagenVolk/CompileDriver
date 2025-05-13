@@ -34,20 +34,20 @@ enum tkn_type_enum {
   ,DATETIME_TKN            
   ,OLD_SCHOOL_CMMNT_TKN     // Illegal for a *committed* token - syntactic sugar
   ,TIL_EOL_CMMNT_TKN        // Illegal for a *committed* token - syntactic sugar
-	// TODO: Are 16 & 32 bit representations necessary? Useful?  Might be useful from a user's perspective....enforce size limits
+  // TODO: Are 16 & 32 bit representations necessary? Useful?  Might be useful from a user's perspective....enforce size limits
   ,BOOL_TKN
   ,UINT8_TKN
-	,UINT16_TKN
-	,UINT32_TKN
-	,UINT64_TKN
-	,INT8_TKN
-	,INT16_TKN
-	,INT32_TKN
-	,INT64_TKN
+  ,UINT16_TKN
+  ,UINT32_TKN
+  ,UINT64_TKN
+  ,INT8_TKN
+  ,INT16_TKN
+  ,INT32_TKN
+  ,INT64_TKN
   ,DOUBLE_TKN   
   ,VOID_TKN                 // Only allowed as a return type for system calls and user defined fxns
   ,SRC_OPR8R_TKN
-	,EXEC_OPR8R_TKN						// Run-time OPR8R Token stores op_code in _unsigned rather than a string representation
+  ,EXEC_OPR8R_TKN           // Run-time OPR8R Token stores op_code in _unsigned rather than a string representation
   ,SPR8R_TKN
   ,END_OF_STREAM_TKN        // Expect file_parser producer and compiler consumer threads
                             // Will need a token to indicate EOS since the compiler
@@ -59,8 +59,8 @@ typedef tkn_type_enum TokenTypeEnum;
 
 class Token {
   public:
-		Token();
-		Token(tkn_type_enum found_type, std::wstring tokenized_str);
+    Token();
+    Token(tkn_type_enum found_type, std::wstring tokenized_str);
     Token(tkn_type_enum found_type, std::wstring tokenized_str, std::wstring srcFileName, int line_num, int col_pos);
     ~Token();
     Token& operator= (const Token & srcTkn);

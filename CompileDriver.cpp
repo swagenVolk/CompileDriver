@@ -161,20 +161,20 @@ bool isCmdLineArgsOK (int argc, const char * argv[])	{
  * ***************************************************************************/
 int main(int argc, const char * argv[])
 {
-  int ret_code = GENERAL_FAILURE;
-  int num_errors = 0;
-  Utilities util;
+	int ret_code = GENERAL_FAILURE;
+	int num_errors = 0;
+	Utilities util;
 	bool isArgsOK = false;
 
-  if (argc >= 2)  {
-    std::string input_file_path = argv[1];
+	if (argc >= 2)  {
+		std::string input_file_path = argv[1];
 
-    std::wstring userSrcFileName;
+		std::wstring userSrcFileName;
 
-    // Prep our source code input file
-    // TODO: This is hacky, but #include <codecvt> (for std::wstring_convert) can't be found
-    // TODO: Might not be necessary until Unicode is supported for file names in the future
-    userSrcFileName = util.getLastSegment(util.stringToWstring(input_file_path), L"/");
+		// Prep our source code input file
+		// TODO: This is hacky, but #include <codecvt> (for std::wstring_convert) can't be found
+		// TODO: Might not be necessary until Unicode is supported for file names in the future
+		userSrcFileName = util.getLastSegment(util.stringToWstring(input_file_path), L"/");
 
 		if (argc > 2)
 			isArgsOK = isCmdLineArgsOK(argc, argv);

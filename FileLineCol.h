@@ -12,15 +12,15 @@
 
 class FileLineCol {
 public:
-	FileLineCol();
-	FileLineCol(std::wstring in_fileName, int in_lineNumber, int in_colPos);
-	virtual ~FileLineCol();
-	FileLineCol& operator= (const FileLineCol & src);
+  FileLineCol();
+  FileLineCol(std::wstring in_fileName, int in_lineNumber, int in_colPos);
+  virtual ~FileLineCol();
+  FileLineCol& operator= (const FileLineCol & src);
 
-	std::wstring fileName;
-	int	lineNumber;
-	int columnPos;
-	int insertPos;
+  std::wstring fileName;
+  int lineNumber;
+  int columnPos;
+  int insertPos;
 };
 
 #endif /* FILELINECOL_H_ */

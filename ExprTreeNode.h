@@ -22,16 +22,16 @@ typedef branch_tuple_type_enum branchNodeDisplayType;
 
 class ExprTreeNode {
 public:
-	ExprTreeNode(std::shared_ptr<Token> startOpr8rTkn);
-	virtual ~ExprTreeNode();
+  ExprTreeNode(std::shared_ptr<Token> startOpr8rTkn);
+  virtual ~ExprTreeNode();
 
   void initDisplaySettings();
 
   std::shared_ptr<Token> originalTkn;
   std::shared_ptr<ExprTreeNode> scopenedBy;
-  std::shared_ptr<ExprTreeNode> _1stChild;		// Left operand for a BINARY, POSTFIX or the TERNARY FALSE* branch
-  std::shared_ptr<ExprTreeNode> _2ndChild;		// Right operand for a BINARY, PREFIX or the TERNARY TRUE* branch
-  														                // Ordering is opposite initial expectations to account for tree recursively 
+  std::shared_ptr<ExprTreeNode> _1stChild;    // Left operand for a BINARY, POSTFIX or the TERNARY FALSE* branch
+  std::shared_ptr<ExprTreeNode> _2ndChild;    // Right operand for a BINARY, PREFIX or the TERNARY TRUE* branch
+                                              // Ordering is opposite initial expectations to account for tree recursively 
                                               // flattened in [Operand1][Operand2][OPR8R] order
   std::shared_ptr<ExprTreeNode> treeParent;     
   

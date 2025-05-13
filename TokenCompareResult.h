@@ -12,14 +12,14 @@ enum comparisonResults { isTrue, isFalse, compareFailed };
 
 class TokenCompareResult {
 public:
-	TokenCompareResult();
-	virtual ~TokenCompareResult();
+  TokenCompareResult();
+  virtual ~TokenCompareResult();
 
-	int gr8rThan;
-	int gr8rEquals;
-	int lessThan;
-	int lessEquals;
-	int equals;
+  int gr8rThan;
+  int gr8rEquals;
+  int lessThan;
+  int lessEquals;
+  int equals;
 };
 
 #endif /* TOKENCOMPARERESULT_H_ */

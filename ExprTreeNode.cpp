@@ -11,12 +11,12 @@
 #include <memory>
 
 ExprTreeNode::ExprTreeNode(std::shared_ptr<Token> startOpr8rTkn) {
-	// Attach this shared_ptr to an already existing shared_ptr of type Token
-	originalTkn = startOpr8rTkn;
+  // Attach this shared_ptr to an already existing shared_ptr of type Token
+  originalTkn = startOpr8rTkn;
   scopenedBy = NULL;
   _1stChild = NULL;
   _2ndChild = NULL;
-	treeParent = NULL;
+  treeParent = NULL;
 
   initDisplaySettings();
 
@@ -33,8 +33,8 @@ void ExprTreeNode::initDisplaySettings() {
 }
 
 ExprTreeNode::~ExprTreeNode() {
-	// Clean up our allocated memory
-	originalTkn.reset();
-	_1stChild.reset();
-	_2ndChild.reset();
+  // Clean up our allocated memory
+  originalTkn.reset();
+  _1stChild.reset();
+  _2ndChild.reset();
 }

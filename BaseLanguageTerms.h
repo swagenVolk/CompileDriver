@@ -24,8 +24,8 @@
 #include "Utilities.h"
 
 enum interpreter_modes_enum {
-	COMPILE_TIME
-	,INTERPRETER
+  COMPILE_TIME
+  ,INTERPRETER
 
 };
 
@@ -34,8 +34,8 @@ typedef interpreter_modes_enum InterpreterModesType;
 class BaseLanguageTerms {
 
 public:
-	BaseLanguageTerms();
-	virtual ~BaseLanguageTerms();
+  BaseLanguageTerms();
+  virtual ~BaseLanguageTerms();
   bool is_sngl_char_spr8r (wchar_t curr_char);
   bool is_atomic_opr8r (wchar_t curr_char);
   bool is_valid_opr8r (std::wstring pssbl_opr8r, uint8_t usage_mode);
@@ -50,7 +50,7 @@ public:
   bool is_reserved_word (std::wstring inStr);
   bool is_system_call (std::wstring inStr);
 
-	
+  
   // Outer list indicates precedence level.  Multiple OPR8Rs can reside at same precedence level
   std::list<Opr8rPrecedenceLvl> grouped_opr8rs;
   uint8_t getOpCodeFor (std::wstring opr8r);
@@ -65,10 +65,10 @@ public:
   int get_num_sys_call_parameters (std::wstring sys_call, int & num_params);
   int tkn_type_converts_to_opcode (uint8_t op_code, Token & check_token, std::wstring variable_name, std::wstring & error_msg);
 
-	void dumpTokenList (std::vector<Token> & tokenStream, std::wstring callersSrcFile, int lineNum);
-	void dumpTokenList (std::vector<Token> & tokenStream, int startIdx, std::wstring callersSrcFile, int lineNum);
-	void dumpTokenList (TokenPtrVector & tknPtrVector, std::wstring callersSrcFile, int lineNum, bool isShowDetail);
-	void dumpTokenList (TokenPtrVector & tknPtrVector, int startIdx, std::wstring callersSrcFile, int lineNum, bool isShowDetail);
+  void dumpTokenList (std::vector<Token> & tokenStream, std::wstring callersSrcFile, int lineNum);
+  void dumpTokenList (std::vector<Token> & tokenStream, int startIdx, std::wstring callersSrcFile, int lineNum);
+  void dumpTokenList (TokenPtrVector & tknPtrVector, std::wstring callersSrcFile, int lineNum, bool isShowDetail);
+  void dumpTokenList (TokenPtrVector & tknPtrVector, int startIdx, std::wstring callersSrcFile, int lineNum, bool isShowDetail);
 
   // TODO: Is this the right place for these to live?
   int append_to_flat_tkn_list (std::shared_ptr<ExprTreeNode> tree_node, std::vector<Token> & flatExprTknList);

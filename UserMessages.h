@@ -19,35 +19,35 @@
 
 class UserMessages {
 public:
-	UserMessages();
-	virtual ~UserMessages();
-	void reset();
+  UserMessages();
+  virtual ~UserMessages();
+  void reset();
 
-	int logMsg (InfoWarnError & msg);
-	int logMsg (info_warn_error_type msgType, std::wstring userMsg, std::wstring srcFileName, int lineNumber, int columnPos);
-	void getUserErrorCnt (int & numUnique, int & numTotal);
-	void getInternalErrorCnt (int & numUnique, int & numTotal);
-	void showMessagesByGroup ();
-	void showMessagesByInsertOrder (bool isOrderAscending);
-	bool isExistsInternalError (std::wstring fileName, int lineNum);
+  int logMsg (InfoWarnError & msg);
+  int logMsg (info_warn_error_type msgType, std::wstring userMsg, std::wstring srcFileName, int lineNumber, int columnPos);
+  void getUserErrorCnt (int & numUnique, int & numTotal);
+  void getInternalErrorCnt (int & numUnique, int & numTotal);
+  void showMessagesByGroup ();
+  void showMessagesByInsertOrder (bool isOrderAscending);
+  bool isExistsInternalError (std::wstring fileName, int lineNum);
 
 private:
-	std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> infoMessages;
-	std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> warningMessages;
-	std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> userErrorMessages;
-	std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> internalErrorMessages;
+  std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> infoMessages;
+  std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> warningMessages;
+  std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> userErrorMessages;
+  std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> internalErrorMessages;
 
-	void insertNoDupes (std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> & messagesHolder
-	, InfoWarnError & msg, FileLineCol newFileLineCol);
+  void insertNoDupes (std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> & messagesHolder
+  , InfoWarnError & msg, FileLineCol newFileLineCol);
 
-	std::pair <int, int> getUniqueTotalMsgCnt (std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> & messagesHolder);
-	void displayMessagesInHolder (std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> & messagesHolder);
-	void putHolderMsgsInOrder (std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> & messagesHolder
-			, std::vector<std::pair <std::wstring, FileLineCol>> & orderedMsgs
-			, std::vector<std::wstring> & orderedMsgTypes
-			, std::wstring msgTypeStr);
+  std::pair <int, int> getUniqueTotalMsgCnt (std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> & messagesHolder);
+  void displayMessagesInHolder (std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> & messagesHolder);
+  void putHolderMsgsInOrder (std::map<std::wstring, std::shared_ptr<std::vector<FileLineCol>>> & messagesHolder
+      , std::vector<std::pair <std::wstring, FileLineCol>> & orderedMsgs
+      , std::vector<std::wstring> & orderedMsgTypes
+      , std::wstring msgTypeStr);
 
-	int absoluteInsertPos;
+  int absoluteInsertPos;
 };
 
 #endif /* USERMESSAGES_H_ */

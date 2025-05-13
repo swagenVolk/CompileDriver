@@ -12,12 +12,12 @@
 
 class NestedScopeExpr {
 public:
-	NestedScopeExpr(std::shared_ptr<ExprTreeNode> openParenPtr);
-	NestedScopeExpr();
-	virtual ~NestedScopeExpr();
-	ExprTreeNodePtrVector scopedKids;
-	std::shared_ptr<ExprTreeNode> myParentScopener;
-	int ternary2ndCnt;
+  NestedScopeExpr(std::shared_ptr<ExprTreeNode> openParenPtr);
+  NestedScopeExpr();
+  virtual ~NestedScopeExpr();
+  ExprTreeNodePtrVector scopedKids;
+  std::shared_ptr<ExprTreeNode> myParentScopener;
+  int ternary2ndCnt;
 };
 
 #endif /* NESTEDSCOPEEXPR_H_ */
