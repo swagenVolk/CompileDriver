@@ -6,26 +6,26 @@
     "configurations": [
 
         {
-            "name": "C/C++ Debug (gdb Launch)",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "/home/mike/eclipse-workspace/CompileDriver/build/CompileDriver",
-            "args": ["./testCSrcFiles/sys_call_print_line_debug.c", "-l", "ILLUSTRATIVE"],
-            // "args": ["./testCSrcFiles/sys_call_print_line_test.c"],
-            // "args": ["./testCSrcFiles/sys_call_print_line_test.c", "-l", "ILLUSTRATIVE"],
-            // "args": ["./testCSrcFiles/tern_test.c", "-l", "ILLUSTRATIVE"],
-            // "args": ["./testCSrcFiles/for_loop_test.c"],
-            // "args": ["./testCSrcFiles/sys_call_str_test.c"],
-            // "args": ["./testCSrcFiles/sys_call_scratch_test.c", "-l", "ILLUSTRATIVE"],
-            "stopAtEntry": false,
-            "cwd": "/home/mike/eclipse-workspace/CompileDriver",
-            "environment": [],
-            "MIMode": "gdb",
-            "setupCommands": [
+            "name": "C/C++ Debug (gdb Launch)"
+            ,"type": "cppdbg"
+            ,"request": "launch"
+            ,"program": "/home/mike/eclipse-workspace/CompileDriver/build/CompileDriver"
+            ,"args": ["./testCSrcFiles/illustrate_sys_call_str_and_print_line.c", "-l", "ILLUSTRATIVE"]
+            // ,"args": ["./testCSrcFiles/sys_call_print_line_test.c"]
+            // ,"args": ["./testCSrcFiles/sys_call_print_line_test.c", "-l", "ILLUSTRATIVE"]
+            // ,"args": ["./testCSrcFiles/tern_test.c", "-l", "ILLUSTRATIVE"]
+            // ,"args": ["./testCSrcFiles/for_loop_test.c"]
+            // ,"args": ["./testCSrcFiles/sys_call_str_test.c"]
+            // ,"args": ["./testCSrcFiles/sys_call_scratch_test.c", "-l", "ILLUSTRATIVE"]
+            ,"stopAtEntry": false
+            ,"cwd": "/home/mike/eclipse-workspace/CompileDriver"
+            ,"environment": []
+            ,"MIMode": "gdb"
+            ,"setupCommands": [
                 {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": false
+                    "description": "Enable pretty-printing for gdb"
+                    ,"text": "-enable-pretty-printing"
+                    ,"ignoreFailures": false
                 }
             ]
         }
