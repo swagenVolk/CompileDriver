@@ -12,7 +12,7 @@ expect_5 = one + two * three * four / six;
 /* *************** <COMPILATION STAGE> **************** */
 // ILLUSTRATIVE MODE: Starting compilation of expression that begins on illustrate_variables1.c:7:1
 
-Current top precedence sub-expression closed by )
+Top level expression closed
 Scope Level 0: [expect_5][=][one][B+][two][*][three][*][four][/][six]
 [*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 0: [expect_5][=][one][B+]/*\[*][four][/][six]

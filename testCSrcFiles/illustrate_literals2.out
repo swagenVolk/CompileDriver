@@ -32,7 +32,7 @@ Parse tree of moved operator
            /B+\   [5]
          [3][4]
 
-Current top precedence sub-expression closed by )
+Top level expression closed
 Scope Level 0: [expect_71][=][1][B+][2][*]/*\
 [*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 0: [expect_71][=][1][B+]/*\

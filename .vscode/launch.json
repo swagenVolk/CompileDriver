@@ -11,13 +11,14 @@
             ,"request": "launch"
             ,"program": "/home/mike/eclipse-workspace/CompileDriver/build/CompileDriver"
             // ,"args": ["./testCSrcFiles/illustrate_sys_call_str_and_print_line.c", "-l", "SILENT"]
-            ,"args": ["/home/mike/eclipse-workspace/CompileDriver/testCSrcFiles/automated/compile_driver/seed_1747543263.6540794_expr_cnt_100.c", "-l", "ILLUSTRATIVE"]
+            // ,"args": ["/home/mike/eclipse-workspace/CompileDriver/testCSrcFiles/automated/compile_driver/seed_1747543263.6540794_expr_cnt_100.c", "-l", "ILLUSTRATIVE"]
             // ,"args": ["./testCSrcFiles/sys_call_print_line_test.c"]
             // ,"args": ["./testCSrcFiles/sys_call_print_line_test.c", "-l", "ILLUSTRATIVE"]
             // ,"args": ["./testCSrcFiles/tern_test.c", "-l", "ILLUSTRATIVE"]
             // ,"args": ["./testCSrcFiles/for_loop_test.c"]
             // ,"args": ["./testCSrcFiles/sys_call_str_test.c"]
             // ,"args": ["./testCSrcFiles/sys_call_scratch_test.c", "-l", "ILLUSTRATIVE"]
+            ,"args": ["./testCSrcFiles/illustrate_literals1.c", "-l", "ILLUSTRATIVE"]
             ,"stopAtEntry": false
             ,"cwd": "/home/mike/eclipse-workspace/CompileDriver"
             ,"environment": []

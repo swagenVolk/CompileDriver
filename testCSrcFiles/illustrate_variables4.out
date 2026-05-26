@@ -104,7 +104,7 @@ Parse tree of moved operator
         /*\ [five]  [eight][four]
  [six][one]                      
 
-Current top precedence sub-expression closed by )
+Top level expression closed
 Scope Level 0: [expect_64][=]/B+\[*]/B+\[B+]/?\
 [*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 0: [expect_64][=]/*\[B+]/?\

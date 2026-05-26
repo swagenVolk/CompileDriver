@@ -8,7 +8,7 @@ expect_5 = 1 * 2 + 3;
 /* *************** <COMPILATION STAGE> **************** */
 // ILLUSTRATIVE MODE: Starting compilation of expression that begins on illustrate_literals1.c:3:1
 
-Current top precedence sub-expression closed by )
+Top level expression closed
 Scope Level 0: [expect_5][=][1][*][2][B+][3]
 [*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 0: [expect_5][=]/*\[B+][3]

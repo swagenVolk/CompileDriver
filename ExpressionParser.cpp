@@ -1022,7 +1022,13 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
   // TODO: Update bannerMsg to make it conditional: sub-expression closed by parenthese or the whole expression was closed.
   if (((logLevel == ILLUSTRATIVE && !isExprVarDeclaration) || logLevel > ILLUSTRATIVE)
     && (exprScopeStack.size() > 1 || (exprScopeStack.size() == 1 && exprScopeStack[0]->scopedKids.size() > 1))) {
-    std::wstring bannerMsg = L"Current top precedence sub-expression closed by )";
+    std::wstring bannerMsg;
+    
+    if (exprScopeStack.size() == 1)
+      bannerMsg = L"Top level expression closed";
+    else
+      bannerMsg = L"Current top precedence sub-expression closed by )";;
+    
     printScopeStack (bannerMsg, false, exprScopeStack);
   }
 
