@@ -122,6 +122,7 @@
 #include <cstdint>
 #include <iostream>
 #include <memory>
+#include <ostream>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -143,7 +144,7 @@ RunTimeInterpreter::RunTimeInterpreter() {
   zero_tkn->isInitialized = true;
   this_src_file = util.getLastSegment(util.stringToWstring(__FILE__), L"/");
   failed_on_src_line = 0;
-  log_level = SILENT;
+  log_level = TACITURN;
   is_illustrative = false;
   assert(0);
 }
@@ -1261,7 +1262,7 @@ int RunTimeInterpreter::execShift (std::vector<Token> & expr_tkn_stream, int opr
   }
 
   if (OK != ret_code)
-    user_messages->logMsg (INTERNAL_ERROR, L"Function failed!", this_src_file, __LINE__, 0);
+    user_messages->logMsg (INTERNAL_ERROR, L"Shift operation failed!", this_src_file, __LINE__, 0);
 
   return (ret_code);
 }
@@ -2867,7 +2868,7 @@ int RunTimeInterpreter::get_expr_from_var_declaration (uint32_t start_pos, std::
     Token param_tkn = flat_expr_tkns[sys_call_idx + 1];
 
     if (param_tkn.tkn_type == STRING_TKN) {
-      std::wcout << param_tkn._string << std::endl;
+      std::wcout << param_tkn._string << std::endl << std::flush;
       // Delete 2 items from the list - print_line sys_call and the single parameter passed to it
       flat_expr_tkns.erase(flat_expr_tkns.begin() + sys_call_idx, flat_expr_tkns.begin() + sys_call_idx + 2);
       ret_code = OK;      

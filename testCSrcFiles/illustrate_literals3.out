@@ -10,32 +10,32 @@ expect_155 = 1 + 2 * ((3 + 4) * (5 + 6));
 /* *************** <COMPILATION STAGE> **************** */
 // ILLUSTRATIVE MODE: Starting compilation of expression that begins on illustrate_literals3.c:5:1
 
-Current highest precedence sub-expression closed
+Current top precedence sub-expression closed by )
 Scope Level 2: [3][B+][4]
 Scope Level 1: ['(']
 Scope Level 0: [expect_155][=][1][B+][2][*]['(']
-Left & right operands moved under (like tree branches) [B+] operator (Add)
+[B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 2: /B+\
 
 Parse tree of moved operator 
                /B+\
             [3]   [4]
 
-Current highest precedence sub-expression closed
+Current top precedence sub-expression closed by )
 Scope Level 2: [5][B+][6]
 Scope Level 1: /B+\[*]['(']
 Scope Level 0: [expect_155][=][1][B+][2][*]['(']
-Left & right operands moved under (like tree branches) [B+] operator (Add)
+[B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 2: /B+\
 
 Parse tree of moved operator 
                /B+\
             [5]   [6]
 
-Current highest precedence sub-expression closed
+Current top precedence sub-expression closed by )
 Scope Level 1: /B+\[*]/B+\
 Scope Level 0: [expect_155][=][1][B+][2][*]['(']
-Left & right operands moved under (like tree branches) [*] operator (Multiply)
+[*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 1: /*\
 
 Parse tree of moved operator 
@@ -43,9 +43,9 @@ Parse tree of moved operator
            /B+\   /B+\
          [3][4]   [5][6]
 
-Current highest precedence sub-expression closed
+Current top precedence sub-expression closed by )
 Scope Level 0: [expect_155][=][1][B+][2][*]/*\
-Left & right operands moved under (like tree branches) [*] operator (Multiply)
+[*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 0: [expect_155][=][1][B+]/*\
 
 Parse tree of moved operator 
@@ -54,7 +54,7 @@ Parse tree of moved operator
                                         /B+\    /B+\
                                         [3][4]  [5][6]
 
-Left & right operands moved under (like tree branches) [B+] operator (Add)
+[B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 0: [expect_155][=]/B+\
 
 Parse tree of moved operator 

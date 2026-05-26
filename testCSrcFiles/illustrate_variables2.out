@@ -12,19 +12,19 @@ expect_6 = (one + two) * three * four / six;
 /* *************** <COMPILATION STAGE> **************** */
 // ILLUSTRATIVE MODE: Starting compilation of expression that begins on illustrate_variables2.c:7:1
 
-Current highest precedence sub-expression closed
+Current top precedence sub-expression closed by )
 Scope Level 1: [one][B+][two]
 Scope Level 0: [expect_6][=]['(']
-Left & right operands moved under (like tree branches) [B+] operator (Add)
+[B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 1: /B+\
 
 Parse tree of moved operator 
                /B+\
           [one]   [two]
 
-Current highest precedence sub-expression closed
+Current top precedence sub-expression closed by )
 Scope Level 0: [expect_6][=]/B+\[*][three][*][four][/][six]
-Left & right operands moved under (like tree branches) [*] operator (Multiply)
+[*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 0: [expect_6][=]/*\[*][four][/][six]
 
 Parse tree of moved operator 
@@ -32,7 +32,7 @@ Parse tree of moved operator
                         /B+\   [three]
                   [one][two]
 
-Left & right operands moved under (like tree branches) [*] operator (Multiply)
+[*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 0: [expect_6][=]/*\[/][six]
 
 Parse tree of moved operator 
@@ -41,7 +41,7 @@ Parse tree of moved operator
                 /B+\ [three]
           [one][two]        
 
-Left & right operands moved under (like tree branches) [/] operator (Divide)
+[/] (Divide) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 0: [expect_6][=]//\
 
 Parse tree of moved operator 

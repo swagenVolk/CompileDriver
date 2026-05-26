@@ -1,12 +1,4 @@
 
-/* *************** <COMPILATION STAGE> **************** */
-
-Compiler ret_code = 0
-
-/* *************** </COMPILATION STAGE> *************** */
-
-/* *************** <INTERPRETER STAGE> **************** */
-
 ********** SIGNED INTEGER VARIABLE EXAMPLES USING print_line() and str() **********
 print_line output: signed_result = 4;
 print_line output: signed_result = 5;
@@ -34,13 +26,3 @@ Expression passed to str: 0x2 * 0x2 + 0x1;   Resolved to: 0x5;
 Expression passed to str: 0x4 + 0x3;         Resolved to: 0x7;
 Expression passed to str: 0x3 + 0x2;         Resolved to: 0x5;
 Expression passed to str: 0x2 + 0x1;         Resolved to: 0x3;
-Interpreter ret_code = 0
-
-/* ********** <SHOW VARIABLES & VALUES> ********** */
-// ********** <SCOPE LEVEL 0> ********** 
-// Scope opened by: INTERNAL USE(U)->[__ROOT_SCOPE] on line 0 column 0
-signed_result   = 3;
-unsigned_result = 0x3;
-// ********** </SCOPE LEVEL 0> ********** 
-/* ********** </SHOW VARIABLES & VALUES> ********** */
-/* *************** </INTERPRETER STAGE> *************** */

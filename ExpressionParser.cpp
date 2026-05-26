@@ -750,26 +750,34 @@ int ExpressionParser::moveNeighborsIntoTree (ExprTreeNodePtrVector & currScope
       if ((logLevel == ILLUSTRATIVE && !isExprVarDeclaration) || logLevel > ILLUSTRATIVE) {
         int updatedOprIdx = opr8rIdx;
 
+        // TODO: Refactor this message; indicate this operator was next in precedence order
+        // Current:   Left & right operands moved under (like tree branches) [*] operator (Multiply)
+        // Proposed:  [*](Multiply) has precedence; move left & right operands under (ie tree branches)
         std::wstring bannerMsg;
-        if (opr8rState == ATTACH_1ST) {
-          bannerMsg.append(L"Left operand");
-          updatedOprIdx--;
+        bannerMsg.append (L"[" + opr8r.symbol + L"]");
         
-        } else if (opr8rState == ATTACH_1ST)  {
-          bannerMsg.append(L"Right operand");
-        
-        } else if (opr8rState == ATTACH_BOTH) {
-          bannerMsg.append(L"Left & right operands");
-          updatedOprIdx--;
-        }
-
-        bannerMsg.append (L" moved under (like tree branches)");
-        bannerMsg.append (L" [" + opr8r.symbol + L"] operator");
         if (!opr8r.description.empty()) {
           bannerMsg.append (L" (");
           bannerMsg.append (opr8r.description);
           bannerMsg.append (L")");
         }
+
+        bannerMsg.append(L" operator has precedence; move");
+
+        if (opr8rState == ATTACH_1ST) {
+          bannerMsg.append(L" left operand");
+          updatedOprIdx--;
+        
+        } else if (opr8rState == ATTACH_1ST)  {
+          bannerMsg.append(L" right operand");
+        
+        } else if (opr8rState == ATTACH_BOTH) {
+          bannerMsg.append(L" left & right operands");
+          updatedOprIdx--;
+        }
+
+        bannerMsg.append (L" under (ie tree branches)");
+
         if (exprScopeStack.size() > 1 || currScope.size() > 1)  {
           // Avoid printing out a completed parse tree, because that happens elsewhere
           int opr8rStartPos;
@@ -1010,9 +1018,11 @@ int ExpressionParser::turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope
 
   // [?]._1stChild is the conditional and should be the resolved expression directly to the left
   // [?]_2ndChild is the [:] OPR8R; [:]._1stChild is the TRUE path; [:]_2ndChild is the FALSE path
+
+  // TODO: Update bannerMsg to make it conditional: sub-expression closed by parenthese or the whole expression was closed.
   if (((logLevel == ILLUSTRATIVE && !isExprVarDeclaration) || logLevel > ILLUSTRATIVE)
     && (exprScopeStack.size() > 1 || (exprScopeStack.size() == 1 && exprScopeStack[0]->scopedKids.size() > 1))) {
-    std::wstring bannerMsg = L"Current highest precedence sub-expression closed";
+    std::wstring bannerMsg = L"Current top precedence sub-expression closed by )";
     printScopeStack (bannerMsg, false, exprScopeStack);
   }
 

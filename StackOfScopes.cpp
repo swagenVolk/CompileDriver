@@ -219,7 +219,7 @@ bool StackOfScopes::isInsideLoop (uint32_t & loop_boundary_end_pos, bool is_inc_
       loop_boundary_end_pos = scopeStack[idx]->boundary_end_pos;
       isInLoop = true;
       if (is_inc_break_cnt)
-        scopeStack[idx]->loop_break_cnt++;
+        scopeStack[idx]->num_breaks_in_loop++;
     }
   }
 
@@ -331,7 +331,7 @@ void StackOfScopes::displayVariables()  {
   int top_idx = scopeStack.size() - 1;
 
   if (top_idx >= 0) {
-    break_cnt = scopeStack[top_idx]->loop_break_cnt;
+    break_cnt = scopeStack[top_idx]->num_breaks_in_loop;
     ret_code = OK;
   }
 

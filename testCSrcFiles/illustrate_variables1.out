@@ -12,16 +12,16 @@ expect_5 = one + two * three * four / six;
 /* *************** <COMPILATION STAGE> **************** */
 // ILLUSTRATIVE MODE: Starting compilation of expression that begins on illustrate_variables1.c:7:1
 
-Current highest precedence sub-expression closed
+Current top precedence sub-expression closed by )
 Scope Level 0: [expect_5][=][one][B+][two][*][three][*][four][/][six]
-Left & right operands moved under (like tree branches) [*] operator (Multiply)
+[*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 0: [expect_5][=][one][B+]/*\[*][four][/][six]
 
 Parse tree of moved operator 
                                      /*\
                                 [two]   [three]
 
-Left & right operands moved under (like tree branches) [*] operator (Multiply)
+[*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 0: [expect_5][=][one][B+]/*\[/][six]
 
 Parse tree of moved operator 
@@ -29,7 +29,7 @@ Parse tree of moved operator
                                   /*\   [four]
                          [two][three]
 
-Left & right operands moved under (like tree branches) [/] operator (Divide)
+[/] (Divide) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 0: [expect_5][=][one][B+]//\
 
 Parse tree of moved operator 
@@ -38,7 +38,7 @@ Parse tree of moved operator
                            /*\ [four]
                   [two][three]       
 
-Left & right operands moved under (like tree branches) [B+] operator (Add)
+[B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 0: [expect_5][=]/B+\
 
 Parse tree of moved operator 

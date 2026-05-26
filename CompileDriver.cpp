@@ -94,7 +94,7 @@
 #include <string>
 
 using namespace std;
-logLvlEnum logLevel = SILENT;
+logLvlEnum logLevel = TACITURN;
 
 /* ****************************************************************************
  *
@@ -117,6 +117,10 @@ bool isCmdLineArgsOK (int argc, const char * argv[])  {
 
         if (nextValue.compare ("SILENT") == 0)  {
           logLevel = SILENT;
+          completedArgCnt++;
+
+        } else if (nextValue.compare ("TACITURN") == 0)  {
+          logLevel = TACITURN;
           completedArgCnt++;
 
         } else if (nextValue.compare ("ILLUSTRATIVE") == 0) {
@@ -197,14 +201,21 @@ int main(int argc, const char * argv[])
         std::shared_ptr<UserMessages> userMessages = std::make_shared <UserMessages> ();
         GeneralParser generalParser (tokenStream, userSrcFileName, srcExecTerms, userMessages, output_file_name, rootScope, logLevel);
 
-        std::wcout << std::endl << L"/* *************** <COMPILATION STAGE> **************** */" << std::endl;
+        if (logLevel > SILENT)
+          std::wcout << std::endl << L"/* *************** <COMPILATION STAGE> **************** */" << std::endl;
+        
         int compileRetCode = generalParser.compileRootScope();
-        std::wcout << std::endl << L"Compiler ret_code = " << compileRetCode << std::endl;
-        userMessages->showMessagesByInsertOrder(true);
-        std::wcout << std::endl << L"/* *************** </COMPILATION STAGE> *************** */" << std::endl;
+        
+        if (logLevel > SILENT)  {
+          std::wcout << std::endl << L"Compiler ret_code = " << compileRetCode << std::endl;
+          userMessages->showMessagesByInsertOrder(true);
+          std::wcout << std::endl << L"/* *************** </COMPILATION STAGE> *************** */" << std::endl;
+        }
 
         int numUnqUserErrors, numTotalUserErrors;
-        userMessages->getUserErrorCnt(numUnqUserErrors, numTotalUserErrors);
+        if (logLevel > SILENT)
+          userMessages->getUserErrorCnt(numUnqUserErrors, numTotalUserErrors);
+        
         // TODO: I expected to be able to re-use userMessages, but having problems
         userMessages.reset();
         rootScope.reset();
@@ -217,14 +228,20 @@ int main(int argc, const char * argv[])
     
           RunTimeInterpreter interpreter (interpretedFileName, userSrcFileName, execVarScope, execMessages, logLevel);
 
-          std::wcout << std::endl;
-          std::wcout << L"/* *************** <INTERPRETER STAGE> **************** */" << std::endl;
+          
+          if (logLevel > SILENT)  {
+            std::wcout << std::endl;
+            std::wcout << L"/* *************** <INTERPRETER STAGE> **************** */" << std::endl;
+          }
+
           ret_code = interpreter.execRootScope();
-          std::wcout << L"Interpreter ret_code = " << ret_code << std::endl << std::endl;
-          // execMessages->showMessagesByInsertOrder(true);
-          execMessages->showMessagesByGroup();
-          execVarScope->displayVariables();
-          std::wcout << L"/* *************** </INTERPRETER STAGE> *************** */" << std::endl;
+          if (logLevel > SILENT)  {
+            std::wcout << L"Interpreter ret_code = " << ret_code << std::endl << std::endl;
+            // execMessages->showMessagesByInsertOrder(true);
+            execMessages->showMessagesByGroup();
+            execVarScope->displayVariables();
+            std::wcout << L"/* *************** </INTERPRETER STAGE> *************** */" << std::endl;
+          }
           execMessages.reset();
           execVarScope.reset();
         }

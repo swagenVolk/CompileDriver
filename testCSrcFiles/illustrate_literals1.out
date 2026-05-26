@@ -8,16 +8,16 @@ expect_5 = 1 * 2 + 3;
 /* *************** <COMPILATION STAGE> **************** */
 // ILLUSTRATIVE MODE: Starting compilation of expression that begins on illustrate_literals1.c:3:1
 
-Current highest precedence sub-expression closed
+Current top precedence sub-expression closed by )
 Scope Level 0: [expect_5][=][1][*][2][B+][3]
-Left & right operands moved under (like tree branches) [*] operator (Multiply)
+[*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 0: [expect_5][=]/*\[B+][3]
 
 Parse tree of moved operator 
                             /*\
                          [1]   [2]
 
-Left & right operands moved under (like tree branches) [B+] operator (Add)
+[B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 0: [expect_5][=]/B+\
 
 Parse tree of moved operator 

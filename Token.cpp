@@ -674,7 +674,7 @@ void Token::resetToString (std::wstring newValue) {
 }
 
 /* ****************************************************************************
- *
+ * TODO: This proc needs some work!
  * ***************************************************************************/
 int Token::convertTo (Token newValTkn, std::wstring variableName, std::wstring & errorMsg)  {
   int ret_code = GENERAL_FAILURE;
@@ -744,10 +744,12 @@ int Token::convertTo (Token newValTkn, std::wstring variableName, std::wstring &
       if (newValTkn.tkn_type <= UINT32_TKN) {
         _signed = abs((int64_t)newValTkn._unsigned);
         ret_code = OK;
+      
+      } else if (newValTkn._unsigned <= pow (2, 32) - 1) {
+        _signed = newValTkn._unsigned;
+        ret_code = OK;
       }
     }
-
-
   } else if (tkn_type == DOUBLE_TKN)  {
     // PREV: [DOUBLE_TKN]
     // OKGO: [BOOL_TKN] [isUnsigned] [isSigned]  

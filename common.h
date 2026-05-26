@@ -97,6 +97,7 @@ typedef read_write_enum ReadOrWrite;
 
 enum log_level_enum {
   SILENT
+  ,TACITURN
   ,ILLUSTRATIVE
   ,VERBOSE
   ,EFFUSIVE

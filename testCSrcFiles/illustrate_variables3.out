@@ -12,21 +12,21 @@ expect_78 = ((one + two) + three) * (four + six) + (six * three);
 /* *************** <COMPILATION STAGE> **************** */
 // ILLUSTRATIVE MODE: Starting compilation of expression that begins on illustrate_variables3.c:7:1
 
-Current highest precedence sub-expression closed
+Current top precedence sub-expression closed by )
 Scope Level 2: [one][B+][two]
 Scope Level 1: ['(']
 Scope Level 0: [expect_78][=]['(']
-Left & right operands moved under (like tree branches) [B+] operator (Add)
+[B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 2: /B+\
 
 Parse tree of moved operator 
                /B+\
           [one]   [two]
 
-Current highest precedence sub-expression closed
+Current top precedence sub-expression closed by )
 Scope Level 1: /B+\[B+][three]
 Scope Level 0: [expect_78][=]['(']
-Left & right operands moved under (like tree branches) [B+] operator (Add)
+[B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 1: /B+\
 
 Parse tree of moved operator 
@@ -34,29 +34,29 @@ Parse tree of moved operator
            /B+\   [three]
      [one][two]
 
-Current highest precedence sub-expression closed
+Current top precedence sub-expression closed by )
 Scope Level 1: [four][B+][six]
 Scope Level 0: [expect_78][=]/B+\[*]['(']
-Left & right operands moved under (like tree branches) [B+] operator (Add)
+[B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 1: /B+\
 
 Parse tree of moved operator 
                /B+\
          [four]   [six]
 
-Current highest precedence sub-expression closed
+Current top precedence sub-expression closed by )
 Scope Level 1: [six][*][three]
 Scope Level 0: [expect_78][=]/B+\[*]/B+\[B+]['(']
-Left & right operands moved under (like tree branches) [*] operator (Multiply)
+[*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 1: /*\
 
 Parse tree of moved operator 
                /*\
           [six]   [three]
 
-Current highest precedence sub-expression closed
+Current top precedence sub-expression closed by )
 Scope Level 0: [expect_78][=]/B+\[*]/B+\[B+]/*\
-Left & right operands moved under (like tree branches) [*] operator (Multiply)
+[*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 0: [expect_78][=]/*\[B+]/*\
 
 Parse tree of moved operator 
@@ -65,7 +65,7 @@ Parse tree of moved operator
                  /B+\ [three]   [four][six]
            [one][two]        
 
-Left & right operands moved under (like tree branches) [B+] operator (Add)
+[B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
 Scope Level 0: [expect_78][=]/B+\
 
 Parse tree of moved operator 

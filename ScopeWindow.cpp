@@ -26,7 +26,7 @@ ScopeWindow::ScopeWindow(uint8_t inOpCode, Token inOpeningTkn, uint32_t inStartF
   else
     boundary_end_pos = 0;
 
-  loop_break_cnt = 0;    
+  num_breaks_in_loop = 0;    
   is_exists_for_loop_cond = false;
 }
 
