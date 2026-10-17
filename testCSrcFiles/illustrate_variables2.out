@@ -12,44 +12,46 @@ expect_6 = (one + two) * three * four / six;
 /* *************** <COMPILATION STAGE> **************** */
 // ILLUSTRATIVE MODE: Starting compilation of expression that begins on illustrate_variables2.c:7:1
 
-Current top precedence sub-expression closed by )
-Scope Level 1: [one][B+][two]
-Scope Level 0: [expect_6][=]['(']
+Sub-expression opened by '(' at line:column [7:12] closed by ')' at [7:22]
+Nested Level 1: [one][B+][two]
+Nested Level 0: [expect_6][=]['(']
+
 [B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 1: /B+\
+Nested Level 1: /B+\
 
 Parse tree of moved operator 
-               /B+\
-          [one]   [two]
+                /B+\
+           [one]   [two]
 
 Top level expression closed
-Scope Level 0: [expect_6][=]/B+\[*][three][*][four][/][six]
-[*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 0: [expect_6][=]/*\[*][four][/][six]
-
-Parse tree of moved operator 
-                            /*\
-                        /B+\   [three]
-                  [one][two]
+Nested Level 0: [expect_6][=]/B+\[*][three][*][four][/][six]
 
 [*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 0: [expect_6][=]/*\[/][six]
+Nested Level 0: [expect_6][=]/*\[*][four][/][six]
 
 Parse tree of moved operator 
-                            /*\
-                         /*\   [four]
-                /B+\ [three]
-          [one][two]        
+                             /*\
+                         /B+\   [three]
+                   [one][two]
+
+[*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
+Nested Level 0: [expect_6][=]/*\[/][six]
+
+Parse tree of moved operator 
+                             /*\
+                          /*\   [four]
+                 /B+\ [three]
+           [one][two]        
 
 [/] (Divide) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 0: [expect_6][=]//\
+Nested Level 0: [expect_6][=]//\
 
 Parse tree of moved operator 
-                            //\
-                         /*\   [six]
-                  /*\ [four]
-         /B+\ [three]       
-   [one][two]               
+                             //\
+                          /*\   [six]
+                   /*\ [four]
+          /B+\ [three]       
+    [one][two]               
 
 Compiler's Parse Tree for Complete Expression
                        /=\
@@ -59,7 +61,7 @@ Compiler's Parse Tree for Complete Expression
        /B+\ [three]       
  [one][two]               
 
-Parse tree flattened and written out to interpreted file
+Parse tree flattened & written to interpreted file
 [=][expect_6][/][*][*][B+][one][two][three][four][six]
 
 Compiler ret_code = 0
@@ -71,14 +73,19 @@ Compiler ret_code = 0
 
 [=][expect_6][/][*][*][B+][one][two][three][four][six]
                        ^ Add next 2 sequential operand(s); replace w/ result
+
 [=][expect_6][/][*][*][3][three][four][six]
                     ^ Multiply next 2 sequential operand(s); replace w/ result
+
 [=][expect_6][/][*][9][four][six]
                  ^ Multiply next 2 sequential operand(s); replace w/ result
+
 [=][expect_6][/][36][six]
               ^ Divide next 2 sequential operand(s); replace w/ result
+
 [=][expect_6][6]
  ^ Assign next 2 sequential operand(s); replace w/ result
+
 [6] expression resolved
 Interpreter ret_code = 0
 

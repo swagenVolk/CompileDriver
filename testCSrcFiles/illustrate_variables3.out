@@ -12,61 +12,66 @@ expect_78 = ((one + two) + three) * (four + six) + (six * three);
 /* *************** <COMPILATION STAGE> **************** */
 // ILLUSTRATIVE MODE: Starting compilation of expression that begins on illustrate_variables3.c:7:1
 
-Current top precedence sub-expression closed by )
-Scope Level 2: [one][B+][two]
-Scope Level 1: ['(']
-Scope Level 0: [expect_78][=]['(']
+Sub-expression opened by '(' at line:column [7:14] closed by ')' at [7:24]
+Nested Level 2: [one][B+][two]
+Nested Level 1: ['(']
+Nested Level 0: [expect_78][=]['(']
+
 [B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 2: /B+\
+Nested Level 2: /B+\
 
 Parse tree of moved operator 
-               /B+\
-          [one]   [two]
+                /B+\
+           [one]   [two]
 
-Current top precedence sub-expression closed by )
-Scope Level 1: /B+\[B+][three]
-Scope Level 0: [expect_78][=]['(']
+Sub-expression opened by '(' at line:column [7:13] closed by ')' at [7:33]
+Nested Level 1: /B+\[B+][three]
+Nested Level 0: [expect_78][=]['(']
+
 [B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 1: /B+\
+Nested Level 1: /B+\
 
 Parse tree of moved operator 
-               /B+\
-           /B+\   [three]
-     [one][two]
+                /B+\
+            /B+\   [three]
+      [one][two]
 
-Current top precedence sub-expression closed by )
-Scope Level 1: [four][B+][six]
-Scope Level 0: [expect_78][=]/B+\[*]['(']
+Sub-expression opened by '(' at line:column [7:37] closed by ')' at [7:48]
+Nested Level 1: [four][B+][six]
+Nested Level 0: [expect_78][=]/B+\[*]['(']
+
 [B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 1: /B+\
+Nested Level 1: /B+\
 
 Parse tree of moved operator 
-               /B+\
-         [four]   [six]
+                /B+\
+          [four]   [six]
 
-Current top precedence sub-expression closed by )
-Scope Level 1: [six][*][three]
-Scope Level 0: [expect_78][=]/B+\[*]/B+\[B+]['(']
+Sub-expression opened by '(' at line:column [7:52] closed by ')' at [7:64]
+Nested Level 1: [six][*][three]
+Nested Level 0: [expect_78][=]/B+\[*]/B+\[B+]['(']
+
 [*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 1: /*\
+Nested Level 1: /*\
 
 Parse tree of moved operator 
-               /*\
-          [six]   [three]
+                /*\
+           [six]   [three]
 
 Top level expression closed
-Scope Level 0: [expect_78][=]/B+\[*]/B+\[B+]/*\
+Nested Level 0: [expect_78][=]/B+\[*]/B+\[B+]/*\
+
 [*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 0: [expect_78][=]/*\[B+]/*\
+Nested Level 0: [expect_78][=]/*\[B+]/*\
 
 Parse tree of moved operator 
-                             /*\
-                         /B+\   /B+\
-                 /B+\ [three]   [four][six]
-           [one][two]        
+                              /*\
+                          /B+\   /B+\
+                  /B+\ [three]   [four][six]
+            [one][two]        
 
 [B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 0: [expect_78][=]/B+\
+Nested Level 0: [expect_78][=]/B+\
 
 Parse tree of moved operator 
                                 /B+\
@@ -83,7 +88,7 @@ Compiler's Parse Tree for Complete Expression
        /B+\ [three]  [four][six]
  [one][two]                     
 
-Parse tree flattened and written out to interpreted file
+Parse tree flattened & written to interpreted file
 [=][expect_78][B+][*][B+][B+][one][two][three][B+][four][six][*][six][three]
 
 Compiler ret_code = 0
@@ -95,18 +100,25 @@ Compiler ret_code = 0
 
 [=][expect_78][B+][*][B+][B+][one][two][three][B+][four][six][*][six][three]
                           ^ Add next 2 sequential operand(s); replace w/ result
+
 [=][expect_78][B+][*][B+][3][three][B+][four][six][*][six][three]
                       ^ Add next 2 sequential operand(s); replace w/ result
+
 [=][expect_78][B+][*][6][B+][four][six][*][six][three]
                          ^ Add next 2 sequential operand(s); replace w/ result
+
 [=][expect_78][B+][*][6][10][*][six][three]
                    ^ Multiply next 2 sequential operand(s); replace w/ result
+
 [=][expect_78][B+][60][*][six][three]
                        ^ Multiply next 2 sequential operand(s); replace w/ result
+
 [=][expect_78][B+][60][18]
                ^ Add next 2 sequential operand(s); replace w/ result
+
 [=][expect_78][78]
  ^ Assign next 2 sequential operand(s); replace w/ result
+
 [78] expression resolved
 Interpreter ret_code = 0
 

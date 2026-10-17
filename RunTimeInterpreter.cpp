@@ -2066,7 +2066,7 @@ int RunTimeInterpreter::execOperation (Operator opr8r, int opr8r_idx, std::vecto
           tmp_str.append (L")");
         }
       }
-      std::wcout << tmp_str << std::endl;
+      std::wcout << tmp_str << std::endl << std::endl;
     }
   }
 }

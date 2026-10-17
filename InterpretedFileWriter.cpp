@@ -80,7 +80,8 @@ int InterpretedFileWriter::writeFlatExprToFile (std::vector<Token> & flatExprTkn
 
       if (OK == ret_code && isIllustrative) {
         int caretPos;
-        std::wcout << L"\nParse tree flattened and written out to interpreted file" << std::endl;
+        // std::wcout << L"\nParse tree flattened and written out to interpreted file" << std::endl;
+        std::wcout << L"\nParse tree flattened & written to interpreted file" << std::endl;
         std::wcout << util.getTokenListStr(flatExprTknList, 0, caretPos) << std::endl;
       }
 

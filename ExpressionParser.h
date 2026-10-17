@@ -101,18 +101,18 @@ private:
   bool isExpectedTknType (uint32_t allowed_tkn_types, uint32_t & next_legal_tkn_types, std::shared_ptr<Token> curr_tkn
     , std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack);
   int openSubExprScope (TokenPtrVector & tknStream, std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack);
-  int makeTreeAndLinkParent (bool & isOpenParenFndYet, bool isExprClosed, std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack);
+  int makeTreeAndLinkParent (bool & isOpenParenFndYet, bool isExprClosed, std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack, std::shared_ptr<Token> closer_tkn);
   bool isTernaryOpen (std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack);
   int get2ndTernaryCnt (std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack);
-  int closeNestedScopes(bool isExprClosed, std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack);
+  int closeNestedScopes(bool isExprClosed, std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack, std::shared_ptr<Token> closer_tkn);
   int moveNeighborsIntoTree (ExprTreeNodePtrVector & currScope, int opr8rIdx, opr8rReadyState opr8rState, bool isMoveLeftNbr
     , bool isMoveRightNbr, std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack);
   int exec_delayed_ternary_2nd (ExprTreeNodePtrVector & currScope, std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack);
   bool is_delay_tern2nd (ExprTreeNodePtrVector & currScope);
   int exec_prec_lvl_opr8rs (ExprTreeNodePtrVector & currScope,  Opr8rPrecedenceLvl & precedenceLvl, bool & is_skip_tern2nd, std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack);
     
-  int turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope, bool isExprClosed, std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack);
-  int turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope, bool isOpenedByTernary, bool isExprClosed, std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack);
+  int turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope, bool isExprClosed, std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack, std::shared_ptr<Token> closer_tkn);
+  int turnClosedScopeIntoTree (ExprTreeNodePtrVector & currScope, bool isOpenedByTernary, bool isExprClosed, std::vector<std::shared_ptr<NestedScopeExpr>> & exprScopeStack, std::shared_ptr<Token> closer_tkn);
   int getExpectedEndToken (std::shared_ptr<Token> startTkn, uint32_t & _1stTknTypMsk, Token & expectedEndTkn, expr_ender_type ended_by);
   
   // Debug helper procs

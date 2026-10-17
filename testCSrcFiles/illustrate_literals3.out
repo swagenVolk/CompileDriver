@@ -10,59 +10,63 @@ expect_155 = 1 + 2 * ((3 + 4) * (5 + 6));
 /* *************** <COMPILATION STAGE> **************** */
 // ILLUSTRATIVE MODE: Starting compilation of expression that begins on illustrate_literals3.c:5:1
 
-Current top precedence sub-expression closed by )
-Scope Level 2: [3][B+][4]
-Scope Level 1: ['(']
-Scope Level 0: [expect_155][=][1][B+][2][*]['(']
+Sub-expression opened by '(' at line:column [5:23] closed by ')' at [5:29]
+Nested Level 2: [3][B+][4]
+Nested Level 1: ['(']
+Nested Level 0: [expect_155][=][1][B+][2][*]['(']
+
 [B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 2: /B+\
+Nested Level 2: /B+\
 
 Parse tree of moved operator 
-               /B+\
-            [3]   [4]
+                /B+\
+             [3]   [4]
 
-Current top precedence sub-expression closed by )
-Scope Level 2: [5][B+][6]
-Scope Level 1: /B+\[*]['(']
-Scope Level 0: [expect_155][=][1][B+][2][*]['(']
+Sub-expression opened by '(' at line:column [5:33] closed by ')' at [5:39]
+Nested Level 2: [5][B+][6]
+Nested Level 1: /B+\[*]['(']
+Nested Level 0: [expect_155][=][1][B+][2][*]['(']
+
 [B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 2: /B+\
+Nested Level 2: /B+\
 
 Parse tree of moved operator 
-               /B+\
-            [5]   [6]
+                /B+\
+             [5]   [6]
 
-Current top precedence sub-expression closed by )
-Scope Level 1: /B+\[*]/B+\
-Scope Level 0: [expect_155][=][1][B+][2][*]['(']
+Sub-expression opened by '(' at line:column [5:22] closed by ')' at [5:40]
+Nested Level 1: /B+\[*]/B+\
+Nested Level 0: [expect_155][=][1][B+][2][*]['(']
+
 [*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 1: /*\
+Nested Level 1: /*\
 
 Parse tree of moved operator 
-               /*\
-           /B+\   /B+\
-         [3][4]   [5][6]
+                /*\
+            /B+\   /B+\
+          [3][4]   [5][6]
 
 Top level expression closed
-Scope Level 0: [expect_155][=][1][B+][2][*]/*\
+Nested Level 0: [expect_155][=][1][B+][2][*]/*\
+
 [*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 0: [expect_155][=][1][B+]/*\
+Nested Level 0: [expect_155][=][1][B+]/*\
 
 Parse tree of moved operator 
-                                     /*\
-                                  [2]   /*\
-                                        /B+\    /B+\
-                                        [3][4]  [5][6]
+                                      /*\
+                                   [2]   /*\
+                                         /B+\    /B+\
+                                         [3][4]  [5][6]
 
 [B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 0: [expect_155][=]/B+\
+Nested Level 0: [expect_155][=]/B+\
 
 Parse tree of moved operator 
-                              /B+\
-                           [1]   /*\
-                                 [2] /*\
-                                     /B+\    /B+\
-                                     [3][4]  [5][6]
+                               /B+\
+                            [1]   /*\
+                                  [2] /*\
+                                      /B+\    /B+\
+                                      [3][4]  [5][6]
 
 Compiler's Parse Tree for Complete Expression
             /=\
@@ -72,7 +76,7 @@ Compiler's Parse Tree for Complete Expression
                       /B+\    /B+\
                       [3][4]  [5][6]
 
-Parse tree flattened and written out to interpreted file
+Parse tree flattened & written to interpreted file
 [=][expect_155][B+][1][*][2][*][B+][3][4][B+][5][6]
 
 Compiler ret_code = 0
@@ -84,16 +88,22 @@ Compiler ret_code = 0
 
 [=][expect_155][B+][1][*][2][*][B+][3][4][B+][5][6]
                                 ^ Add next 2 sequential operand(s); replace w/ result
+
 [=][expect_155][B+][1][*][2][*][7][B+][5][6]
                                    ^ Add next 2 sequential operand(s); replace w/ result
+
 [=][expect_155][B+][1][*][2][*][7][11]
                              ^ Multiply next 2 sequential operand(s); replace w/ result
+
 [=][expect_155][B+][1][*][2][77]
                        ^ Multiply next 2 sequential operand(s); replace w/ result
+
 [=][expect_155][B+][1][154]
                 ^ Add next 2 sequential operand(s); replace w/ result
+
 [=][expect_155][155]
  ^ Assign next 2 sequential operand(s); replace w/ result
+
 [155] expression resolved
 Interpreter ret_code = 0
 

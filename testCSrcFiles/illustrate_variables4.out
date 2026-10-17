@@ -17,76 +17,81 @@ expect_64 = ((one + two) + three) * (four + six) + ((six * one << five) <  (eigh
 /* *************** <COMPILATION STAGE> **************** */
 // ILLUSTRATIVE MODE: Starting compilation of expression that begins on illustrate_variables4.c:7:1
 
-Current top precedence sub-expression closed by )
-Scope Level 2: [one][B+][two]
-Scope Level 1: ['(']
-Scope Level 0: [expect_64][=]['(']
+Sub-expression opened by '(' at line:column [7:14] closed by ')' at [7:24]
+Nested Level 2: [one][B+][two]
+Nested Level 1: ['(']
+Nested Level 0: [expect_64][=]['(']
+
 [B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 2: /B+\
+Nested Level 2: /B+\
 
 Parse tree of moved operator 
-               /B+\
-          [one]   [two]
+                /B+\
+           [one]   [two]
 
-Current top precedence sub-expression closed by )
-Scope Level 1: /B+\[B+][three]
-Scope Level 0: [expect_64][=]['(']
+Sub-expression opened by '(' at line:column [7:13] closed by ')' at [7:33]
+Nested Level 1: /B+\[B+][three]
+Nested Level 0: [expect_64][=]['(']
+
 [B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 1: /B+\
+Nested Level 1: /B+\
 
 Parse tree of moved operator 
-               /B+\
-           /B+\   [three]
-     [one][two]
+                /B+\
+            /B+\   [three]
+      [one][two]
 
-Current top precedence sub-expression closed by )
-Scope Level 1: [four][B+][six]
-Scope Level 0: [expect_64][=]/B+\[*]['(']
+Sub-expression opened by '(' at line:column [7:37] closed by ')' at [7:48]
+Nested Level 1: [four][B+][six]
+Nested Level 0: [expect_64][=]/B+\[*]['(']
+
 [B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 1: /B+\
+Nested Level 1: /B+\
 
 Parse tree of moved operator 
-               /B+\
-         [four]   [six]
+                /B+\
+          [four]   [six]
 
-Current top precedence sub-expression closed by )
-Scope Level 2: [three][:][four]
-Scope Level 1: [six][*][one][<<][five][<][eight][*][four][?]
-Scope Level 0: [expect_64][=]/B+\[*]/B+\[B+]['(']
+Sub-expression opened by '(' at line:column [7:87] closed by ')' at [7:101]
+Nested Level 2: [three][:][four]
+Nested Level 1: [six][*][one][<<][five][<][eight][*][four][?]
+Nested Level 0: [expect_64][=]/B+\[*]/B+\[B+]['(']
+
 [:] (Ternary (divs TRUE|FALSE paths)) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 2: /:\
+Nested Level 2: /:\
 
 Parse tree of moved operator 
-               /:\
-        [three]   [four]
+                /:\
+         [three]   [four]
 
-Current top precedence sub-expression closed by )
-Scope Level 1: [six][*][one][<<][five][<][eight][*][four][?\
-Scope Level 0: [expect_64][=]/B+\[*]/B+\[B+]['(']
-[*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 1: /*\[<<][five][<][eight][*][four][?\
-
-Parse tree of moved operator 
-               /*\
-          [six]   [one]
+Sub-expression opened by '(' at line:column [7:52] closed by ')' at [7:101]
+Nested Level 1: [six][*][one][<<][five][<][eight][*][four][?\
+Nested Level 0: [expect_64][=]/B+\[*]/B+\[B+]['(']
 
 [*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 1: /*\[<<][five][<]/*\[?\
+Nested Level 1: /*\[<<][five][<][eight][*][four][?\
 
 Parse tree of moved operator 
-                               /*\
-                        [eight]   [four]
+                /*\
+           [six]   [one]
+
+[*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
+Nested Level 1: /*\[<<][five][<]/*\[?\
+
+Parse tree of moved operator 
+                                /*\
+                         [eight]   [four]
 
 [<<] (Left shift) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 1: /<<\[<]/*\[?\
+Nested Level 1: /<<\[<]/*\[?\
 
 Parse tree of moved operator 
-               /<<\
-            /*\   [five]
-     [six][one]
+                /<<\
+             /*\   [five]
+      [six][one]
 
 [<] operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 1: /<\[?\
+Nested Level 1: /<\[?\
 
 Parse tree of moved operator 
                   /<\
@@ -95,7 +100,7 @@ Parse tree of moved operator
  [six][one]       
 
 [?] (Ternary (if-else)) operator has precedence; move left operand under (ie tree branches)
-Scope Level 1: /?\
+Nested Level 1: /?\
 
 Parse tree of moved operator 
                                  /?\
@@ -105,18 +110,19 @@ Parse tree of moved operator
  [six][one]                      
 
 Top level expression closed
-Scope Level 0: [expect_64][=]/B+\[*]/B+\[B+]/?\
+Nested Level 0: [expect_64][=]/B+\[*]/B+\[B+]/?\
+
 [*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 0: [expect_64][=]/*\[B+]/?\
+Nested Level 0: [expect_64][=]/*\[B+]/?\
 
 Parse tree of moved operator 
-                             /*\
-                         /B+\   /B+\
-                 /B+\ [three]   [four][six]
-           [one][two]        
+                              /*\
+                          /B+\   /B+\
+                  /B+\ [three]   [four][six]
+            [one][two]        
 
 [B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 0: [expect_64][=]/B+\
+Nested Level 0: [expect_64][=]/B+\
 
 Parse tree of moved operator 
                                 /B+\
@@ -135,7 +141,7 @@ Compiler's Parse Tree for Complete Expression
  [one][two]                        /*\  [five]  [eight][four]
                                    [six][one]
 
-Parse tree flattened and written out to interpreted file
+Parse tree flattened & written to interpreted file
 [=][expect_64][B+][*][B+][B+][one][two][three][B+][four][six][?][<][<<][*][six][one][five][*][eight][four][three][four]
 
 Compiler ret_code = 0
@@ -147,27 +153,39 @@ Compiler ret_code = 0
 
 [=][expect_64][B+][*][B+][B+][one][two][three][B+][four][six][?][<][<<][*][six][one][five][*][eight][four][three][four]
                           ^ Add next 2 sequential operand(s); replace w/ result
+
 [=][expect_64][B+][*][B+][3][three][B+][four][six][?][<][<<][*][six][one][five][*][eight][four][three][four]
                       ^ Add next 2 sequential operand(s); replace w/ result
+
 [=][expect_64][B+][*][6][B+][four][six][?][<][<<][*][six][one][five][*][eight][four][three][four]
                          ^ Add next 2 sequential operand(s); replace w/ result
+
 [=][expect_64][B+][*][6][10][?][<][<<][*][six][one][five][*][eight][four][three][four]
                    ^ Multiply next 2 sequential operand(s); replace w/ result
+
 [=][expect_64][B+][60][?][<][<<][*][six][one][five][*][eight][four][three][four]
                        ^ Ternary (if-else) next 3 sequential operand(s); replace w/ result; [Conditional][TRUE path][FALSE path]
+
                                  ^ Multiply next 2 sequential operand(s); replace w/ result
+
 [=][expect_64][B+][60][?][<][<<][6][five][*][eight][four][three][four]
                              ^ Left shift next 2 sequential operand(s); replace w/ result
+
 [=][expect_64][B+][60][?][<][0xc0][*][eight][four][three][four]
                                    ^ Multiply next 2 sequential operand(s); replace w/ result
+
 [=][expect_64][B+][60][?][<][0xc0][32][three][four]
                           ^ Use next 2 sequential operand(s); replace w/ result
+
 [=][expect_64][B+][60][?][0x0][three][four]
                        ^ Ternary (if-else) next 3 sequential operand(s); replace w/ result; [Conditional][TRUE path][FALSE path]
+
 [=][expect_64][B+][60][four]
                ^ Add next 2 sequential operand(s); replace w/ result
+
 [=][expect_64][64]
  ^ Assign next 2 sequential operand(s); replace w/ result
+
 [64] expression resolved
 Interpreter ret_code = 0
 

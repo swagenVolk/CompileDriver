@@ -9,21 +9,22 @@ expect_5 = 1 * 2 + 3;
 // ILLUSTRATIVE MODE: Starting compilation of expression that begins on illustrate_literals1.c:3:1
 
 Top level expression closed
-Scope Level 0: [expect_5][=][1][*][2][B+][3]
+Nested Level 0: [expect_5][=][1][*][2][B+][3]
+
 [*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 0: [expect_5][=]/*\[B+][3]
+Nested Level 0: [expect_5][=]/*\[B+][3]
 
 Parse tree of moved operator 
-                            /*\
-                         [1]   [2]
+                             /*\
+                          [1]   [2]
 
 [B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
-Scope Level 0: [expect_5][=]/B+\
+Nested Level 0: [expect_5][=]/B+\
 
 Parse tree of moved operator 
-                            /B+\
-                         /*\   [3]
-                      [1][2]
+                             /B+\
+                          /*\   [3]
+                       [1][2]
 
 Compiler's Parse Tree for Complete Expression
           /=\
@@ -31,7 +32,7 @@ Compiler's Parse Tree for Complete Expression
           /*\   [3]
        [1][2]
 
-Parse tree flattened and written out to interpreted file
+Parse tree flattened & written to interpreted file
 [=][expect_5][B+][*][1][2][3]
 
 Compiler ret_code = 0
@@ -43,10 +44,13 @@ Compiler ret_code = 0
 
 [=][expect_5][B+][*][1][2][3]
                   ^ Multiply next 2 sequential operand(s); replace w/ result
+
 [=][expect_5][B+][2][3]
               ^ Add next 2 sequential operand(s); replace w/ result
+
 [=][expect_5][5]
  ^ Assign next 2 sequential operand(s); replace w/ result
+
 [5] expression resolved
 Interpreter ret_code = 0
 
