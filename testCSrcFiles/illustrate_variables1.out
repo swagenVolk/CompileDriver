@@ -15,14 +15,14 @@ expect_5 = one + two * three * four / six;
 Top level expression closed
 Nested Level 0: [expect_5][=][one][B+][two][*][three][*][four][/][six]
 
-[*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
+[*] (Multiply) operator has precedence at nested level 0; move left & right operands under (ie tree branches)
 Nested Level 0: [expect_5][=][one][B+]/*\[*][four][/][six]
 
 Parse tree of moved operator 
                                       /*\
                                  [two]   [three]
 
-[*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
+[*] (Multiply) operator has precedence at nested level 0; move left & right operands under (ie tree branches)
 Nested Level 0: [expect_5][=][one][B+]/*\[/][six]
 
 Parse tree of moved operator 
@@ -30,7 +30,7 @@ Parse tree of moved operator
                                    /*\   [four]
                           [two][three]
 
-[/] (Divide) operator has precedence; move left & right operands under (ie tree branches)
+[/] (Divide) operator has precedence at nested level 0; move left & right operands under (ie tree branches)
 Nested Level 0: [expect_5][=][one][B+]//\
 
 Parse tree of moved operator 
@@ -39,7 +39,7 @@ Parse tree of moved operator
                             /*\ [four]
                    [two][three]       
 
-[B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
+[B+] (Add) operator has precedence at nested level 0; move left & right operands under (ie tree branches)
 Nested Level 0: [expect_5][=]/B+\
 
 Parse tree of moved operator 

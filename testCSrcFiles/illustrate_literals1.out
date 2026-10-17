@@ -11,14 +11,14 @@ expect_5 = 1 * 2 + 3;
 Top level expression closed
 Nested Level 0: [expect_5][=][1][*][2][B+][3]
 
-[*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
+[*] (Multiply) operator has precedence at nested level 0; move left & right operands under (ie tree branches)
 Nested Level 0: [expect_5][=]/*\[B+][3]
 
 Parse tree of moved operator 
                              /*\
                           [1]   [2]
 
-[B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
+[B+] (Add) operator has precedence at nested level 0; move left & right operands under (ie tree branches)
 Nested Level 0: [expect_5][=]/B+\
 
 Parse tree of moved operator 

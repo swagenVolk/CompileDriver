@@ -764,7 +764,9 @@ int ExpressionParser::moveNeighborsIntoTree (ExprTreeNodePtrVector & currScope
           bannerMsg.append (L")");
         }
 
-        bannerMsg.append(L" operator has precedence; move");
+        bannerMsg.append(L" operator has precedence at nested level ");
+        bannerMsg.append(std::to_wstring(exprScopeStack.size() - 1));
+        bannerMsg.append(L"; move");
 
         if (opr8rState == ATTACH_1ST) {
           bannerMsg.append(L" left operand");
@@ -1546,14 +1548,14 @@ void ExpressionParser::printScopeStack (std::wstring fileName, int lineNumber
   else if (!isUseDefault && !bannerMsg.empty())
     std::wcout << bannerMsg << std::endl;
 
-  std::vector<std::shared_ptr<NestedScopeExpr>>::reverse_iterator scopeR8r;
+  std::vector<std::shared_ptr<NestedScopeExpr>>::iterator scopeR8r;
   std::vector<std::shared_ptr<ExprTreeNode>>::iterator kidR8r;
-  int scopeLvl = exprScopeStack.size() - 1;
+  int scopeLvl = 0;
 
-  for (scopeR8r = exprScopeStack.rbegin(); scopeR8r != exprScopeStack.rend(); scopeR8r++) {
+  for (scopeR8r = exprScopeStack.begin(); scopeR8r != exprScopeStack.end(); scopeR8r++) {
     
     printSingleScope (L"", scopeLvl, exprScopeStack);
-    scopeLvl--;
+    scopeLvl++;
   }
 
   // Give a newline visual break in case we just dumped multiple scope levels of an expression

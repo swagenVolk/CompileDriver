@@ -13,10 +13,10 @@ expect_6 = (one + two) * three * four / six;
 // ILLUSTRATIVE MODE: Starting compilation of expression that begins on illustrate_variables2.c:7:1
 
 Sub-expression opened by '(' at line:column [7:12] closed by ')' at [7:22]
-Nested Level 1: [one][B+][two]
 Nested Level 0: [expect_6][=]['(']
+Nested Level 1: [one][B+][two]
 
-[B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
+[B+] (Add) operator has precedence at nested level 1; move left & right operands under (ie tree branches)
 Nested Level 1: /B+\
 
 Parse tree of moved operator 
@@ -26,7 +26,7 @@ Parse tree of moved operator
 Top level expression closed
 Nested Level 0: [expect_6][=]/B+\[*][three][*][four][/][six]
 
-[*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
+[*] (Multiply) operator has precedence at nested level 0; move left & right operands under (ie tree branches)
 Nested Level 0: [expect_6][=]/*\[*][four][/][six]
 
 Parse tree of moved operator 
@@ -34,7 +34,7 @@ Parse tree of moved operator
                          /B+\   [three]
                    [one][two]
 
-[*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
+[*] (Multiply) operator has precedence at nested level 0; move left & right operands under (ie tree branches)
 Nested Level 0: [expect_6][=]/*\[/][six]
 
 Parse tree of moved operator 
@@ -43,7 +43,7 @@ Parse tree of moved operator
                  /B+\ [three]
            [one][two]        
 
-[/] (Divide) operator has precedence; move left & right operands under (ie tree branches)
+[/] (Divide) operator has precedence at nested level 0; move left & right operands under (ie tree branches)
 Nested Level 0: [expect_6][=]//\
 
 Parse tree of moved operator 

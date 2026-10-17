@@ -11,11 +11,11 @@ expect_155 = 1 + 2 * ((3 + 4) * (5 + 6));
 // ILLUSTRATIVE MODE: Starting compilation of expression that begins on illustrate_literals3.c:5:1
 
 Sub-expression opened by '(' at line:column [5:23] closed by ')' at [5:29]
-Nested Level 2: [3][B+][4]
-Nested Level 1: ['(']
 Nested Level 0: [expect_155][=][1][B+][2][*]['(']
+Nested Level 1: ['(']
+Nested Level 2: [3][B+][4]
 
-[B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
+[B+] (Add) operator has precedence at nested level 2; move left & right operands under (ie tree branches)
 Nested Level 2: /B+\
 
 Parse tree of moved operator 
@@ -23,11 +23,11 @@ Parse tree of moved operator
              [3]   [4]
 
 Sub-expression opened by '(' at line:column [5:33] closed by ')' at [5:39]
-Nested Level 2: [5][B+][6]
-Nested Level 1: /B+\[*]['(']
 Nested Level 0: [expect_155][=][1][B+][2][*]['(']
+Nested Level 1: /B+\[*]['(']
+Nested Level 2: [5][B+][6]
 
-[B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
+[B+] (Add) operator has precedence at nested level 2; move left & right operands under (ie tree branches)
 Nested Level 2: /B+\
 
 Parse tree of moved operator 
@@ -35,10 +35,10 @@ Parse tree of moved operator
              [5]   [6]
 
 Sub-expression opened by '(' at line:column [5:22] closed by ')' at [5:40]
-Nested Level 1: /B+\[*]/B+\
 Nested Level 0: [expect_155][=][1][B+][2][*]['(']
+Nested Level 1: /B+\[*]/B+\
 
-[*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
+[*] (Multiply) operator has precedence at nested level 1; move left & right operands under (ie tree branches)
 Nested Level 1: /*\
 
 Parse tree of moved operator 
@@ -49,7 +49,7 @@ Parse tree of moved operator
 Top level expression closed
 Nested Level 0: [expect_155][=][1][B+][2][*]/*\
 
-[*] (Multiply) operator has precedence; move left & right operands under (ie tree branches)
+[*] (Multiply) operator has precedence at nested level 0; move left & right operands under (ie tree branches)
 Nested Level 0: [expect_155][=][1][B+]/*\
 
 Parse tree of moved operator 
@@ -58,7 +58,7 @@ Parse tree of moved operator
                                          /B+\    /B+\
                                          [3][4]  [5][6]
 
-[B+] (Add) operator has precedence; move left & right operands under (ie tree branches)
+[B+] (Add) operator has precedence at nested level 0; move left & right operands under (ie tree branches)
 Nested Level 0: [expect_155][=]/B+\
 
 Parse tree of moved operator 
